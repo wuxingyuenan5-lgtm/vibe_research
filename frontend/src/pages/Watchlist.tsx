@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { Plus, X, RefreshCw, Star } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Disclaimer } from "@/components/ui/Disclaimer";
 import { AskAiButton } from "@/components/ui/AskAiButton";
 import { loadWatch, saveWatch, addCodes } from "@/lib/watchlist";
 import { useLiveQuotes, isTradingHours } from "@/hooks/useLiveQuotes";
@@ -224,7 +223,6 @@ export function Watchlist() {
         )}
       </GlassCard>
 
-      <Disclaimer />
     </div>
   );
 }

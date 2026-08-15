@@ -4,7 +4,6 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Disclaimer } from "@/components/ui/Disclaimer";
 import { loadNotes, deleteNote, clearNotes, addNote, type Note } from "@/lib/notes";
 import { reflectStream } from "@/lib/agents";
 import { ApiError } from "@/lib/api";
@@ -93,7 +92,7 @@ export function Notes() {
                 </div>
                 {open && (
                   <div className="border-t border-border/40 px-4 py-3">
-                    <div className="prose prose-sm prose-invert max-w-none text-foreground">
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-foreground">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{n.content}</ReactMarkdown>
                     </div>
 
@@ -114,7 +113,7 @@ export function Notes() {
                           <p className="text-xs text-destructive">{reflectErr}</p>
                         ) : (
                           <>
-                            <div className="prose prose-sm prose-invert max-w-none text-foreground">
+                            <div className="prose prose-sm dark:prose-invert max-w-none text-foreground">
                               <ReactMarkdown remarkPlugins={[remarkGfm]}>{reflectText}</ReactMarkdown>
                             </div>
                             {!reflecting && (
@@ -135,7 +134,6 @@ export function Notes() {
         </div>
       )}
 
-      <Disclaimer />
     </div>
   );
 }

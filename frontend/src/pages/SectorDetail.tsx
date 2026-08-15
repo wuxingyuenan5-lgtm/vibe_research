@@ -3,7 +3,6 @@ import { ArrowLeft, Plus, Wrench } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { AskAiButton } from "@/components/ui/AskAiButton";
-import { Disclaimer } from "@/components/ui/Disclaimer";
 import sectorsData from "@/data/sectors.json";
 
 export function SectorDetail() {
@@ -67,8 +66,6 @@ export function SectorDetail() {
           </div>
         </GlassCard>
       )}
-
-      <Disclaimer />
     </div>
   );
 }

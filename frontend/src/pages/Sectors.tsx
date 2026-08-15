@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import { Flame, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Disclaimer } from "@/components/ui/Disclaimer";
 import sectorsData from "@/data/sectors.json";
 
 export function Sectors() {
@@ -45,7 +44,6 @@ export function Sectors() {
       <p className="mt-4 text-center text-xs text-muted-foreground/60">
         共 {sectors.length} 个板块，其中 {hotCount} 个热门 · 环节持续实时核实补全
       </p>
-      <Disclaimer />
     </div>
   );
 }

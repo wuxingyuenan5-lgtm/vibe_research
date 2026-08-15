@@ -1,16 +1,7 @@
-// 通用 NDJSON 流读取器 —— 后端的 /api/debate、/api/reflect 都用「每行一个 JSON 事件」推送。
-// 抽出来是因为多 agent 流程的事件类型比对话多（阶段、进度、分角色增量），
-// 各页面只关心事件本身，不该各写一遍拆行/解码逻辑。
-
 import { ApiError, authHeaders } from "@/lib/api";
 
 export type NdjsonEvent = Record<string, any>;
 
-/**
- * POST 一个 JSON body，按行消费 NDJSON 事件流。
- * - 配置类错误（400/401）在流开始前抛 ApiError，调用方可直接提示用户去配置。
- * - 流内的 {type:"error"} 事件交给 onEvent 自行处理（单个角色失败不必中断整场）。
- */
 export async function streamNdjson(
   url: string,
   body: unknown,

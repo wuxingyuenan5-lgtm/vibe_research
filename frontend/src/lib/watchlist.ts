@@ -1,6 +1,3 @@
-// 关注股票（自选股）—— 只存本地 localStorage，不上传、不进仓库。
-// 行情复用 /api/quote；复盘时把关注股行情一并喂给用户自己的 AI。
-
 const KEY = "vr-watchlist";
 
 export function loadWatch(): string[] {

@@ -1,12 +1,3 @@
-"""Vibe-Research 后端 —— A股数据层 HTTP 接口（FastAPI）。
-
-端点全部在 /api 下，前端 vite 代理 /api → localhost:8900。
-只读、无状态、按用户传入代码返回客观数据。不预置标的、不建议。
-
-启动：
-    uvicorn app:app --host 127.0.0.1 --port 8900
-"""
-
 from __future__ import annotations
 
 import json
@@ -22,11 +13,15 @@ import chat as chat_layer
 import cli_runtime
 import debate as debate_layer
 import gstock
+import market_monitor.report_builder as market_monitor_builder
+import market_monitor.stock_pool as stock_pool_builder
 import newsradar
 import portfolio as pf
 import market
 import myreports as mr
 import reflection as reflect_layer
+import market_monitor.morning_brief as morning_brief
+from pathlib import Path
 
 app = FastAPI(title="Vibe-Research API", version="0.2.2")
 
@@ -309,6 +304,61 @@ def radar_refresh():
         return {"data": newsradar.fetch_radar()}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"资讯雷达刷新失败：{e}") from e
+
+
+@app.get("/api/market-monitor")
+def market_monitor():
+    """A股每日市场监控（Canonical → report_data 合同）。只读已生成快照，无快照则现场构建。"""
+    try:
+        root = Path(__file__).resolve().parent / "data" / "market-monitor"
+        latest = json.loads((root / "data" / "latest_bundle_pointer.json").read_text("utf-8")) if (root / "data" / "latest_bundle_pointer.json").exists() else {}
+        target_date = latest.get("date") or "2026-08-14"
+        snapshot = root / "output" / target_date / "report_data.json"
+        if snapshot.exists():
+            report = json.loads(snapshot.read_text("utf-8"))
+        else:
+            report = market_monitor_builder.build_report_data(target_date, root)
+            snapshot.parent.mkdir(parents=True, exist_ok=True)
+            snapshot.write_text(json.dumps(report, ensure_ascii=False), "utf-8")
+        return {"data": report}
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"市场监控异常：{e}") from e
+
+
+@app.get("/api/stock-pool")
+def stock_pool():
+    """核心股票池 Dashboard V0.1 payload（复刻 Astock_study feat/dashboard-v0.1 母版结构）。"""
+    try:
+        root = Path(__file__).resolve().parent / "data" / "market-monitor"
+        snapshot = root / "output" / "stock-pool" / "payload.json"
+        if snapshot.exists():
+            payload = json.loads(snapshot.read_text("utf-8"))
+        else:
+            payload = stock_pool_builder.build_stock_pool_payload(root)
+            stock_pool_builder.build_stock_pool_payload_file(root, snapshot)
+        return {"data": payload}
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"股票池数据异常：{e}") from e
+
+
+@app.get("/api/morning-brief")
+def morning_brief_payload(date: str = "2026-08-14"):
+    """统一交易晨报 payload（冻结研究成品；Dashboard 只消费展示）。"""
+    payload = morning_brief.load_payload(date)
+    if payload is None:
+        raise HTTPException(404, f"未找到 {date} 的晨报 payload")
+    return {"data": payload, "dates": morning_brief.list_dates()}
+
+
+@app.get("/api/morning-brief/download")
+def morning_brief_download(date: str = "2026-08-14", kind: str = "html"):
+    """下载晨报 HTML / PDF 产物（与 payload 同源）。"""
+    path = morning_brief.resolve_artifact(date, kind)
+    if path is None:
+        raise HTTPException(404, f"未找到 {date} 的 {kind} 产物")
+    media = "application/pdf" if kind == "pdf" else "text/html; charset=utf-8"
+    filename = f"统一交易晨报_{date}.{kind}"
+    return FileResponse(path, media_type=media, filename=filename)
 
 
 @app.get("/api/market/overview")

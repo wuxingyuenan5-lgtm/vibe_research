@@ -1,5 +1,3 @@
-// 用户 LLM 配置（只存本地 localStorage，不上传、不进仓库）+ 系统 AI 对话调用。
-
 import { storageSet, storageRemove } from "@/lib/storage";
 
 import { ApiError, authHeaders } from "./api";

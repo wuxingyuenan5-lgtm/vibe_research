@@ -1,7 +1,3 @@
-"""真实数据源 shape 冒烟测（联网）。用于开源前 / 升级后核对上游没变。
-运行：pytest -m live      跳过：pytest -m "not live"
-断言偏「形状」而非「非空」——部分源受住宅 IP 风控/限流可能间歇为空，不算失败。
-"""
 import pytest
 
 import astock

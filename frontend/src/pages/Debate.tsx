@@ -4,7 +4,6 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Disclaimer } from "@/components/ui/Disclaimer";
 import { debateStream, type DebateStage } from "@/lib/agents";
 import { addNote } from "@/lib/notes";
 import { ApiError } from "@/lib/api";
@@ -94,7 +93,7 @@ export function Debate() {
     <div>
       <PageHeader
         title="多空辩论"
-        subtitle="同一份客观数据，多方与空方各自立论、互相质疑，最后由中立主持归纳分歧点与验证清单——不给买卖结论，判断留给你自己。"
+        subtitle="同一份客观数据，多方与空方各自立论、互相质疑，最后由中立主持归纳分歧点与验证清单。"
       />
 
       <GlassCard>
@@ -189,7 +188,7 @@ export function Debate() {
               <span className="text-sm font-semibold">{s.label}</span>
               {!s.done && <span className="animate-pulse text-[11px] text-muted-foreground">生成中…</span>}
             </div>
-            <div className="prose prose-sm prose-invert max-w-none text-foreground prose-table:text-sm">
+            <div className="prose prose-sm dark:prose-invert max-w-none text-foreground prose-table:text-sm">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{s.content || "…"}</ReactMarkdown>
             </div>
           </div>
@@ -206,7 +205,6 @@ export function Debate() {
         </GlassCard>
       )}
 
-      <Disclaimer />
     </div>
   );
 }

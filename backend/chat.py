@@ -1,12 +1,3 @@
-"""系统 AI 对话层 —— function calling 循环（OpenAI 兼容）。
-
-让网页内置 AI 在回答时自己调 astock 数据工具（查行情/估值/研报/新闻），
-拿到客观数据再作答。兼容豆包 / DeepSeek / 任意 OpenAI 兼容端点。
-
-合规：工具只返回客观数据；system prompt 强制中立——不荐股、不预测涨跌、
-不给买卖时机，只做信息整理与多视角分析。结论由用户配置的模型给出。
-"""
-
 from __future__ import annotations
 
 import ipaddress

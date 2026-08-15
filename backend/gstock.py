@@ -1,18 +1,3 @@
-"""美股 / 港股数据层 —— 移植自 global-stock-data（美港股全栈工具包）。
-
-只并入「域内(东财)」的合规子集：全球指数 + 美港股行情 + 关键财务指标。
-用途＝A 股「看隔夜外围脸色」+ 个股页支持美港股代码。
-
-工程要点：
-- 东财调用全部复用 `astock.em_get`（直连优先、避开用户 Clash 代理挂国内站）+
-  `astock.eastmoney_datacenter`（datacenter 三表/指标已封装）。
-- push2 stock/get 直连偶发掉连 → **push2 优先、失败降级 push2delay**（延时行情，研究场景足够），
-  latch 到可用主机整进程复用（同成交额榜的做法）。
-- Yahoo / SEC 等国外源不并入（需科学上网、且非必要）。
-
-合规：只做客观数据整理，不预置标的、不推荐、不预测。
-"""
-
 from __future__ import annotations
 
 import astock

@@ -137,12 +137,6 @@ export function AskAiButton({ context, suggestions = [], label = "问 AI" }: Pro
               // 已接入：真对话
               <>
                 <div ref={scrollRef} className="flex-1 space-y-3 overflow-auto p-4 text-sm">
-                  {msgs.length === 0 && (
-                    <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 text-xs text-muted-foreground">
-                      AI 可基于本页上下文、并自行调取 A股行情/估值/研报数据作答。结论由你的模型给出，
-                      <b className="text-foreground">不构成投资建议</b>。
-                    </div>
-                  )}
                   {msgs.map((m, i) => (
                     <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
                       <div className={cn(

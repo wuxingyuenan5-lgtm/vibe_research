@@ -1,7 +1,3 @@
-"""审计修复回归测（2026-07-05，全部离线）：
-鉴权中间件 / 持仓 CRUD 与坏文件降级 / 估值脏数据防护 / 涨停池脏数值 /
-空结果不缓存 / akshare 缺失降级 / 无 index 工具调用归位 / CLI 流式超时。
-"""
 import pytest
 from fastapi.testclient import TestClient
 

@@ -1,0 +1,86 @@
+/* 统一交易晨报 —— 样式原样搬运自《统一交易晨报_2026-08-14.html》，仅加 .mb-root 作用域前缀 */
+
+.mb-root {
+  --bg: #f2f4f7; --paper: #fff; --ink: #172234; --sub: #6a7585;
+  --blue: #173c68; --line: #e2e7ed; --soft: #f7f9fb;
+  --up: #c23b3b; --down: #16835a; --shadow: 0 4px 16px rgba(25, 42, 62, 0.04);
+  background: var(--bg); color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+  line-height: 1.62; box-sizing: border-box; min-height: 100%;
+}
+.mb-root *, .mb-root *::before, .mb-root *::after { box-sizing: border-box; }
+
+.mb-root .page { max-width: 1220px; margin: 20px auto 52px; padding: 0 18px; }
+.mb-root .hero, .mb-root section { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
+.mb-root .hero { padding: 30px 34px 24px; }
+.mb-root .eyebrow { font-size: 12px; letter-spacing: 0.12em; font-weight: 750; color: var(--blue); }
+.mb-root h1 { font-size: 32px; line-height: 1.18; color: var(--blue); margin: 6px 0 9px; }
+.mb-root .hero-meta { display: flex; gap: 18px; flex-wrap: wrap; color: var(--sub); font-size: 13px; }
+.mb-root .hero-call { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 17px; font-size: 18px; font-weight: 760; }
+.mb-root .controls { position: sticky; top: 0; z-index: 20; display: flex; gap: 8px; margin: 12px 0; padding: 7px; background: rgba(242, 244, 247, 0.94); backdrop-filter: blur(9px); }
+.mb-root .controls button { border: 1px solid var(--line); background: #fff; color: var(--sub); border-radius: 7px; padding: 7px 13px; cursor: pointer; }
+.mb-root .controls button.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+.mb-root .controls .dl { margin-left: auto; display: flex; gap: 8px; }
+.mb-root section { margin: 13px 0; padding: 23px 27px; }
+.mb-root .section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; border-bottom: 1px solid var(--line); padding-bottom: 10px; margin-bottom: 17px; }
+.mb-root h2 { font-size: 20px; color: var(--blue); margin: 0; }
+.mb-root h3 { font-size: 16px; color: #29415b; margin: 0 0 8px; }
+.mb-root .kicker, .mb-root .note { font-size: 12px; color: var(--sub); }
+.mb-root .up { color: var(--up) !important; }
+.mb-root .down { color: var(--down) !important; }
+.mb-root .flat { color: var(--sub) !important; }
+.mb-root .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+.mb-root .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.mb-root .summary-grid { display: grid; grid-template-columns: 1.12fr 0.88fr; gap: 17px; }
+.mb-root .summary-list { margin: 0; padding-left: 20px; }
+.mb-root .summary-list li { margin: 5px 0; }
+.mb-root .card { border: 1px solid var(--line); border-radius: 8px; padding: 14px 15px; background: #fff; }
+.mb-root .card.soft { background: var(--soft); }
+.mb-root .label { font-size: 12px; color: var(--sub); margin-bottom: 3px; }
+.mb-root .metric { font-size: 25px; font-weight: 770; letter-spacing: -0.02em; }
+.mb-root .priority { border-left: 3px solid var(--blue); background: #f6f9fc; padding: 11px 13px; margin: 10px 0; }
+.mb-root .warning { border: 1px solid #eadfc8; background: #fffaf0; color: #6c5526; padding: 10px 13px; border-radius: 7px; font-size: 12px; }
+.mb-root .table-wrap { overflow-x: auto; }
+.mb-root table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.mb-root th { text-align: left; color: var(--sub); font-size: 12px; padding: 8px 9px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.mb-root td { padding: 9px; border-bottom: 1px solid #edf0f3; vertical-align: top; }
+.mb-root tbody tr:hover { background: #fafbfd; }
+.mb-root tr:last-child td { border-bottom: 0; }
+.mb-root .time { white-space: nowrap; color: var(--sub); }
+.mb-root .group-tag { display: inline-block; padding: 2px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--sub); font-size: 11px; white-space: nowrap; }
+.mb-root .switch-grid { display: grid; grid-template-columns: 1fr 44px 1fr; gap: 12px; align-items: stretch; margin-top: 14px; }
+.mb-root .switch-arrow { display: flex; align-items: center; justify-content: center; color: var(--sub); font-size: 24px; }
+.mb-root .breadth { display: flex; height: 18px; border-radius: 20px; overflow: hidden; background: #edf0f3; margin: 10px 0; }
+.mb-root .breadth .u { background: var(--up); }
+.mb-root .breadth .d { background: var(--down); }
+.mb-root .industrybar { display: flex; height: 14px; border-radius: 20px; overflow: hidden; margin: 10px 0; background: #edf0f3; }
+.mb-root .industrybar .u { background: var(--up); }
+.mb-root .industrybar .d { background: var(--down); }
+.mb-root .mainline { border: 1px solid var(--line); border-left: 4px solid var(--blue); border-radius: 8px; padding: 17px 18px; margin: 11px 0; }
+.mb-root .mainline-head { display: grid; grid-template-columns: 1.35fr 0.65fr; gap: 20px; align-items: start; }
+.mb-root .mainline p { margin: 7px 0; }
+.mb-root .tag { display: inline-block; font-size: 11px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 7px; color: var(--sub); margin: 0 4px 5px 0; }
+.mb-root .evidence { background: var(--soft); border-radius: 7px; padding: 10px 11px; font-size: 12px; }
+.mb-root .evidence b { display: block; color: #344b64; margin-bottom: 3px; }
+.mb-root .state { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+.mb-root .state.good { background: #eff8f4; color: #23604a; }
+.mb-root .state.weak { background: #f5f4f7; color: #655d6b; }
+.mb-root .events td:first-child { font-weight: 720; color: var(--blue); white-space: nowrap; }
+.mb-root .sources a { color: #315e8b; text-decoration: none; }
+.mb-root .footer { font-size: 11px; color: var(--sub); text-align: center; margin-top: 14px; }
+.mb-root [data-mode-hide="1"] { display: none !important; }
+
+@media (max-width: 860px) {
+  .mb-root .page { padding: 0 9px; margin-top: 9px; }
+  .mb-root .hero, .mb-root section { padding: 19px 16px; border-radius: 8px; }
+  .mb-root h1 { font-size: 26px; }
+  .mb-root .grid-2, .mb-root .grid-3, .mb-root .summary-grid, .mb-root .switch-grid, .mb-root .mainline-head { grid-template-columns: 1fr; }
+  .mb-root .switch-arrow { transform: rotate(90deg); }
+  .mb-root table { min-width: 820px; }
+}
+@media print {
+  .mb-root { background: #fff; }
+  .mb-root .page { max-width: none; margin: 0; padding: 0; }
+  .mb-root .controls { display: none; }
+  .mb-root .hero, .mb-root section { box-shadow: none; break-inside: avoid; }
+}

@@ -1,4 +1,3 @@
-"""API 验证/契约测（FastAPI TestClient）。大多在校验层就返回，不联网、可靠。"""
 import pytest
 from fastapi.testclient import TestClient
 

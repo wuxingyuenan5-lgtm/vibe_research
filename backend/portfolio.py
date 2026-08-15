@@ -1,14 +1,3 @@
-"""持仓数据层 —— 用户自己录入的持仓 + 实时行情叠加浮动盈亏。
-
-合规：持仓是用户主动录入的自己的标的（存本地 ~/.vibe-research/portfolio.json，
-不上传、不进仓库），不预置任何标的、不含 _SEED 兜底、不做推荐。
-盈亏红涨绿跌（A股口径）。含每半小时后台定时刷新 + 手动刷新。
-
-存储位置：默认用户目录 ~/.vibe-research/（可用 VR_DATA_DIR 覆盖）——
-放仓库外，重新下载/覆盖项目文件夹不会丢数据（issue #12）。
-≤v0.1.1 存在 backend/.cache/ 仓库内，首次启动自动迁移（复制，旧文件保留作备份）。
-"""
-
 from __future__ import annotations
 
 import json

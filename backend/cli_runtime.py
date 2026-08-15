@@ -1,12 +1,3 @@
-"""订阅接入：调本机已装、已登录的 AI CLI（Claude Code / Qwen / DeepSeek / Codex），
-用用户自己的订阅额度作答、免 API key。移植自 SDesign-opensource 的 cli-runtime（Node），
-改为 Python subprocess + 一次性（非流式）取纯文本。
-
-⚠️ 仅当后端跑在用户本机时可用——云端读不到用户本机的 CLI 与登录态。
-CLI 不做 function-calling（不像 API 那条能让 AI 自己调数据工具）；因此订阅接入只适合
-「数据已在提示词里」的场景（每日复盘 / 今日要点 / 个股页问 AI，页面已把数据塞进 context）。
-"""
-
 from __future__ import annotations
 
 import os

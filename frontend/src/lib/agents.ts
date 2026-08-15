@@ -1,6 +1,3 @@
-// 多 agent 能力的前端客户端：多空辩论 + 反思审计。
-// 两者都走后端 NDJSON 流；模型配置沿用「接入 AI」里存的那一份（用户自己的 key / 本机 CLI）。
-
 import { ApiError } from "@/lib/api";
 import { loadLlm } from "@/lib/llm";
 import { streamNdjson, type NdjsonEvent } from "@/lib/ndjson";

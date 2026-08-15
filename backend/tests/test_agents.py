@@ -1,11 +1,3 @@
-"""工具层 + 多空辩论 + 反思 的回归测。全部离线、不联网（真实取数走 test_live.py）。
-
-覆盖 v0.2.0 新增面：
-- tools：工具定义与 handler 一一对应、裁剪逻辑、错误不抛。
-- debate：角色流程、各角色的可见范围（谁能看到谁的发言）、底稿渲染与缺口标注。
-- reflection：空输入、超长截断。
-- 路由：/api/debate 与 /api/reflect 的参数与配置校验。
-"""
 import pytest
 from fastapi.testclient import TestClient
 

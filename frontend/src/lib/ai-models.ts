@@ -1,9 +1,3 @@
-// 接入 AI 的模型清单（移植自 SDesign-opensource / open-design，按 Vibe-Research 适配）。
-// 两类：
-//   订阅版（provider "cli-*"）= 调本机已登录的 CLI，用订阅额度、免 API key（仅本地自托管可用）。
-//   API 版 = 填自己的 key，走 OpenAI 兼容 /chat/completions。
-// key 一律只存本地浏览器、随请求发给你自己的后端；不上传、不进仓库。
-
 export type ProviderId =
   | "deepseek"
   | "silicon"

@@ -3,7 +3,6 @@ import { Plus, ShieldCheck, RefreshCw, Loader2, Trash2, AlertCircle } from "luci
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { AskAiButton } from "@/components/ui/AskAiButton";
-import { Disclaimer } from "@/components/ui/Disclaimer";
 import { api, ApiError, type PortfolioData } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -298,7 +297,6 @@ export function Portfolio() {
         )}
       </GlassCard>
 
-      <Disclaimer />
     </div>
   );
 }

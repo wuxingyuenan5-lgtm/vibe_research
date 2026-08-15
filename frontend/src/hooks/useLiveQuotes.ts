@@ -1,37 +1,14 @@
-// 自选股实时行情轮询。
-//
-// 几个刻意的选择：
-// - **3 秒一档**：A 股 level-1 行情本身就是 3 秒一笔快照，拉得再快也是同一份数据，
-//   纯粹浪费请求。这就是「能拿到的最快频率」。
-// - **递归 setTimeout 而不是 setInterval**：单次请求实测 ~750ms，网络一慢 setInterval
-//   会让请求首尾叠在一起。改成「上一次结束后再等 N 秒」，永远不会堆叠。
-// - **非交易时段自动暂停**：收盘后数据不再变化，继续轮询既无意义又给上游添压。
-//   手动刷新按钮仍然可用。
-// - **页面切走时暂停**：用户看不到的时候不该继续消耗流量（浏览器自身也会节流后台定时器）。
-// - **失败退避**：连续失败时间隔翻倍（上限 30 秒），成功后立刻复位，避免断网时疯狂重试。
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Quote } from "@/lib/api";
 
 export const LIVE_INTERVAL_MS = 3000;   // A 股 level-1 快照粒度
 const MAX_BACKOFF_MS = 30_000;
 
-/** 取当前的北京时间。
- *
- * ⚠️ 不能直接用 `new Date().getHours()` —— 那是**用户本机时区**。用户人在海外时，
- * 本地时间和 A 股交易时段完全对不上，会出现「盘中不刷 / 半夜狂刷」。
- * 这里统一换算到 UTC+8，无论用户在哪个时区都得到同一个答案。
- */
 function beijingNow(): Date {
   const d = new Date();
   return new Date(d.getTime() + d.getTimezoneOffset() * 60_000 + 8 * 3600_000);
 }
 
-/** 是否处于 A 股交易时段（含 9:15 起的集合竞价）。
- *
- * 只判断「周一至周五 + 时间段」，**不含法定节假日**——那需要一份交易日历，
- * 而节假日里多轮询几次的代价远小于引入日历的复杂度（数据不变，界面也不会跳）。
- */
 export function isTradingHours(): boolean {
   const bj = beijingNow();
   const day = bj.getDay();
@@ -121,11 +98,6 @@ export function useLiveQuotes(codes: string[], enabled: boolean): LiveQuotesStat
 
   // 轮询循环
   useEffect(() => {
-    // ⚠️ `cancelled` 与 `timer` 都是**这一次 effect 的局部变量**，不能用 ref 共享。
-    // 循环体里有 `await`：cleanup 执行时若某一拍正卡在请求中，它返回后会照常排下一拍，
-    // 于是旧循环「复活」并与新循环并行，实际频率翻倍（React StrictMode 的
-    // mount→unmount→mount 必然触发，生产环境里切换开关同样会）。
-    // 所以每次 await 之后都要重新检查 cancelled，且定时器句柄不跨 effect 共享。
     let cancelled = false;
     let timer: number | null = null;
 

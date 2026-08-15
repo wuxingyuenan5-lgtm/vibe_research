@@ -1,4 +1,3 @@
-"""纯逻辑单测（无网络、快、确定）：市场前缀、估值计算、行情解析。"""
 import math
 
 import astock

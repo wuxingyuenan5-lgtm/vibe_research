@@ -1,14 +1,3 @@
-"""我的研报 —— 用户上传/归档自己的研报文件，存本地、不上传、不进开源仓库。
-
-设计取舍：
-- 走 base64 JSON 上传（不引入 python-multipart 依赖，契合本项目「秒装必可用」）；研报文件不大，够用。
-- 存到 `VR_REPORTS_DIR`（默认 ~/.vibe-research/myreports/，也可用 VR_DATA_DIR 换根目录）——用户私有资料，绝不进仓、不上传。
-  放仓库外，重新下载/覆盖项目文件夹不会丢（issue #12）；≤v0.1.1 存 backend/.cache/myreports/，首次启动自动迁移（复制，旧目录保留作备份）。
-- 元数据存目录内 index.json；按文件名关键词自动打「行业」标签（best-effort，未命中记「未分类」）。
-
-合规/隐私：与「持仓 / 关注股只存本地」同一红线——研报是用户私有数据，只落本地磁盘。
-"""
-
 from __future__ import annotations
 
 import base64

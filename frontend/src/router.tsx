@@ -1,5 +1,8 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
+import { AStockMonitor } from "@/pages/AStockMonitor";
+import { StockPool } from "@/pages/StockPool";
+import { MorningBrief } from "@/pages/MorningBrief";
 import { DailyReview } from "@/pages/DailyReview";
 import { Intel } from "@/pages/Intel";
 import { Sectors } from "@/pages/Sectors";
@@ -16,7 +19,10 @@ export const router = createBrowserRouter([
   {
     element: <Layout />,
     children: [
-      { path: "/", element: <Navigate to="/daily-review" replace /> },
+      { path: "/", element: <Navigate to="/a-stock-monitor" replace /> },
+      { path: "/a-stock-monitor", element: <AStockMonitor /> },
+      { path: "/stock-pool", element: <StockPool /> },
+      { path: "/morning-brief", element: <MorningBrief /> },
       { path: "/daily-review", element: <DailyReview /> },
       { path: "/intel", element: <Intel /> },
       { path: "/sectors", element: <Sectors /> },

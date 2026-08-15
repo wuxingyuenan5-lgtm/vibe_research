@@ -1,8 +1,3 @@
-// 财报速览：把最新财报 + 前向一致预期 + 估值分位，用「结论先行」的结构收拢成一张速览卡。
-// 纯前端计算（数据都已在个股页 state 里）。合规：只客观机械分档陈述事实，不推荐、不预测、不评级。
-// 「结论先行 + 信号标签」的排版纪律借鉴自 anthropics/financial-services 的 equity-research skill，
-// 但剔除其评级/目标价，只保留 A 股客观指标。
-
 import { ClipboardList } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { cn } from "@/lib/utils";
