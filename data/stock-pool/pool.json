@@ -1,0 +1,1141 @@
+{
+  "pool_name": "核心股票池",
+  "version": "2026-08-15",
+  "count": 162,
+  "stocks": [
+    {
+      "instrument_id": "legacy:工商银行",
+      "code": null,
+      "exchange": null,
+      "name": "工商银行",
+      "industry": "银行"
+    },
+    {
+      "instrument_id": "legacy:中国平安",
+      "code": null,
+      "exchange": null,
+      "name": "中国平安",
+      "industry": "保险"
+    },
+    {
+      "instrument_id": "legacy:理想汽车-W",
+      "code": null,
+      "exchange": null,
+      "name": "理想汽车-W",
+      "industry": "汽车[HK]"
+    },
+    {
+      "instrument_id": "legacy:中信证券",
+      "code": null,
+      "exchange": null,
+      "name": "中信证券",
+      "industry": "证券"
+    },
+    {
+      "instrument_id": "legacy:中国移动",
+      "code": null,
+      "exchange": null,
+      "name": "中国移动",
+      "industry": "通信服务"
+    },
+    {
+      "instrument_id": "legacy:兴发集团",
+      "code": null,
+      "exchange": null,
+      "name": "兴发集团",
+      "industry": "农化制品"
+    },
+    {
+      "instrument_id": "legacy:华友钴业",
+      "code": null,
+      "exchange": null,
+      "name": "华友钴业",
+      "industry": "能源金属"
+    },
+    {
+      "instrument_id": "legacy:新华保险",
+      "code": null,
+      "exchange": null,
+      "name": "新华保险",
+      "industry": "保险"
+    },
+    {
+      "instrument_id": "legacy:通威股份",
+      "code": null,
+      "exchange": null,
+      "name": "通威股份",
+      "industry": "光伏设备"
+    },
+    {
+      "instrument_id": "legacy:TCL科技",
+      "code": null,
+      "exchange": null,
+      "name": "TCL科技",
+      "industry": "光学光电子"
+    },
+    {
+      "instrument_id": "legacy:京东方Ａ",
+      "code": null,
+      "exchange": null,
+      "name": "京东方Ａ",
+      "industry": "光学光电子"
+    },
+    {
+      "instrument_id": "legacy:海尔智家",
+      "code": null,
+      "exchange": null,
+      "name": "海尔智家",
+      "industry": "白色家电"
+    },
+    {
+      "instrument_id": "legacy:恒力石化",
+      "code": null,
+      "exchange": null,
+      "name": "恒力石化",
+      "industry": "石油加工贸易"
+    },
+    {
+      "instrument_id": "legacy:中国海油",
+      "code": null,
+      "exchange": null,
+      "name": "中国海油",
+      "industry": "油气开采及服务"
+    },
+    {
+      "instrument_id": "legacy:圆通速递",
+      "code": null,
+      "exchange": null,
+      "name": "圆通速递",
+      "industry": "物流"
+    },
+    {
+      "instrument_id": "legacy:中国人寿",
+      "code": null,
+      "exchange": null,
+      "name": "中国人寿",
+      "industry": "保险"
+    },
+    {
+      "instrument_id": "legacy:阿里巴巴-W",
+      "code": null,
+      "exchange": null,
+      "name": "阿里巴巴-W",
+      "industry": "多品类零售Ⅲ[HK]"
+    },
+    {
+      "instrument_id": "legacy:赛轮轮胎",
+      "code": null,
+      "exchange": null,
+      "name": "赛轮轮胎",
+      "industry": "汽车零部件"
+    },
+    {
+      "instrument_id": "legacy:东方电气",
+      "code": null,
+      "exchange": null,
+      "name": "东方电气",
+      "industry": "其他电源设备"
+    },
+    {
+      "instrument_id": "legacy:三一重工",
+      "code": null,
+      "exchange": null,
+      "name": "三一重工",
+      "industry": "工程机械"
+    },
+    {
+      "instrument_id": "legacy:万华化学",
+      "code": null,
+      "exchange": null,
+      "name": "万华化学",
+      "industry": "化学制品"
+    },
+    {
+      "instrument_id": "legacy:大金重工",
+      "code": null,
+      "exchange": null,
+      "name": "大金重工",
+      "industry": "风电设备"
+    },
+    {
+      "instrument_id": "legacy:中兴通讯",
+      "code": null,
+      "exchange": null,
+      "name": "中兴通讯",
+      "industry": "通信设备"
+    },
+    {
+      "instrument_id": "legacy:小米集团-W",
+      "code": null,
+      "exchange": null,
+      "name": "小米集团-W",
+      "industry": "消费电子[HK]"
+    },
+    {
+      "instrument_id": "legacy:陕西煤业",
+      "code": null,
+      "exchange": null,
+      "name": "陕西煤业",
+      "industry": "煤炭开采加工"
+    },
+    {
+      "instrument_id": "legacy:卫星化学",
+      "code": null,
+      "exchange": null,
+      "name": "卫星化学",
+      "industry": "化学制品"
+    },
+    {
+      "instrument_id": "legacy:厦钨新能",
+      "code": null,
+      "exchange": null,
+      "name": "厦钨新能",
+      "industry": "电池"
+    },
+    {
+      "instrument_id": "legacy:比音勒芬",
+      "code": null,
+      "exchange": null,
+      "name": "比音勒芬",
+      "industry": "服装家纺"
+    },
+    {
+      "instrument_id": "legacy:牧原股份",
+      "code": null,
+      "exchange": null,
+      "name": "牧原股份",
+      "industry": "养殖业"
+    },
+    {
+      "instrument_id": "legacy:云铝股份",
+      "code": null,
+      "exchange": null,
+      "name": "云铝股份",
+      "industry": "工业金属"
+    },
+    {
+      "instrument_id": "legacy:湖南裕能",
+      "code": null,
+      "exchange": null,
+      "name": "湖南裕能",
+      "industry": "电池"
+    },
+    {
+      "instrument_id": "legacy:潍柴动力",
+      "code": null,
+      "exchange": null,
+      "name": "潍柴动力",
+      "industry": "汽车零部件"
+    },
+    {
+      "instrument_id": "legacy:兖矿能源",
+      "code": null,
+      "exchange": null,
+      "name": "兖矿能源",
+      "industry": "煤炭开采加工"
+    },
+    {
+      "instrument_id": "legacy:美的集团",
+      "code": null,
+      "exchange": null,
+      "name": "美的集团",
+      "industry": "白色家电"
+    },
+    {
+      "instrument_id": "legacy:安踏体育",
+      "code": null,
+      "exchange": null,
+      "name": "安踏体育",
+      "industry": "纺织服饰[HK]"
+    },
+    {
+      "instrument_id": "legacy:晶泰控股",
+      "code": null,
+      "exchange": null,
+      "name": "晶泰控股",
+      "industry": "医疗服务[HK]"
+    },
+    {
+      "instrument_id": "legacy:长江电力",
+      "code": null,
+      "exchange": null,
+      "name": "长江电力",
+      "industry": "电力"
+    },
+    {
+      "instrument_id": "legacy:亚钾国际",
+      "code": null,
+      "exchange": null,
+      "name": "亚钾国际",
+      "industry": "农化制品"
+    },
+    {
+      "instrument_id": "legacy:药明生物",
+      "code": null,
+      "exchange": null,
+      "name": "药明生物",
+      "industry": "医疗服务[HK]"
+    },
+    {
+      "instrument_id": "legacy:先导智能",
+      "code": null,
+      "exchange": null,
+      "name": "先导智能",
+      "industry": "电池"
+    },
+    {
+      "instrument_id": "legacy:宝丰能源",
+      "code": null,
+      "exchange": null,
+      "name": "宝丰能源",
+      "industry": "化学原料"
+    },
+    {
+      "instrument_id": "legacy:中芯国际",
+      "code": null,
+      "exchange": null,
+      "name": "中芯国际",
+      "industry": "半导体[HK]"
+    },
+    {
+      "instrument_id": "legacy:东方财富",
+      "code": null,
+      "exchange": null,
+      "name": "东方财富",
+      "industry": "证券"
+    },
+    {
+      "instrument_id": "legacy:腾讯控股",
+      "code": null,
+      "exchange": null,
+      "name": "腾讯控股",
+      "industry": "互动媒体与服务Ⅲ[HK]"
+    },
+    {
+      "instrument_id": "legacy:天通股份",
+      "code": null,
+      "exchange": null,
+      "name": "天通股份",
+      "industry": "电子化学品"
+    },
+    {
+      "instrument_id": "legacy:拓普集团",
+      "code": null,
+      "exchange": null,
+      "name": "拓普集团",
+      "industry": "汽车零部件"
+    },
+    {
+      "instrument_id": "legacy:乖宝宠物",
+      "code": null,
+      "exchange": null,
+      "name": "乖宝宠物",
+      "industry": "农产品加工"
+    },
+    {
+      "instrument_id": "legacy:立讯精密",
+      "code": null,
+      "exchange": null,
+      "name": "立讯精密",
+      "industry": "消费电子"
+    },
+    {
+      "instrument_id": "legacy:九号公司-WD",
+      "code": null,
+      "exchange": null,
+      "name": "九号公司-WD",
+      "industry": "汽车服务及其他"
+    },
+    {
+      "instrument_id": "legacy:安克创新",
+      "code": null,
+      "exchange": null,
+      "name": "安克创新",
+      "industry": "消费电子"
+    },
+    {
+      "instrument_id": "legacy:天赐材料",
+      "code": null,
+      "exchange": null,
+      "name": "天赐材料",
+      "industry": "电池"
+    },
+    {
+      "instrument_id": "legacy:西部矿业",
+      "code": null,
+      "exchange": null,
+      "name": "西部矿业",
+      "industry": "工业金属"
+    },
+    {
+      "instrument_id": "legacy:亨通光电",
+      "code": null,
+      "exchange": null,
+      "name": "亨通光电",
+      "industry": "通信设备"
+    },
+    {
+      "instrument_id": "legacy:宇通客车",
+      "code": null,
+      "exchange": null,
+      "name": "宇通客车",
+      "industry": "汽车整车"
+    },
+    {
+      "instrument_id": "legacy:阳光电源",
+      "code": null,
+      "exchange": null,
+      "name": "阳光电源",
+      "industry": "光伏设备"
+    },
+    {
+      "instrument_id": "legacy:东鹏饮料",
+      "code": null,
+      "exchange": null,
+      "name": "东鹏饮料",
+      "industry": "饮料制造"
+    },
+    {
+      "instrument_id": "legacy:大族激光",
+      "code": null,
+      "exchange": null,
+      "name": "大族激光",
+      "industry": "自动化设备"
+    },
+    {
+      "instrument_id": "legacy:紫金矿业",
+      "code": null,
+      "exchange": null,
+      "name": "紫金矿业",
+      "industry": "贵金属"
+    },
+    {
+      "instrument_id": "legacy:长电科技",
+      "code": null,
+      "exchange": null,
+      "name": "长电科技",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:宁德时代",
+      "code": null,
+      "exchange": null,
+      "name": "宁德时代",
+      "industry": "电池"
+    },
+    {
+      "instrument_id": "legacy:伟测科技",
+      "code": null,
+      "exchange": null,
+      "name": "伟测科技",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:洛阳钼业",
+      "code": null,
+      "exchange": null,
+      "name": "洛阳钼业",
+      "industry": "工业金属"
+    },
+    {
+      "instrument_id": "legacy:厦门钨业",
+      "code": null,
+      "exchange": null,
+      "name": "厦门钨业",
+      "industry": "小金属"
+    },
+    {
+      "instrument_id": "legacy:三花智控",
+      "code": null,
+      "exchange": null,
+      "name": "三花智控",
+      "industry": "白色家电"
+    },
+    {
+      "instrument_id": "legacy:中国巨石",
+      "code": null,
+      "exchange": null,
+      "name": "中国巨石",
+      "industry": "建筑材料"
+    },
+    {
+      "instrument_id": "legacy:药明康德",
+      "code": null,
+      "exchange": null,
+      "name": "药明康德",
+      "industry": "医疗服务"
+    },
+    {
+      "instrument_id": "legacy:扬杰科技",
+      "code": null,
+      "exchange": null,
+      "name": "扬杰科技",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:风华高科",
+      "code": null,
+      "exchange": null,
+      "name": "风华高科",
+      "industry": "元件"
+    },
+    {
+      "instrument_id": "legacy:优必选",
+      "code": null,
+      "exchange": null,
+      "name": "优必选",
+      "industry": "机械设备Ⅲ[HK]"
+    },
+    {
+      "instrument_id": "legacy:巨化股份",
+      "code": null,
+      "exchange": null,
+      "name": "巨化股份",
+      "industry": "化学制品"
+    },
+    {
+      "instrument_id": "legacy:赤峰黄金",
+      "code": null,
+      "exchange": null,
+      "name": "赤峰黄金",
+      "industry": "贵金属"
+    },
+    {
+      "instrument_id": "legacy:爱旭股份",
+      "code": null,
+      "exchange": null,
+      "name": "爱旭股份",
+      "industry": "光伏设备"
+    },
+    {
+      "instrument_id": "legacy:大中矿业",
+      "code": null,
+      "exchange": null,
+      "name": "大中矿业",
+      "industry": "钢铁"
+    },
+    {
+      "instrument_id": "legacy:地平线机器人-W",
+      "code": null,
+      "exchange": null,
+      "name": "地平线机器人-W",
+      "industry": "汽车零部件Ⅲ[HK]"
+    },
+    {
+      "instrument_id": "legacy:药明合联",
+      "code": null,
+      "exchange": null,
+      "name": "药明合联",
+      "industry": "医疗服务[HK]"
+    },
+    {
+      "instrument_id": "legacy:通富微电",
+      "code": null,
+      "exchange": null,
+      "name": "通富微电",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:贵州茅台",
+      "code": null,
+      "exchange": null,
+      "name": "贵州茅台",
+      "industry": "白酒"
+    },
+    {
+      "instrument_id": "legacy:金盘科技",
+      "code": null,
+      "exchange": null,
+      "name": "金盘科技",
+      "industry": "电网设备"
+    },
+    {
+      "instrument_id": "legacy:兴业银锡",
+      "code": null,
+      "exchange": null,
+      "name": "兴业银锡",
+      "industry": "贵金属"
+    },
+    {
+      "instrument_id": "legacy:华锡有色",
+      "code": null,
+      "exchange": null,
+      "name": "华锡有色",
+      "industry": "小金属"
+    },
+    {
+      "instrument_id": "legacy:杰瑞股份",
+      "code": null,
+      "exchange": null,
+      "name": "杰瑞股份",
+      "industry": "专用设备"
+    },
+    {
+      "instrument_id": "legacy:应流股份",
+      "code": null,
+      "exchange": null,
+      "name": "应流股份",
+      "industry": "通用设备"
+    },
+    {
+      "instrument_id": "legacy:天岳先进",
+      "code": null,
+      "exchange": null,
+      "name": "天岳先进",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:胜宏科技",
+      "code": null,
+      "exchange": null,
+      "name": "胜宏科技",
+      "industry": "元件"
+    },
+    {
+      "instrument_id": "legacy:建滔积层板",
+      "code": null,
+      "exchange": null,
+      "name": "建滔积层板",
+      "industry": "电子设备和元件[HK]"
+    },
+    {
+      "instrument_id": "legacy:圣邦股份",
+      "code": null,
+      "exchange": null,
+      "name": "圣邦股份",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:信达生物",
+      "code": null,
+      "exchange": null,
+      "name": "信达生物",
+      "industry": "生物科技Ⅲ[HK]"
+    },
+    {
+      "instrument_id": "legacy:中瓷电子",
+      "code": null,
+      "exchange": null,
+      "name": "中瓷电子",
+      "industry": "通信设备"
+    },
+    {
+      "instrument_id": "legacy:百济神州",
+      "code": null,
+      "exchange": null,
+      "name": "百济神州",
+      "industry": "化学制药[HK]"
+    },
+    {
+      "instrument_id": "legacy:麦格米特",
+      "code": null,
+      "exchange": null,
+      "name": "麦格米特",
+      "industry": "其他电源设备"
+    },
+    {
+      "instrument_id": "legacy:恒立液压",
+      "code": null,
+      "exchange": null,
+      "name": "恒立液压",
+      "industry": "工程机械"
+    },
+    {
+      "instrument_id": "legacy:帝尔激光",
+      "code": null,
+      "exchange": null,
+      "name": "帝尔激光",
+      "industry": "光伏设备"
+    },
+    {
+      "instrument_id": "legacy:中控技术",
+      "code": null,
+      "exchange": null,
+      "name": "中控技术",
+      "industry": "自动化设备"
+    },
+    {
+      "instrument_id": "legacy:泡泡玛特",
+      "code": null,
+      "exchange": null,
+      "name": "泡泡玛特",
+      "industry": "休闲用品[HK]"
+    },
+    {
+      "instrument_id": "legacy:菲利华",
+      "code": null,
+      "exchange": null,
+      "name": "菲利华",
+      "industry": "军工装备"
+    },
+    {
+      "instrument_id": "legacy:古茗",
+      "code": null,
+      "exchange": null,
+      "name": "古茗",
+      "industry": "休闲服务与设施[HK]"
+    },
+    {
+      "instrument_id": "legacy:江海股份",
+      "code": null,
+      "exchange": null,
+      "name": "江海股份",
+      "industry": "元件"
+    },
+    {
+      "instrument_id": "legacy:三环集团",
+      "code": null,
+      "exchange": null,
+      "name": "三环集团",
+      "industry": "元件"
+    },
+    {
+      "instrument_id": "legacy:康方生物",
+      "code": null,
+      "exchange": null,
+      "name": "康方生物",
+      "industry": "生物科技Ⅲ[HK]"
+    },
+    {
+      "instrument_id": "legacy:彤程新材",
+      "code": null,
+      "exchange": null,
+      "name": "彤程新材",
+      "industry": "橡胶制品"
+    },
+    {
+      "instrument_id": "legacy:德业股份",
+      "code": null,
+      "exchange": null,
+      "name": "德业股份",
+      "industry": "光伏设备"
+    },
+    {
+      "instrument_id": "legacy:影石创新",
+      "code": null,
+      "exchange": null,
+      "name": "影石创新",
+      "industry": "消费电子"
+    },
+    {
+      "instrument_id": "legacy:江丰电子",
+      "code": null,
+      "exchange": null,
+      "name": "江丰电子",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:华虹宏力",
+      "code": null,
+      "exchange": null,
+      "name": "华虹宏力",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:长盈通",
+      "code": null,
+      "exchange": null,
+      "name": "长盈通",
+      "industry": "通信设备"
+    },
+    {
+      "instrument_id": "legacy:芯碁微装",
+      "code": null,
+      "exchange": null,
+      "name": "芯碁微装",
+      "industry": "专用设备"
+    },
+    {
+      "instrument_id": "legacy:光迅科技",
+      "code": null,
+      "exchange": null,
+      "name": "光迅科技",
+      "industry": "通信设备"
+    },
+    {
+      "instrument_id": "legacy:兆易创新",
+      "code": null,
+      "exchange": null,
+      "name": "兆易创新",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:申菱环境",
+      "code": null,
+      "exchange": null,
+      "name": "申菱环境",
+      "industry": "通用设备"
+    },
+    {
+      "instrument_id": "legacy:旭光电子",
+      "code": null,
+      "exchange": null,
+      "name": "旭光电子",
+      "industry": "其他电子"
+    },
+    {
+      "instrument_id": "legacy:大族数控",
+      "code": null,
+      "exchange": null,
+      "name": "大族数控",
+      "industry": "自动化设备"
+    },
+    {
+      "instrument_id": "legacy:德福科技",
+      "code": null,
+      "exchange": null,
+      "name": "德福科技",
+      "industry": "电池"
+    },
+    {
+      "instrument_id": "legacy:国城矿业",
+      "code": null,
+      "exchange": null,
+      "name": "国城矿业",
+      "industry": "小金属"
+    },
+    {
+      "instrument_id": "legacy:澜起科技",
+      "code": null,
+      "exchange": null,
+      "name": "澜起科技",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:杰普特",
+      "code": null,
+      "exchange": null,
+      "name": "杰普特",
+      "industry": "自动化设备"
+    },
+    {
+      "instrument_id": "legacy:欧陆通",
+      "code": null,
+      "exchange": null,
+      "name": "欧陆通",
+      "industry": "其他电源设备"
+    },
+    {
+      "instrument_id": "legacy:中微公司",
+      "code": null,
+      "exchange": null,
+      "name": "中微公司",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:盛合晶微",
+      "code": null,
+      "exchange": null,
+      "name": "盛合晶微",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:深南电路",
+      "code": null,
+      "exchange": null,
+      "name": "深南电路",
+      "industry": "元件"
+    },
+    {
+      "instrument_id": "legacy:中钨高新",
+      "code": null,
+      "exchange": null,
+      "name": "中钨高新",
+      "industry": "小金属"
+    },
+    {
+      "instrument_id": "legacy:沪电股份",
+      "code": null,
+      "exchange": null,
+      "name": "沪电股份",
+      "industry": "元件"
+    },
+    {
+      "instrument_id": "legacy:中际旭创",
+      "code": null,
+      "exchange": null,
+      "name": "中际旭创",
+      "industry": "通信设备"
+    },
+    {
+      "instrument_id": "legacy:生益电子",
+      "code": null,
+      "exchange": null,
+      "name": "生益电子",
+      "industry": "元件"
+    },
+    {
+      "instrument_id": "legacy:铜冠铜箔",
+      "code": null,
+      "exchange": null,
+      "name": "铜冠铜箔",
+      "industry": "电池"
+    },
+    {
+      "instrument_id": "legacy:东山精密",
+      "code": null,
+      "exchange": null,
+      "name": "东山精密",
+      "industry": "元件"
+    },
+    {
+      "instrument_id": "legacy:科翔股份",
+      "code": null,
+      "exchange": null,
+      "name": "科翔股份",
+      "industry": "元件"
+    },
+    {
+      "instrument_id": "legacy:长光华芯",
+      "code": null,
+      "exchange": null,
+      "name": "长光华芯",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:茂莱光学",
+      "code": null,
+      "exchange": null,
+      "name": "茂莱光学",
+      "industry": "光学光电子"
+    },
+    {
+      "instrument_id": "legacy:生益科技",
+      "code": null,
+      "exchange": null,
+      "name": "生益科技",
+      "industry": "元件"
+    },
+    {
+      "instrument_id": "legacy:绿的谐波",
+      "code": null,
+      "exchange": null,
+      "name": "绿的谐波",
+      "industry": "自动化设备"
+    },
+    {
+      "instrument_id": "legacy:瑞芯微",
+      "code": null,
+      "exchange": null,
+      "name": "瑞芯微",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:联瑞新材",
+      "code": null,
+      "exchange": null,
+      "name": "联瑞新材",
+      "industry": "非金属材料"
+    },
+    {
+      "instrument_id": "legacy:长飞光纤",
+      "code": null,
+      "exchange": null,
+      "name": "长飞光纤",
+      "industry": "通信设备"
+    },
+    {
+      "instrument_id": "legacy:英维克",
+      "code": null,
+      "exchange": null,
+      "name": "英维克",
+      "industry": "专用设备"
+    },
+    {
+      "instrument_id": "legacy:芯源微",
+      "code": null,
+      "exchange": null,
+      "name": "芯源微",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:长川科技",
+      "code": null,
+      "exchange": null,
+      "name": "长川科技",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:科伦博泰生物",
+      "code": null,
+      "exchange": null,
+      "name": "科伦博泰生物",
+      "industry": "生物科技Ⅲ[HK]"
+    },
+    {
+      "instrument_id": "legacy:协创数据",
+      "code": null,
+      "exchange": null,
+      "name": "协创数据",
+      "industry": "计算机设备"
+    },
+    {
+      "instrument_id": "legacy:长芯博创",
+      "code": null,
+      "exchange": null,
+      "name": "长芯博创",
+      "industry": "通信设备"
+    },
+    {
+      "instrument_id": "legacy:博迁新材",
+      "code": null,
+      "exchange": null,
+      "name": "博迁新材",
+      "industry": "能源金属"
+    },
+    {
+      "instrument_id": "legacy:长鑫科技",
+      "code": null,
+      "exchange": null,
+      "name": "长鑫科技",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:鼎泰高科",
+      "code": null,
+      "exchange": null,
+      "name": "鼎泰高科",
+      "industry": "通用设备"
+    },
+    {
+      "instrument_id": "legacy:中船特气",
+      "code": null,
+      "exchange": null,
+      "name": "中船特气",
+      "industry": "电子化学品"
+    },
+    {
+      "instrument_id": "legacy:海光信息",
+      "code": null,
+      "exchange": null,
+      "name": "海光信息",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:新易盛",
+      "code": null,
+      "exchange": null,
+      "name": "新易盛",
+      "industry": "通信设备"
+    },
+    {
+      "instrument_id": "legacy:光库科技",
+      "code": null,
+      "exchange": null,
+      "name": "光库科技",
+      "industry": "通信设备"
+    },
+    {
+      "instrument_id": "legacy:仕佳光子",
+      "code": null,
+      "exchange": null,
+      "name": "仕佳光子",
+      "industry": "通信设备"
+    },
+    {
+      "instrument_id": "legacy:行云科技",
+      "code": null,
+      "exchange": null,
+      "name": "行云科技",
+      "industry": "互联网电商"
+    },
+    {
+      "instrument_id": "legacy:宏景科技",
+      "code": null,
+      "exchange": null,
+      "name": "宏景科技",
+      "industry": "IT服务"
+    },
+    {
+      "instrument_id": "legacy:芯原股份",
+      "code": null,
+      "exchange": null,
+      "name": "芯原股份",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:云南锗业",
+      "code": null,
+      "exchange": null,
+      "name": "云南锗业",
+      "industry": "小金属"
+    },
+    {
+      "instrument_id": "legacy:天孚通信",
+      "code": null,
+      "exchange": null,
+      "name": "天孚通信",
+      "industry": "通信设备"
+    },
+    {
+      "instrument_id": "legacy:杰华特",
+      "code": null,
+      "exchange": null,
+      "name": "杰华特",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:罗博特科",
+      "code": null,
+      "exchange": null,
+      "name": "罗博特科",
+      "industry": "自动化设备"
+    },
+    {
+      "instrument_id": "legacy:宏和科技",
+      "code": null,
+      "exchange": null,
+      "name": "宏和科技",
+      "industry": "电子化学品"
+    },
+    {
+      "instrument_id": "legacy:上纬新材",
+      "code": null,
+      "exchange": null,
+      "name": "上纬新材",
+      "industry": "塑料制品"
+    },
+    {
+      "instrument_id": "legacy:寒武纪",
+      "code": null,
+      "exchange": null,
+      "name": "寒武纪",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:源杰科技",
+      "code": null,
+      "exchange": null,
+      "name": "源杰科技",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:盛科通信-U",
+      "code": null,
+      "exchange": null,
+      "name": "盛科通信-U",
+      "industry": "半导体"
+    },
+    {
+      "instrument_id": "legacy:联讯仪器",
+      "code": null,
+      "exchange": null,
+      "name": "联讯仪器",
+      "industry": "通用设备"
+    },
+    {
+      "instrument_id": "legacy:智谱",
+      "code": null,
+      "exchange": null,
+      "name": "智谱",
+      "industry": "IT服务[HK]"
+    },
+    {
+      "instrument_id": "CN.SSE.600276",
+      "code": "600276",
+      "exchange": "SSE",
+      "name": "恒瑞医药",
+      "industry": "化学制药"
+    }
+  ]
+}
