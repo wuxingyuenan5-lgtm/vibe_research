@@ -1,7 +1,7 @@
 {
   "pool_name": "核心股票池",
   "version": "2026-08-15",
-  "count": 163,
+  "count": 162,
   "stocks": [
     {
       "instrument_id": "legacy:工商银行",
@@ -1136,14 +1136,7 @@
       "exchange": "SSE",
       "name": "恒瑞医药",
       "industry": "化学制药"
-    },
-    {
-      "instrument_id": "000001",
-      "code": "000001",
-      "exchange": null,
-      "name": "测试临时股",
-      "industry": ""
     }
   ],
-  "updated_at": "2026-08-15T17:03:56+08:00"
+  "updated_at": "2026-08-15T17:04:00+08:00"
 }
