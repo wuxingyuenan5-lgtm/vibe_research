@@ -1,0 +1,5 @@
+akshare==1.18.74
+pandas>=2.2,<3
+requests>=2.31,<3
+# production-pipeline: 2026-08-10 (HTML monitor v1.1 固定)
+# matplotlib 已裁剪：仅旧 Excel 链使用，HTML 链零依赖

@@ -1,0 +1,233 @@
+name: Daily A-share Market Monitor
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_date:
+        description: "Trading date, YYYY-MM-DD; blank uses Asia/Shanghai today"
+        required: false
+        default: ""
+      refresh_mapping:
+        description: "Force refresh Shenwan stock mapping"
+        required: false
+        type: boolean
+        default: false
+      full_refresh_sw_industry:
+        description: "Run slow per-index Shenwan history refresh inside Canonical staging"
+        required: false
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - market-monitor/run_daily.py
+      - market-monitor/run_history_preflight.py
+      - market-monitor/validate_canonical_data.py
+      - market-monitor/build_report_data.py
+      - market-monitor/render_market_monitor_html.py
+      - market-monitor/validate_market_monitor_html.py
+      - market-monitor/market_monitor/**
+      - market-monitor/update_sw_industry.py
+      - market-monitor/update_sw_industry_fast.py
+      - market-monitor/tests/**
+      - market-monitor/config/market_monitor.json
+      - market-monitor/config/html_production_runtime.json
+      - market-monitor/data/history/hot_stocks.csv
+      - market-monitor/requirements.txt
+      - .github/workflows/daily_market_monitor.yml
+
+concurrency:
+  group: daily-market-monitor-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: market-monitor
+
+jobs:
+  produce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      TZ: Asia/Shanghai
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Resolve date
+        id: date
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.target_date }}" ]; then
+            target="${{ inputs.target_date }}"
+          else
+            target="$(date +%F)"
+          fi
+          echo "value=$target" >> "$GITHUB_OUTPUT"
+          echo "compact=${target//-/}" >> "$GITHUB_OUTPUT"
+
+      - name: Fast syntax preflight
+        run: |
+          python -m py_compile \
+            run_daily.py run_history_preflight.py validate_canonical_data.py build_report_data.py \
+            render_market_monitor_html.py validate_market_monitor_html.py \
+            update_sw_industry.py update_sw_industry_fast.py
+          python -m py_compile market_monitor/*.py
+
+      - name: Full unit tests on code review only
+        if: github.event_name == 'pull_request'
+        run: python -m unittest discover -s tests -v
+
+      - name: Build 2026-08-14 HTML acceptance prototype on PR
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          python run_history_preflight.py --target-date "2026-08-14"
+          python validate_canonical_data.py \
+            --target-date "2026-08-14" \
+            --output "output/2026-08-14/canonical_validation.json"
+          python build_report_data.py --target-date "2026-08-14"
+          python render_market_monitor_html.py \
+            --input "output/2026-08-14/report_data.json" \
+            --output "output/2026-08-14/A股每日市场监控_20260814.html"
+          python validate_market_monitor_html.py \
+            --data "output/2026-08-14/report_data.json" \
+            --html "output/2026-08-14/A股每日市场监控_20260814.html" \
+            --output "output/2026-08-14/html_validation.json"
+
+      - name: Upload 2026-08-14 HTML acceptance prototype
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: html-prototype-2026-08-14
+          path: |
+            market-monitor/output/2026-08-14/A股每日市场监控_20260814.html
+            market-monitor/output/2026-08-14/report_data.json
+            market-monitor/output/2026-08-14/canonical_manifest.json
+            market-monitor/output/2026-08-14/canonical_validation.json
+            market-monitor/output/2026-08-14/html_validation.json
+            market-monitor/output/2026-08-14/history_preflight.json
+            market-monitor/data/history/indices_history.csv
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: History preflight and recoverable backfill
+        if: github.event_name != 'pull_request'
+        run: python run_history_preflight.py --target-date "${{ steps.date.outputs.value }}"
+
+      - name: Produce normalized payload
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          args=""
+          if [ "${{ inputs.refresh_mapping }}" = "true" ]; then
+            args="$args --refresh-mapping"
+          fi
+          if [ "${{ inputs.full_refresh_sw_industry }}" = "true" ]; then
+            args="$args --full-refresh-sw-industry"
+          fi
+          python run_daily.py --target-date "${{ steps.date.outputs.value }}" $args
+
+      - name: Validate Canonical data
+        if: github.event_name != 'pull_request'
+        run: |
+          python validate_canonical_data.py \
+            --target-date "${{ steps.date.outputs.value }}" \
+            --output "output/${{ steps.date.outputs.value }}/canonical_validation.json"
+
+      - name: Build normalized report data
+        if: github.event_name != 'pull_request'
+        run: python build_report_data.py --target-date "${{ steps.date.outputs.value }}"
+
+      - name: Render offline HTML
+        if: github.event_name != 'pull_request'
+        run: |
+          python render_market_monitor_html.py \
+            --input "output/${{ steps.date.outputs.value }}/report_data.json" \
+            --output "output/${{ steps.date.outputs.value }}/A股每日市场监控_${{ steps.date.outputs.compact }}.html"
+
+      - name: Validate HTML
+        if: github.event_name != 'pull_request'
+        run: |
+          python validate_market_monitor_html.py \
+            --data "output/${{ steps.date.outputs.value }}/report_data.json" \
+            --html "output/${{ steps.date.outputs.value }}/A股每日市场监控_${{ steps.date.outputs.compact }}.html" \
+            --output "output/${{ steps.date.outputs.value }}/html_validation.json"
+
+      - name: Write latest HTML pointer
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          d = "${{ steps.date.outputs.value }}"
+          compact = "${{ steps.date.outputs.compact }}"
+          html_validation = json.loads(Path(f"output/{d}/html_validation.json").read_text(encoding="utf-8"))
+          canonical_validation = json.loads(Path(f"output/{d}/canonical_validation.json").read_text(encoding="utf-8"))
+          pointer = {
+              "date": d,
+              "run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "artifact_name": f"a-share-monitor-html-{d}",
+              "primary_file": f"A股每日市场监控_{compact}.html",
+              "data_contract": "report_data.json",
+              "canonical_validation_file": "canonical_validation.json",
+              "canonical_validation_status": canonical_validation["status"],
+              "validation_file": "html_validation.json",
+              "validation_status": html_validation["status"],
+              "runtime_manifest": "config/html_production_runtime.json",
+              "workflow": "daily_market_monitor.yml"
+          }
+          Path("data/latest_bundle_pointer.json").write_text(
+              json.dumps(pointer, ensure_ascii=False, indent=2), encoding="utf-8"
+          )
+          print(json.dumps(pointer, ensure_ascii=False))
+          PY
+
+      - name: Upload HTML production artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: a-share-monitor-html-${{ steps.date.outputs.value }}
+          path: |
+            market-monitor/output/${{ steps.date.outputs.value }}/A股每日市场监控_${{ steps.date.outputs.compact }}.html
+            market-monitor/output/${{ steps.date.outputs.value }}/report_data.json
+            market-monitor/output/${{ steps.date.outputs.value }}/canonical_manifest.json
+            market-monitor/output/${{ steps.date.outputs.value }}/canonical_validation.json
+            market-monitor/output/${{ steps.date.outputs.value }}/html_validation.json
+            market-monitor/output/${{ steps.date.outputs.value }}/history_preflight.json
+            market-monitor/output/${{ steps.date.outputs.value }}/source_manifest.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Persist histories, snapshots, HTML archive, and latest pointer
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            market-monitor/data/history market-monitor/data/cache \
+            market-monitor/data/sw_industry_history.csv market-monitor/data/sw_industry_latest.csv \
+            market-monitor/data/latest_bundle_pointer.json \
+            "market-monitor/output/${{ steps.date.outputs.value }}/*.json" \
+            "market-monitor/output/${{ steps.date.outputs.value }}/*.html"
+          if git diff --cached --quiet; then
+            echo "No persistent data changes"
+          else
+            git commit -m "data: daily HTML market monitor ${{ steps.date.outputs.value }}"
+            git pull --rebase origin main
+            git push
+          fi
