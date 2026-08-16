@@ -1,12 +1,16 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Search, FileText, Newspaper, Loader2, AlertCircle, LineChart, BarChart3, Megaphone,
-  Wallet, Trophy, CalendarClock, Boxes, MessageSquare,
+  Wallet, Trophy, CalendarClock, Boxes, MessageSquare, Swords,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { AskAiButton } from "@/components/ui/AskAiButton";
 import { EarningsSnapshot } from "@/components/ui/EarningsSnapshot";
+import { KlineChart } from "@/components/ui/KlineChart";
+import { useDarkMode } from "@/hooks/useDarkMode";
+import { Debate } from "@/pages/Debate";
 import {
   api, ApiError, type Valuation, type Report, type NewsItem, type ValPercentile, type ValMetric,
   type Financials, type Announcement, type MarginRow, type BlockTradeRow, type HolderRow,
@@ -76,7 +80,9 @@ function ValBand({ label, m }: { label: string; m: ValMetric }) {
   );
 }
 
-export function StockData() {
+export function StockData({ embed = false }: { embed?: boolean }) {
+  const { dark } = useDarkMode();  // 同步主题类 + 供 K 线选主题
+  const [sp] = useSearchParams();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -100,9 +106,11 @@ export function StockData() {
   const [qa, setQa] = useState<QaRow[]>([]);
   const [gstock, setGStock] = useState<GlobalStock | null>(null);  // 美股 / 港股
   const runIdRef = useRef(0);
+  const [debateOpen, setDebateOpen] = useState(false);  // 多空辩论（子功能，点击才展开）
 
-  const run = async () => {
-    const c = code.trim().toUpperCase();
+  const run = async (init?: string) => {
+    // 类型守卫：onClick 误传 MouseEvent 时回退到输入框内容，避免 `.trim is not a function` 静默崩溃
+    const c = (typeof init === "string" ? init : code).trim().toUpperCase();
     if (!c) { setErr("请输入代码"); return; }
     const rid = ++runIdRef.current;
     setLoading(true); setErr(null); setDepNote(null); setVal(null); setReports([]); setNews([]); setPctl(null); setFin(null); setAnns([]);
@@ -163,6 +171,16 @@ export function StockData() {
     }
   };
 
+  // URL 带 ?code= 时自动搜索（自选股弹窗 / 分享链接直达）
+  const urlCode = sp.get("code");
+  useEffect(() => {
+    if (urlCode) {
+      setCode(urlCode.toUpperCase());
+      run(urlCode);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlCode]);
+
   const metrics = val ? [
     { k: "现价", v: fmt(val.price) },
     { k: "PE(TTM)", v: fmt(val.pe_ttm) },
@@ -193,22 +211,24 @@ export function StockData() {
 
   return (
     <div>
-      <PageHeader
-        title="个股数据"
-        subtitle="行情 · 估值 · 研报 · 新闻 —— 客观数据配齐，判断交给你的 AI"
-        actions={(val || gstock) && (
-          <AskAiButton
-            context={gstock ? gAiContext : aiContext}
-            label="让 AI 读这些数据"
-            suggestions={gstock
-              ? ["这家公司基本面怎么样", "盈利能力如何", "有什么风险"]
-              : ["这个估值贵不贵", "机构一致预期怎么看", "近期研报的分歧点", "有什么风险"]}
-          />
-        )}
-      />
+      {!embed && (
+        <PageHeader
+          title="个股分析"
+          subtitle="行情 · 估值 · 研报 · 新闻 —— 客观数据配齐，判断交给你的 AI"
+          actions={(val || gstock) && (
+            <AskAiButton
+              context={gstock ? gAiContext : aiContext}
+              label="让 AI 读这些数据"
+              suggestions={gstock
+                ? ["这家公司基本面怎么样", "盈利能力如何", "有什么风险"]
+                : ["这个估值贵不贵", "机构一致预期怎么看", "近期研报的分歧点", "有什么风险"]}
+            />
+          )}
+        />
+      )}
 
       {/* 查询框 */}
-      <div className="mb-5 flex gap-2">
+      <div className="mb-5 flex flex-wrap items-center gap-2">
         <input
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/[^a-zA-Z0-9.]/g, "").toUpperCase().slice(0, 12))}
@@ -217,14 +237,34 @@ export function StockData() {
           className="w-80 rounded-lg border border-border bg-black/20 px-3 py-2 text-sm outline-none focus:border-primary/50"
         />
         <button
-          onClick={run}
+          onClick={() => run()}
           disabled={loading}
           className="inline-flex items-center gap-1.5 rounded-lg bg-primary/15 px-4 py-2 text-sm font-medium text-primary shadow-glow hover:bg-primary/25 disabled:opacity-50"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           查询
         </button>
+        <button
+          onClick={() => {
+            if (!val) { setErr("请先输入 6 位 A 股代码，再使用「多空辩论」"); return; }
+            setDebateOpen((o) => !o);
+          }}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm",
+            val
+              ? "border-border/60 text-muted-foreground hover:border-primary/50 hover:text-foreground"
+              : "border-border/40 text-muted-foreground/50 hover:border-warning/50 hover:text-warning"
+          )}
+          title={val ? undefined : "请先输入 6 位 A 股代码"}
+        >
+          <Swords className="h-4 w-4" /> {val && debateOpen ? "收起多空辩论" : "多空辩论"}
+        </button>
       </div>
+      {val && debateOpen && (
+        <div className="mb-5">
+          <Debate embed code={val.code} />
+        </div>
+      )}
 
       {err && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
@@ -235,6 +275,12 @@ export function StockData() {
       {/* 美股 / 港股视图（global-stock-data，东财域内源） */}
       {gstock && (
         <>
+          {/* 走势图（K 线，数据来自后端 /api/kline，腾讯前复权日线） */}
+          <GlassCard className="mb-4">
+            <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold"><LineChart className="h-4 w-4 text-primary" /> 走势图（K 线）</h3>
+            <KlineChart code={gstock.code} market={gstock.market} dark={dark} />
+          </GlassCard>
+
           <GlassCard glow className="mb-4">
             <div className="mb-4 flex items-baseline gap-2">
               <h2 className="text-xl font-bold">{gstock.name}</h2>
@@ -289,13 +335,19 @@ export function StockData() {
           )}
 
           <p className="text-xs text-muted-foreground/60">
-            美股 / 港股数据来自 <a href="https://github.com/simonlin1212/global-stock-data" target="_blank" rel="noreferrer" className="hover:text-primary">global-stock-data</a>（东财域内源）· 金额为原生币种 · 仅客观数据，不含买卖建议。
+            美股 / 港股数据来自 <a href="https://github.com/" target="_blank" rel="noreferrer" className="hover:text-primary">global-stock-data</a>（东财域内源）· 金额为原生币种 · 仅客观数据，不含买卖建议。
           </p>
         </>
       )}
 
       {val && (
         <>
+          {/* 走势图（K 线，数据来自后端 /api/kline，腾讯前复权日线） */}
+          <GlassCard className="mb-4">
+            <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold"><LineChart className="h-4 w-4 text-primary" /> 走势图（K 线）</h3>
+            <KlineChart code={val.code} dark={dark} />
+          </GlassCard>
+
           <GlassCard glow className="mb-4">
             <div className="mb-4 flex items-baseline gap-2">
               <h2 className="text-xl font-bold">{val.name}</h2>

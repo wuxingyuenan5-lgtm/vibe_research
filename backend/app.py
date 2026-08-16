@@ -327,18 +327,95 @@ def market_monitor():
 
 @app.get("/api/stock-pool")
 def stock_pool():
-    """核心股票池 Dashboard V0.1 payload（复刻 Astock_study feat/dashboard-v0.1 母版结构）。"""
+    """核心股票池 payload（可编辑池子定义 + 日更快照行情，实时构建）。"""
     try:
-        root = Path(__file__).resolve().parent / "data" / "market-monitor"
-        snapshot = root / "output" / "stock-pool" / "payload.json"
-        if snapshot.exists():
-            payload = json.loads(snapshot.read_text("utf-8"))
-        else:
-            payload = stock_pool_builder.build_stock_pool_payload(root)
-            stock_pool_builder.build_stock_pool_payload_file(root, snapshot)
-        return {"data": payload}
+        return {"data": stock_pool_builder.build_stock_pool_payload()}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"股票池数据异常：{e}") from e
+
+
+@app.post("/api/stock-pool/add")
+async def stock_pool_add(request: Request):
+    """新增标的到核心股票池（自动同步 GitHub 真源）。"""
+    try:
+        body = await request.json()
+        result = stock_pool_builder.add_stock(body.get("name", ""), body.get("code"), body.get("industry", ""))
+        if not result.get("ok"):
+            raise HTTPException(400, result.get("error", "添加失败"))
+        return {"data": result, "payload": stock_pool_builder.build_stock_pool_payload()}
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"添加失败：{e}") from e
+
+
+@app.post("/api/stock-pool/add-batch")
+async def stock_pool_add_batch(request: Request):
+    """批量添加标的（代码列表 → 自动补名称，同步 GitHub 真源）。"""
+    try:
+        body = await request.json()
+        result = stock_pool_builder.add_stock_batch(body.get("codes") or [])
+        if not result.get("ok"):
+            raise HTTPException(400, result.get("error", "批量添加失败"))
+        return {"data": result, "payload": stock_pool_builder.build_stock_pool_payload()}
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"批量添加失败：{e}") from e
+
+
+@app.delete("/api/stock-pool/remove")
+def stock_pool_remove(instrument_id: str = ""):
+    """从核心股票池移除标的（自动同步 GitHub 真源）。"""
+    try:
+        result = stock_pool_builder.remove_stock(instrument_id)
+        if not result.get("ok"):
+            raise HTTPException(400, result.get("error", "移除失败"))
+        return {"data": result, "payload": stock_pool_builder.build_stock_pool_payload()}
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"移除失败：{e}") from e
+
+
+@app.post("/api/stock-pool/sync")
+def stock_pool_sync():
+    """手动触发同步到 GitHub 真源。"""
+    try:
+        result = stock_pool_builder.sync_to_github()
+        if not result.get("ok"):
+            raise HTTPException(502, result.get("error", "同步失败"))
+        return {"data": result}
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"同步失败：{e}") from e
+
+
+@app.get("/api/stock-pool/focus")
+def stock_pool_focus_get():
+    """近期关注列表（独立于核心股票池，存 GitHub data/stock-pool/focus.json）。"""
+    try:
+        codes = stock_pool_builder.load_focus()
+        return {"data": {"codes": codes}}
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"读取近期关注失败：{e}") from e
+
+
+@app.post("/api/stock-pool/focus")
+async def stock_pool_focus_save(request: Request):
+    """保存近期关注列表（本地 focus.json + 同步 GitHub 真源，独立于 pool.json）。"""
+    try:
+        body = await request.json()
+        codes = body.get("codes", [])
+        result = stock_pool_builder.save_focus(codes)
+        if not result.get("ok"):
+            raise HTTPException(502, result.get("error", "保存失败"))
+        return {"data": {"ok": True, "count": len(codes), "commit": result.get("commit")}}
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"保存近期关注失败：{e}") from e
 
 
 @app.get("/api/morning-brief")
@@ -557,15 +634,43 @@ def disclosure(code: str = Query(...)):
 
 
 @app.get("/api/kline")
-def kline(code: str = Query(...), category: int = Query(4), offset: int = Query(60, ge=1, le=800)):
-    """K线（需 mootdx）。category 4=日 5=周 6=月 11=60分钟。"""
-    code = _validate(code)
+def kline(code: str = Query(...), period: str = Query("day"), offset: int = Query(180, ge=1, le=800)):
+    """K线（腾讯）：A 股 6 位 / 港股 5 位 / 美股字母。period=day|week|month|60m。
+    day/week/month 为前复权（fqkline）；60m 为 1 小时线（mkline，不复权）。
+    返回 [{date,open,close,high,low,volume}]。"""
+    code = code.strip().upper()
+    if len(code) == 6 and code.isdigit():
+        sym = ("sh" if code.startswith(("6", "9")) else "sz") + code
+    elif len(code) == 5 and code.isdigit():
+        sym = "hk" + code
+    elif code.isalpha():
+        sym = "us" + code
+    else:
+        raise HTTPException(400, "无法识别代码（A 股 6 位 / 港股 5 位 / 美股字母）")
+    period = period.lower()
+    if period not in ("day", "week", "month", "60m"):
+        raise HTTPException(400, "period 仅支持 day|week|month|60m")
     try:
-        return {"data": astock.kline(code, category=category, offset=offset)}
-    except astock.DependencyMissing as e:
-        raise HTTPException(501, str(e)) from e
+        import urllib.request  # noqa: PLC0415
+        if period == "60m":
+            # 1 小时线走分钟 K 线接口（不复权），参数 m60
+            url = f"https://ifzq.gtimg.cn/appstock/app/kline/mkline?param={sym},m60,,{offset}"
+            key = "m60"
+        else:
+            url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={sym},{period},,,{offset},qfq"
+            key = f"qfq{period}"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        d = json.loads(urllib.request.urlopen(req, timeout=10).read().decode("utf-8"))
+        node = d.get("data", {}).get(sym, {}) or {}
+        raw = node.get(key) or node.get(period) or []
+        out = []
+        for r in raw:
+            if len(r) >= 6:
+                out.append({"date": r[0], "open": float(r[1]), "close": float(r[2]),
+                            "high": float(r[3]), "low": float(r[4]), "volume": float(r[5])})
+        return {"data": out, "symbol": sym, "period": period, "count": len(out)}
     except Exception as e:  # noqa: BLE001
-        raise HTTPException(502, f"K线源异常：{e}") from e
+        raise HTTPException(502, f"K线获取失败：{e}") from e
 
 
 @app.get("/api/finance")

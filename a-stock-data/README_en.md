@@ -9,7 +9,6 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
   <img src="https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white" alt="Python">
-  <a href="https://github.com/simonlin1212/a-stock-data/stargazers"><img src="https://img.shields.io/github/stars/simonlin1212/a-stock-data?style=social" alt="Stars"></a>
   <br>
   <img src="https://img.shields.io/badge/layers-10-2ea44f.svg" alt="Layers">
   <img src="https://img.shields.io/badge/endpoints-44-2ea44f.svg" alt="Endpoints">
@@ -66,7 +65,7 @@ mkdir -p ~/.claude/skills/a-stock-data
 
 # 2. Download SKILL.md
 curl -o ~/.claude/skills/a-stock-data/SKILL.md \
-  https://raw.githubusercontent.com/simonlin1212/a-stock-data/main/SKILL.md
+  https://example.com/a-stock-data/SKILL.md   # replace example.com with the original upstream raw URL
 
 # 3. Install dependencies (V3.0: akshare no longer needed)
 pip install mootdx requests pandas stockstats
@@ -262,20 +261,6 @@ This project provides data access tools only and does not constitute investment 
 
 ---
 
-## Support
-
-If this tool saved you time, a coffee is appreciated ☕
-
-<p align="center">
-  <a href="https://buymeacoffee.com/simonlin1212"><img src="./assets/bmc-qr.png" width="180" alt="Buy Me a Coffee"></a>
-</p>
-
-> Need a data endpoint that isn't here? Open an [Issue](https://github.com/simonlin1212/a-stock-data/issues); sponsors' issues go first.
-
----
-
 ## License
 
 [Apache License 2.0](./LICENSE)
-
-**Author:** Simon Lin · X [@linsizhen](https://x.com/linsizhen) · Email: [simonlin0423@gmail.com](mailto:simonlin0423@gmail.com)

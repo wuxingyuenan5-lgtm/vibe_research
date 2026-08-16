@@ -11,6 +11,10 @@ from pathlib import Path
 
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 
+# 直连 opener：国内财经站（qt.gtimg.cn / push2.eastmoney.com 等）若走系统代理常被 Clash CONNECT 掐掉，
+# 这里用一个空 ProxyHandler 强制直连。注意只影响 urllib.request 数据层调用，不影响 requests 库 / AI 层代理。
+_no_proxy_opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
 
 def get_prefix(code: str) -> str:
     """6 位代码 → 交易所前缀。5 开头是沪市基金/ETF（51/56/58 等），深市基金 15/16 开头走默认 sz。"""
@@ -32,7 +36,7 @@ class DependencyMissing(RuntimeError):
 def _fetch_gtimg(prefixed_codes: list[str]) -> str:
     url = "https://qt.gtimg.cn/q=" + ",".join(prefixed_codes)
     req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=10) as resp:
+    with _no_proxy_opener.open(req, timeout=10) as resp:
         return resp.read().decode("gbk")
 
 

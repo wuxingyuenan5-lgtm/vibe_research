@@ -35,3 +35,8 @@ frontend/tsconfig.tsbuildinfo
 *.log
 .vscode/
 .idea/
+
+# ── 运行时数据 / 日志 / 本地记忆 ──────────────────────────────────
+.logs/
+backend/data/
+**/.workbuddy/

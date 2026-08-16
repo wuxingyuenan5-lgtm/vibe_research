@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { TrendingUp, FileText, Newspaper, Rss, RefreshCw, Loader2, ExternalLink, AlertCircle, Sparkles, Lightbulb, Star } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -7,7 +7,6 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { SaveNoteButton } from "@/components/ui/SaveNoteButton";
 import { api, ApiError, type RadarData, type Industry, type Announcement, type NewsItem } from "@/lib/api";
-import { loadWatch } from "@/lib/watchlist";
 import { hasLlm, chatStream } from "@/lib/llm";
 import { cn } from "@/lib/utils";
 
@@ -185,11 +184,37 @@ interface FeedRow { code: string; name: string; when: string; title: string; met
 const MAX_ROWS = 60;
 
 function WatchlistFeed({ kind }: { kind: "filings" | "news" }) {
-  const [codes, setCodes] = useState<string[]>(loadWatch);
+  const [poolStocks, setPoolStocks] = useState<{ code: string; name: string; industry: string }[]>([]);
+  const [industry, setIndustry] = useState("");
+  const [stockCode, setStockCode] = useState("");
+  const [days, setDays] = useState(7);  // 日期范围：0 = 全部
   const [rows, setRows] = useState<FeedRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [depNote, setDepNote] = useState<string | null>(null);
+
+  // 标的池 = 核心股票池（/api/stock-pool）；公告/新闻接口仅支持 A 股 6 位代码
+  const loadPoolStocks = useCallback(async () => {
+    try {
+      const r = await fetch("/api/stock-pool").then((x) => x.json());
+      const stocks = (r?.data?.stocks || [])
+        .map((s) => ({ code: s.code || "", name: s.name || "", industry: s.industry || "" }))
+        .filter((s) => s.code && /^\d{6}$/.test(s.code));
+      setPoolStocks(stocks);
+      return stocks;
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const industries = useMemo(
+    () => Array.from(new Set(poolStocks.map((s) => s.industry).filter(Boolean))).sort(),
+    [poolStocks],
+  );
+  const filtered = useMemo(
+    () => poolStocks.filter((s) => (!industry || s.industry === industry) && (!stockCode || s.code === stockCode)),
+    [poolStocks, industry, stockCode],
+  );
 
   const load = useCallback(async (cs: string[]) => {
     if (!cs.length) { setRows([]); return; }
@@ -204,22 +229,31 @@ function WatchlistFeed({ kind }: { kind: "filings" | "news" }) {
 
       const out: FeedRow[] = [];
       if (kind === "filings") {
-        const res = await Promise.all(
-          cs.map((c) => api.announcements(c).then((a) => ({ c, a })).catch(() => ({ c, a: [] as Announcement[] }))),
-        );
+        // 分批（每批 10 只）拉公告，避免 140+ 并发打爆上游
+        const res: { c: string; a: Announcement[] }[] = [];
+        for (let i = 0; i < cs.length; i += 10) {
+          const batch = await Promise.all(
+            cs.slice(i, i + 10).map((c) => api.announcements(c).then((a) => ({ c, a })).catch(() => ({ c, a: [] as Announcement[] }))),
+          );
+          res.push(...batch);
+        }
         for (const { c, a } of res)
           for (const x of a)
             out.push({ code: c, name: nameOf[c] || c, when: x.date, title: x.title.replace(/^[^:：]*[:：]/, ""), meta: x.type, url: x.url });
       } else {
         let dep: string | null = null;
-        const res = await Promise.all(
-          cs.map((c) =>
-            api.news(c).then((n) => ({ c, n })).catch((e) => {
-              if (e instanceof ApiError && e.status === 501) dep = e.message;
-              return { c, n: [] as NewsItem[] };
-            }),
-          ),
-        );
+        const res: { c: string; n: NewsItem[] }[] = [];
+        for (let i = 0; i < cs.length; i += 10) {
+          const batch = await Promise.all(
+            cs.slice(i, i + 10).map((c) =>
+              api.news(c).then((n) => ({ c, n })).catch((e) => {
+                if (e instanceof ApiError && e.status === 501) dep = e.message;
+                return { c, n: [] as NewsItem[] };
+              }),
+            ),
+          );
+          res.push(...batch);
+        }
         for (const { c, n } of res)
           for (const x of n)
             out.push({ code: c, name: nameOf[c] || c, when: x.发布时间 || "", title: x.新闻标题 || "", url: x.新闻链接 });
@@ -232,32 +266,55 @@ function WatchlistFeed({ kind }: { kind: "filings" | "news" }) {
         if (Number.isNaN(t)) t = Date.parse(raw.replace(" ", "T"));
         return Number.isNaN(t) ? 0 : t;
       };
-      out.sort((p, q) => ts(q.when) - ts(p.when));
-      setRows(out.slice(0, MAX_ROWS));
+      // 日期范围过滤（近 N 天；0 = 全部）
+      const cutoff = days > 0 ? Date.now() - days * 86400000 : 0;
+      const inRange = cutoff > 0 ? out.filter((r) => ts(r.when) >= cutoff) : out;
+      inRange.sort((p, q) => ts(q.when) - ts(p.when));
+      setRows(inRange.slice(0, MAX_ROWS));
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "加载失败");
     } finally {
       setLoading(false);
     }
-  }, [kind]);
+  }, [kind, days]);
 
-  useEffect(() => { const cs = loadWatch(); setCodes(cs); load(cs); }, [load]);
+  useEffect(() => { loadPoolStocks(); }, [loadPoolStocks]);
+  useEffect(() => { load(filtered.map((s) => s.code)); }, [load, filtered]);
 
-  const refresh = () => { const cs = loadWatch(); setCodes(cs); load(cs); };
+  const refresh = () => { load(filtered.map((s) => s.code)); };
 
-  if (!codes.length) {
+  if (!poolStocks.length) {
     return (
       <div className="rounded-lg border border-dashed border-border/70 p-8 text-center text-sm text-muted-foreground/70">
-        还没有关注股票。到<Link to="/daily-review" className="text-primary">「每日复盘」</Link>加自选（6 位代码），这里会汇总它们的{kind === "filings" ? "公告" : "新闻"}。
+        核心股票池暂无 A 股标的，这里会汇总它们的{kind === "filings" ? "公告" : "新闻"}。
       </div>
     );
   }
 
+  const selStyle = "rounded-lg border border-border/60 bg-background/60 px-2.5 py-1.5 text-xs outline-none focus:border-primary/60";
+
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <select value={industry} onChange={(e) => { setIndustry(e.target.value); setStockCode(""); }} className={selStyle}>
+          <option value="">全部行业</option>
+          {industries.map((x) => <option key={x}>{x}</option>)}
+        </select>
+        <select value={stockCode} onChange={(e) => setStockCode(e.target.value)} className={selStyle}>
+          <option value="">全部个股</option>
+          {poolStocks.filter((s) => !industry || s.industry === industry).map((s) => (
+            <option key={s.code} value={s.code}>{s.name}（{s.code}）</option>
+          ))}
+        </select>
+        <select value={days} onChange={(e) => setDays(Number(e.target.value))} className={selStyle}>
+          <option value={1}>近 1 天</option>
+          <option value={3}>近 3 天</option>
+          <option value={7}>近 7 天</option>
+          <option value={30}>近 30 天</option>
+          <option value={0}>全部日期</option>
+        </select>
         <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Star className="h-3.5 w-3.5 text-primary/70" /> 关注 {codes.length} 只 · 共 {rows.length} 条{kind === "filings" ? "公告" : "新闻"}（近期）
+          <Star className="h-3.5 w-3.5 text-primary/70" /> 筛选 {filtered.length} 只 · 共 {rows.length} 条{kind === "filings" ? "公告" : "新闻"}
         </span>
         <button onClick={refresh} disabled={loading}
           className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50">

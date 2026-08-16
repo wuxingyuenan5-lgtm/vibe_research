@@ -93,7 +93,7 @@ export function MorningBrief() {
           <div className="dl">
             <button onClick={() => window.open(dl("html"), "_blank")}>下载 HTML</button>
             <button onClick={() => window.open(dl("pdf"), "_blank")}>下载 PDF</button>
-            <input type="date" value={date} onChange={(e) => e.target.value && setParams({ date: e.target.value })} style={{ border: "1px solid var(--line)", borderRadius: 7, padding: "7px 10px", fontSize: 12 }} />
+            <input type="date" value={date} onChange={(e) => e.target.value && setParams({ date: e.target.value })} style={{ border: "1px solid var(--line)", borderRadius: 7, padding: "7px 10px", fontSize: 12, background: "var(--control-bg)", color: "var(--ink)", colorScheme: "dark" }} />
           </div>
         </div>
 

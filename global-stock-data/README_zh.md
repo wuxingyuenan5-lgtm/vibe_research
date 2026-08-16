@@ -10,7 +10,6 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white" alt="Python 3.9+"></a>
-  <a href="https://github.com/simonlin1212/global-stock-data/stargazers"><img src="https://img.shields.io/github/stars/simonlin1212/global-stock-data?style=social" alt="GitHub stars"></a>
   <a href="#架构"><img src="https://img.shields.io/badge/层数-13-2ea44f.svg" alt="层数"></a>
   <a href="#端点"><img src="https://img.shields.io/badge/端点-30%2B-2ea44f.svg" alt="端点"></a>
   <a href="#数据源"><img src="https://img.shields.io/badge/数据源-11-2ea44f.svg" alt="数据源"></a>
@@ -87,7 +86,7 @@ mkdir -p ~/.claude/skills/global-stock-data
 
 # 2. 下载 SKILL.md
 curl -o ~/.claude/skills/global-stock-data/SKILL.md \
-  https://raw.githubusercontent.com/simonlin1212/global-stock-data/main/SKILL.md
+  https://example.com/global-stock-data/SKILL.md   # 把 example.com 替换为原始上游 raw URL
 
 # 3. 安装依赖
 pip install requests
@@ -210,7 +209,7 @@ pip install requests
 
 ## FAQ
 
-**和 a-stock-data 什么关系？** 姊妹项目。[a-stock-data](https://github.com/simonlin1212/a-stock-data) 覆盖 A 股，global-stock-data 覆盖美股，两个 Skill 可同时装、互不冲突。
+**和 a-stock-data 什么关系？** 姊妹项目。`a-stock-data` 覆盖 A 股，global-stock-data 覆盖美股，两个 Skill 可同时装、互不冲突。
 
 **Yahoo 要 API Key 吗？** 不要，代码自动管理 cookie + crumb，过期自动刷新。
 
@@ -232,16 +231,6 @@ pip install requests
 
 本项目仅提供数据获取工具，不构成任何投资建议。股市有风险，投资需谨慎。
 
-## 赞赏
-
-如果这个工具帮到了你 ☕
-
-<p align="center">
-  <a href="https://buymeacoffee.com/simonlin1212"><img src="./assets/bmc-qr.png" width="180" alt="Buy Me a Coffee"></a>
-</p>
-
-想要什么数据端点？欢迎开 [Issue](https://github.com/simonlin1212/global-stock-data/issues)，赞助者的 Issue 优先处理。
-
 ## License
 
-[Apache License 2.0](./LICENSE) — 自由使用，注明出处即可。**Author:** Simon Lin · X [@linsizhen](https://x.com/linsizhen) · Email: [simonlin0423@gmail.com](mailto:simonlin0423@gmail.com)
+[Apache License 2.0](./LICENSE) — 自由使用，注明出处即可。

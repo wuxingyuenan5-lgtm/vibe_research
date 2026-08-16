@@ -3,127 +3,240 @@
 @tailwind utilities;
 
 @layer base {
+  /* ============================================================
+     默认（.dark）· 深夜蓝 —— 夜空 #07162a + 冷蓝主色 #60a5fa/#2563eb
+     ============================================================ */
   :root {
-    /* ---- 亮色 · 浅蓝灰（默认） ---- */
-    --background: 207 60% 97%;         /* #f3f8fc 内容底 */
-    --foreground: 224 28% 10%;         /* #131722 —— 对齐模板 TradingView 字体 */
-    --card: 0 0% 100%;                 /* 卡底纯白 */
-    --card-foreground: 224 28% 10%;
+    --background: 211 71% 9%;          /* #07162a 深夜蓝 */
+    --foreground: 214 60% 92%;         /* 柔和星白 #dfe9f8 */
+    --card: 212 55% 13%;               /* 卡片深蓝底 */
+    --card-foreground: 214 60% 92%;
 
-    --primary: 224 100% 58%;           /* #2962ff —— 模板 accent（TradingView 蓝） */
-    --primary-foreground: 0 0% 100%;
-    --accent: 213 94% 68%;             /* 亮蓝 #60a5fa —— 辅色/高亮 */
-    --accent-foreground: 222 40% 12%;
+    --primary: 213 94% 68%;            /* 亮蓝 #60a5fa —— 品牌主色 */
+    --primary-foreground: 222 47% 11%;
+    --accent: 221 83% 53%;             /* 深蓝 #2563eb —— 高亮/hover */
+    --accent-foreground: 0 0% 100%;
 
-    --muted: 210 20% 95%;              /* surface-2（悬停/浅底） */
-    --muted-foreground: 215 16% 40%;
-    --destructive: 0 74% 55%;
+    --muted: 213 40% 18%;              /* 深色 surface-2 */
+    --muted-foreground: 215 22% 62%;   /* 蓝灰辅文 */
+    --destructive: 4 76% 58%;
     --destructive-foreground: 0 0% 100%;
-    --border: 210 25% 90%;             /* 浅边框 */
-    --radius: 1rem;
+    --border: 213 35% 22%;             /* 发丝深蓝边 */
+    --radius: 0.9rem;
 
-    /* 语义色（涨跌配色由页面按 A股红涨绿跌自行选用 success/danger） */
-    --success: 145 62% 40%;
-    --danger: 0 74% 52%;
-    --warning: 38 92% 45%;
-    --info: 224 100% 58%;
+    /* 语义色（A股红涨绿跌，暗底调亮保对比） */
+    --success: 152 62% 46%;            /* 跌·绿 */
+    --danger: 5 82% 60%;               /* 涨·红 */
+    --warning: 38 92% 58%;
+    --info: 210 80% 62%;
 
-    /* 玻璃发丝边框 / 内高光（rgba，供 .glass 使用） */
-    --glass-fill-top: rgba(255, 255, 255, 0.75);
-    --glass-fill-bot: rgba(255, 255, 255, 0.4);
-    --glass-stroke: rgba(37, 99, 235, 0.22);
-    --glass-hi: rgba(255, 255, 255, 0.85);
+    /* 深夜玻璃 */
+    --glass-fill-top: rgba(255, 255, 255, 0.055);
+    --glass-fill-bot: rgba(255, 255, 255, 0.018);
+    --glass-stroke: rgba(255, 255, 255, 0.11);
+    --glass-hi: rgba(255, 255, 255, 0.07);
 
     /* Chart tokens */
-    --chart-grid: 210 20% 90%;
-    --chart-text: 215 16% 42%;
-    --chart-axis: 210 20% 80%;
+    --chart-grid: 213 35% 20%;
+    --chart-text: 215 22% 62%;
+    --chart-axis: 213 35% 28%;
   }
 
-  .dark {
-    /* ---- 暗色 · 深蓝黑 ---- */
-    --background: 222 47% 11%;         /* #0F172A 暗底 */
-    --foreground: 210 30% 92%;
-    --card: 217 33% 17%;               /* #1E293B 组件底 */
-    --card-foreground: 210 30% 92%;
+  /* ============================================================
+     .light · 冷蓝灰变体 —— 浅蓝灰底 / 白卡 / 深蓝主色
+     ============================================================ */
+  .light {
+    --background: 210 45% 97%;         /* #f1f5fa 冷蓝灰 */
+    --foreground: 220 25% 13%;         /* #172234 墨色 */
+    --card: 0 0% 100%;                 /* 纯白卡 */
+    --card-foreground: 220 25% 13%;
 
-    --primary: 224 100% 65%;           /* 亮蓝 #4d82ff（暗底提亮保对比） */
-    --primary-foreground: 222 47% 11%;
-    --accent: 224 100% 58%;
-    --accent-foreground: 210 30% 92%;
+    --primary: 221 83% 53%;            /* 深蓝 #2563eb（白底保对比） */
+    --primary-foreground: 0 0% 100%;
+    --accent: 213 94% 68%;             /* 亮蓝 #60a5fa */
+    --accent-foreground: 222 47% 11%;
 
-    --muted: 215 25% 27%;              /* #334155 悬停 */
-    --muted-foreground: 215 18% 65%;
-    --destructive: 0 72% 58%;
+    --muted: 213 32% 93%;
+    --muted-foreground: 220 8% 45%;    /* #717b87 */
+    --destructive: 4 70% 48%;
     --destructive-foreground: 0 0% 100%;
-    --border: 217 33% 24%;
+    --border: 214 28% 84%;
 
-    --success: 145 62% 47%;
-    --danger: 0 74% 60%;
-    --warning: 38 92% 55%;
-    --info: 224 100% 65%;
+    --success: 152 68% 30%;
+    --danger: 5 74% 50%;
+    --warning: 38 92% 45%;
+    --info: 210 80% 45%;
 
-    --glass-fill-top: rgba(255, 255, 255, 0.055);
-    --glass-fill-bot: rgba(255, 255, 255, 0.012);
-    --glass-stroke: rgba(96, 165, 250, 0.16);
-    --glass-hi: rgba(255, 255, 255, 0.06);
+    --glass-fill-top: rgba(255, 255, 255, 0.95);
+    --glass-fill-bot: rgba(250, 252, 255, 0.9);
+    --glass-stroke: rgba(37, 99, 235, 0.12);
+    --glass-hi: rgba(255, 255, 255, 0.9);
 
-    --chart-grid: 217 33% 22%;
-    --chart-text: 215 18% 62%;
-    --chart-axis: 217 33% 30%;
+    --chart-grid: 214 28% 86%;
+    --chart-text: 220 8% 45%;
+    --chart-axis: 214 28% 76%;
   }
 
   * { @apply border-border; }
 
+  html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
   body {
     @apply bg-background text-foreground;
-    /* 纵深蓝冷双光晕（顶蓝 + 右下冷蓝） */
     background-color: hsl(var(--background));
+    /* 深夜星空：左上海蓝晕 + 右下深蓝光，对齐落地页 radial */
     background-image:
-      radial-gradient(1100px 620px at 12% -12%, hsl(221 83% 53% / 0.08), transparent 60%),
-      radial-gradient(980px 720px at 108% 112%, hsl(210 60% 55% / 0.06), transparent 55%);
+      radial-gradient(circle at 24% 18%, rgba(18, 54, 94, 0.5), transparent 42%),
+      radial-gradient(1000px 700px at 108% 112%, rgba(10, 30, 58, 0.55), transparent 55%);
     background-attachment: fixed;
   }
 
-  .dark body {
+  .light body {
     background-image:
-      radial-gradient(1100px 620px at 12% -12%, hsl(213 94% 68% / 0.08), transparent 60%),
-      radial-gradient(980px 720px at 108% 112%, hsl(222 60% 35% / 0.10), transparent 55%);
+      radial-gradient(1100px 620px at 12% -12%, rgba(37, 99, 235, 0.07), transparent 60%),
+      radial-gradient(980px 720px at 108% 112%, rgba(59, 130, 246, 0.06), transparent 55%);
   }
+
+  ::selection { background: hsl(var(--primary) / 0.35); }
+
+  :focus-visible { outline: 2px solid hsl(var(--primary) / 0.6); outline-offset: 1px; }
 
   /* prose 表格 */
   .prose table { border-collapse: collapse; width: 100%; }
   .prose th, .prose td { border: 1px solid hsl(var(--border)); }
   .prose tbody tr:nth-child(even) { background: hsl(var(--muted) / 0.3); }
 
-  ::-webkit-scrollbar { width: 7px; height: 7px; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
+  ::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.3); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / 0.55); }
 }
 
 @layer components {
-  /* 玻璃卡：半透明填充 + 发丝蓝边 + 柔投影 + 顶部内高光 */
+  /* 深夜玻璃卡：微白填充 + 发丝边 + 深投影 + 顶部内高光 */
   .glass {
-    background-image: linear-gradient(162deg, var(--glass-fill-top), var(--glass-fill-bot));
+    background-image: linear-gradient(165deg, var(--glass-fill-top), var(--glass-fill-bot));
     border: 1px solid var(--glass-stroke);
     border-radius: var(--radius);
-    box-shadow: 0 10px 26px rgba(30, 60, 100, 0.10), inset 0 1px 0 var(--glass-hi);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.2),
+      0 14px 34px rgba(2, 9, 24, 0.4),
+      inset 0 1px 0 var(--glass-hi);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
-  .dark .glass { box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 var(--glass-hi); }
+  .light .glass {
+    box-shadow:
+      0 1px 2px rgba(60, 48, 20, 0.05),
+      0 10px 28px rgba(60, 48, 20, 0.08),
+      inset 0 1px 0 var(--glass-hi);
+  }
 
-  /* 顶角蓝色光晕（配 .glass 用，装饰热点） */
+  /* 可点击卡片悬浮：抬升 + 金边晕染 */
+  .glass-lift { transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; }
+  .glass-lift:hover {
+    transform: translateY(-2px);
+    border-color: hsl(var(--primary) / 0.45);
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.2),
+      0 18px 40px rgba(2, 9, 24, 0.5),
+      0 0 24px hsl(var(--primary) / 0.12),
+      inset 0 1px 0 var(--glass-hi);
+  }
+  .light .glass-lift:hover {
+    box-shadow:
+      0 2px 4px rgba(60, 48, 20, 0.06),
+      0 16px 36px rgba(60, 48, 20, 0.14),
+      inset 0 1px 0 var(--glass-hi);
+  }
+
+  /* 顶角金色光晕（配 .glass 用，装饰热点） */
   .glass-glow { position: relative; overflow: hidden; }
   .glass-glow::before {
     content: "";
     position: absolute; top: -40%; right: -20%;
     width: 240px; height: 240px;
-    background: radial-gradient(circle, hsl(var(--primary) / 0.14), transparent 70%);
+    background: radial-gradient(circle, hsl(var(--primary) / 0.16), transparent 70%);
     pointer-events: none;
   }
 
-  /* 蓝色光文字 */
-  .text-glow { text-shadow: 0 0 18px hsl(var(--primary) / 0.35); }
+  /* 金色光文字 */
+  .text-glow { text-shadow: 0 0 18px hsl(var(--primary) / 0.45); }
+
+  /* 等宽数字：价格 / 百分比 / 金额统一对齐 */
+  .num { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+  /* 涨跌徽章（A股红涨绿跌） */
+  .chip {
+    display: inline-flex; align-items: center; gap: 2px;
+    padding: 1px 7px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; line-height: 1.6;
+    font-variant-numeric: tabular-nums;
+  }
+  .chip-up   { color: hsl(var(--danger));  background: hsl(var(--danger) / 0.14); }
+  .chip-down { color: hsl(var(--success)); background: hsl(var(--success) / 0.15); }
+  .chip-flat { color: hsl(var(--muted-foreground)); background: hsl(var(--muted) / 0.6); }
+
+  /* 区块小标题：左侧金色刻度条 */
+  .section-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 700; color: hsl(var(--foreground) / 0.9);
+  }
+  .section-title::before {
+    content: ""; width: 3px; height: 13px; border-radius: 99px;
+    background: linear-gradient(180deg, hsl(var(--accent)), hsl(var(--primary)));
+  }
+  .section-title .st-hint { font-size: 11px; font-weight: 400; color: hsl(var(--muted-foreground) / 0.6); }
+
+  /* 输入框 */
+  .input {
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--muted) / 0.35);
+    border-radius: 10px; padding: 8px 12px; font-size: 14px;
+    color: hsl(var(--foreground)); outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .light .input { background: hsl(var(--card)); }
+  .input::placeholder { color: hsl(var(--muted-foreground) / 0.55); }
+  .input:focus { border-color: hsl(var(--primary) / 0.6); box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15); }
+
+  /* 主按钮：金色渐变实心 + 深棕字（落地页金） */
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 10px;
+    font-size: 14px; font-weight: 700;
+    color: hsl(var(--primary-foreground));
+    background: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--primary)));
+    box-shadow: 0 4px 16px hsl(var(--primary) / 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  }
+  .btn-primary:hover { filter: brightness(1.07); box-shadow: 0 6px 22px hsl(var(--primary) / 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+  .btn-primary:active { transform: translateY(1px); }
+  .btn-primary:disabled { opacity: 0.55; pointer-events: none; }
+
+  /* 次级按钮：淡金软底 */
+  .btn-soft {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 10px;
+    font-size: 14px; font-weight: 600;
+    color: hsl(var(--accent)); background: hsl(var(--primary) / 0.14);
+    border: 1px solid hsl(var(--primary) / 0.25);
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .light .btn-soft { color: hsl(var(--primary)); }
+  .btn-soft:hover { background: hsl(var(--primary) / 0.24); border-color: hsl(var(--primary) / 0.4); }
+  .btn-soft:disabled { opacity: 0.5; pointer-events: none; }
+
+  /* 数据表：行悬浮 + 表头规范 */
+  .data-table { width: 100%; font-size: 14px; }
+  .data-table thead tr { border-bottom: 1px solid hsl(var(--border) / 0.8); }
+  .data-table th {
+    padding: 8px 10px; text-align: left; white-space: nowrap;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+    color: hsl(var(--muted-foreground));
+  }
+  .data-table td { padding: 9px 10px; border-bottom: 1px solid hsl(var(--border) / 0.45); }
+  .data-table tbody tr { transition: background 0.12s ease; }
+  .data-table tbody tr:hover { background: hsl(var(--primary) / 0.07); }
+  .data-table tbody tr:last-child td { border-bottom: 0; }
 }

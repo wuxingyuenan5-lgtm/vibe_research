@@ -10,7 +10,6 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white" alt="Python 3.9+"></a>
-  <a href="https://github.com/simonlin1212/global-stock-data/stargazers"><img src="https://img.shields.io/github/stars/simonlin1212/global-stock-data?style=social" alt="GitHub stars"></a>
   <a href="#architecture"><img src="https://img.shields.io/badge/layers-13-2ea44f.svg" alt="Layers"></a>
   <a href="#endpoints"><img src="https://img.shields.io/badge/endpoints-30%2B-2ea44f.svg" alt="Endpoints"></a>
   <a href="#data-sources"><img src="https://img.shields.io/badge/sources-11-2ea44f.svg" alt="Sources"></a>
@@ -87,7 +86,7 @@ mkdir -p ~/.claude/skills/global-stock-data
 
 # 2. Download SKILL.md
 curl -o ~/.claude/skills/global-stock-data/SKILL.md \
-  https://raw.githubusercontent.com/simonlin1212/global-stock-data/main/SKILL.md
+  https://example.com/global-stock-data/SKILL.md   # replace example.com with the original upstream raw URL
 
 # 3. Install the dependency
 pip install requests
@@ -211,7 +210,7 @@ Just tell your AI assistant:
 ## FAQ
 
 **Q: How does this relate to a-stock-data?**
-Sister project. [a-stock-data](https://github.com/simonlin1212/a-stock-data) covers China A-shares; global-stock-data covers US and HK. Install both — they don't conflict.
+Sister project. `a-stock-data` covers China A-shares; global-stock-data covers US and HK. Install both — they don't conflict.
 
 **Q: Does Yahoo Finance need an API key?**
 No. The code fetches cookie + crumb automatically and refreshes on expiry.
@@ -238,16 +237,6 @@ See [CHANGELOG.md](./CHANGELOG.md).
 
 This project provides data-access tools only. It is not investment advice. Investing involves risk.
 
-## Support
-
-If this saved you time, a coffee is appreciated ☕
-
-<p align="center">
-  <a href="https://buymeacoffee.com/simonlin1212"><img src="./assets/bmc-qr.png" width="180" alt="Buy Me a Coffee"></a>
-</p>
-
-Want a data endpoint that isn't here? Open an [Issue](https://github.com/simonlin1212/global-stock-data/issues); sponsors' issues go first.
-
 ## License
 
-[Apache License 2.0](./LICENSE) — **Author:** Simon Lin · X [@linsizhen](https://x.com/linsizhen) · Email: [simonlin0423@gmail.com](mailto:simonlin0423@gmail.com)
+[Apache License 2.0](./LICENSE)

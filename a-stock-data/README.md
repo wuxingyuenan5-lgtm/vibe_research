@@ -9,7 +9,6 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
   <img src="https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white" alt="Python">
-  <a href="https://github.com/simonlin1212/a-stock-data/stargazers"><img src="https://img.shields.io/github/stars/simonlin1212/a-stock-data?style=social" alt="Stars"></a>
   <br>
   <img src="https://img.shields.io/badge/layers-10-2ea44f.svg" alt="Layers">
   <img src="https://img.shields.io/badge/endpoints-44-2ea44f.svg" alt="Endpoints">
@@ -66,7 +65,7 @@ mkdir -p ~/.claude/skills/a-stock-data
 
 # 2. 把 SKILL.md 放进去
 curl -o ~/.claude/skills/a-stock-data/SKILL.md \
-  https://raw.githubusercontent.com/simonlin1212/a-stock-data/main/SKILL.md
+  https://example.com/a-stock-data/SKILL.md   # 把 example.com 替换为原始上游 raw URL
 
 # 3. 安装依赖（V3.0 不再需要 akshare）
 pip install mootdx requests pandas stockstats
@@ -317,20 +316,6 @@ V2.1 改为本地自缓存。每次调用自动积累，越跑越丰富。首次
 
 ---
 
-## 赞赏
-
-如果这个工具帮到了你的投研工作流，欢迎请作者喝杯咖啡 ☕
-
-<p align="center">
-  <a href="https://buymeacoffee.com/simonlin1212"><img src="./assets/bmc-qr.png" width="180" alt="Buy Me a Coffee"></a>
-</p>
-
-> 想要什么数据端点？欢迎开 [Issue](https://github.com/simonlin1212/a-stock-data/issues) 提需求，赞助者的 Issue 优先处理。
-
----
-
 ## License
 
 [Apache License 2.0](./LICENSE) — 自由使用，注明出处即可。
-
-**作者：** Simon 林 · X [@linsizhen](https://x.com/linsizhen) · 邮箱：[simonlin0423@gmail.com](mailto:simonlin0423@gmail.com)

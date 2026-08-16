@@ -30,7 +30,7 @@ interface ReportData {
 
 const CROWD_TARGETS = ["通信设备", "计算机设备", "元件", "半导体"] as const;
 const INDEX_NAMES = ["上证50", "Choice微盘", "中证全指"] as const;
-const UP = "#ef4444", DOWN = "#10b981";
+const UP = "#f2503f", DOWN = "#2fbf71";
 const signedPct = (v: number | null | undefined) => (v == null ? "—" : `${v > 0 ? "+" : ""}${(v * 100).toFixed(2)}%`);
 const num2 = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const num0 = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("zh-CN", { maximumFractionDigits: 0 }));
@@ -98,7 +98,7 @@ function TimeChart({ cfg }: { cfg: ChartConfig }) {
     for (let k = 0; k < 5; k++) {
       const yy = y0 + (y1 - y0) * k / 4;
       const lv = dl[1] - (dl[1] - dl[0]) * k / 4;
-      out += `<line x1="${x0}" y1="${yy}" x2="${x1}" y2="${yy}" stroke="#e2e8f0"/>`;
+      out += `<line x1="${x0}" y1="${yy}" x2="${x1}" y2="${yy}" stroke="hsl(var(--chart-grid))"/>`;
       out += `<text x="${x0 - 8}" y="${yy + 4}" text-anchor="end" class="axis-label">${cfg.yLabel.includes("%") ? (lv * 100).toFixed(1) + "%" : lv.toFixed(0)}</text>`;
       if (cfg.rightLabel) {
         const rv = dr[1] - (dr[1] - dr[0]) * k / 4;

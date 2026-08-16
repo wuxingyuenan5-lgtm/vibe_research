@@ -27,8 +27,8 @@ const STAGE_TONE: Record<DebateStage, string> = {
 
 const DOSSIER_HINT = "多空双方拿到的是同一份接口实时拉取的数据，谁也不能靠编数字赢。";
 
-export function Debate() {
-  const [code, setCode] = useState("");
+export function Debate({ code: initCode = "", embed = false }: { code?: string; embed?: boolean }) {
+  const [code, setCode] = useState(initCode);
   const [rounds, setRounds] = useState(1);
   const [running, setRunning] = useState(false);
   const [status, setStatus] = useState("");
@@ -91,10 +91,12 @@ export function Debate() {
 
   return (
     <div>
-      <PageHeader
-        title="多空辩论"
-        subtitle="同一份客观数据，多方与空方各自立论、互相质疑，最后由中立主持归纳分歧点与验证清单。"
-      />
+      {!embed && (
+        <PageHeader
+          title="多空辩论"
+          subtitle="同一份客观数据，多方与空方各自立论、互相质疑，最后由中立主持归纳分歧点与验证清单。"
+        />
+      )}
 
       <GlassCard>
         <div className="flex flex-wrap items-end gap-3">

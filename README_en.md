@@ -6,7 +6,6 @@
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![GitHub stars](https://img.shields.io/github/stars/simonlin1212/Vibe-Research?style=social)](https://github.com/simonlin1212/Vibe-Research/stargazers)
 [![中文 README](https://img.shields.io/badge/📖_中文-README-F35D2B?style=flat)](README.md)
 
 <p align="center">
@@ -83,19 +82,19 @@ Three public data toolkits are **vendored directly into this repo** — `git clo
 - **Covers**: quotes / candles / analyst reports / consensus estimates / valuation / historical percentiles / financial statements / filings / Dragon-Tiger list / margin trading / block trades / shareholder counts / dividends / fund flows / lockup expiry / concept sectors / limit-up sentiment / ETF options / investor Q&A / market-wide industry rankings.
 - **For agents**: running this repo with Claude Code or similar? Point them at `SKILL.md` — every endpoint has copy-paste ready code. The backend data layer (`backend/astock.py`) is ported from it.
 - **Runtime deps**: `pip install mootdx requests pandas stockstats`
-- **Upstream**: <https://github.com/simonlin1212/a-stock-data> — the vendored copy is a pinned snapshot and keeps working even if you never update it.
+- **Upstream**: the vendored copy in this repo is a pinned snapshot and keeps working even if you never update it. See the `LICENSE` file in the source folder for the original upstream location.
 
 ### US / HK data · global-stock-data
 
 - Lives in [`global-stock-data/`](global-stock-data/) (v2.0.3). 13 data layers, 30+ endpoints, 11 sources, no auth required — quotes, candles, technicals, financial statements, fund flows, options (CBOE official chain with full Greeks and 0DTE flow), FINRA short volume, and the SEC EDGAR filing stream plus market-wide screener. Every source is labeled with its compliance tier.
 - `backend/gstock.py` ports the Eastmoney-domain subset: global indices (the "Global markets" row on Daily Review) plus US/HK quotes and key financials.
 - **Korean stocks**: append `.KS` to the 6-digit code (e.g. Samsung `005930.KS`). ⚠️ KR codes are also 6 digits like A-share tickers, so **the suffix is required** for correct routing. Quotes only, no financials. Taiwan is covered via US ADRs (e.g. `TSM`).
-- **Upstream**: <https://github.com/simonlin1212/global-stock-data>
+- **Upstream**: the vendored copy in this repo is a pinned snapshot. See the `LICENSE` file in the source folder for the original upstream location.
 
 ### Global news · investment-news
 
 - 108 public RSS feeds across 12 industry tracks, merged into `backend/newsradar.py`. Standard library only, no API keys.
-- **Upstream**: <https://github.com/simonlin1212/investment-news>
+- **Upstream**: the original open-source `investment-news` project; see the source folder's `LICENSE` for the original location.
 
 > All data comes from public sources. Vibe-Research only performs objective data aggregation and presents public rankings as-is — **it does not recommend stocks, predict price moves, time trades, or assign subjective scores**. What you do with the data is up to you and your AI.
 
@@ -220,43 +219,9 @@ cd backend && .venv/bin/pip install -r requirements-dev.txt
 - **Your portfolio, watchlist, uploaded reports and API keys stay on your machine.** Nothing is uploaded; nothing enters the repo.
 - Portfolio and uploaded reports default to `~/.vibe-research/` (override with `VR_DATA_DIR` / `VR_REPORTS_DIR`) — outside the project folder, so re-downloading or overwriting the project never loses your data.
 
-## Related Projects
-
-All from the same open-source stack ([`simonlin1212`](https://github.com/simonlin1212)):
-
-| Repo | What it is |
-|---|---|
-| [**a-stock-data**](https://github.com/simonlin1212/a-stock-data) | A-share full-stack data toolkit (10 layers · 44 endpoints · 15 sources) — this project's A-share engine |
-| [**global-stock-data**](https://github.com/simonlin1212/global-stock-data) | US / HK full-stack data toolkit (13 layers · 30+ endpoints · 11 sources) |
-| [**investment-news**](https://github.com/simonlin1212/investment-news) | Global industry news dashboard (12 tracks mapped to A-share sectors) |
-| [**Agent-Staff**](https://github.com/simonlin1212/Agent-Staff) | Agentify a company: one AI agent per department plus a chief-of-staff |
-
-## Contact
-
-Built by **Simon**, independent developer.
-
-- 🐦 X: [@linsizhen](https://x.com/linsizhen)
-- ✉️ Email: <simonlin0423@gmail.com>
-- 💬 Happy to talk about **enterprise AI adoption**; for project issues please open an [Issue](https://github.com/simonlin1212/Vibe-Research/issues).
-
-## Acknowledgements
-
-- A-share data engine: [a-stock-data](https://github.com/simonlin1212/a-stock-data)
-- US / HK data engine: [global-stock-data](https://github.com/simonlin1212/global-stock-data)
-- News: [investment-news](https://github.com/simonlin1212/investment-news)
-- UI design language referenced with thanks: [HKUDS/Vibe-Trading](https://github.com/HKUDS/Vibe-Trading) (UI inspiration only; the implementation here is separate)
-
 ## Disclaimer
 
 This project is for learning and research purposes and **does not constitute investment advice**. The dashboard performs objective data aggregation and displays public rankings — it does not recommend stocks, predict price movements, time trades, or promise returns. All analytical conclusions come from the AI you configure yourself and have nothing to do with this project. Markets carry risk; verify independently and decide for yourself.
-
-## Support
-
-If this tool saved you time, a coffee is appreciated.
-
-<p align="center">
-  <a href="https://buymeacoffee.com/simonlin1212"><img src="./assets/bmc-qr.png" width="180" alt="Buy Me a Coffee"></a>
-</p>
 
 ## License
 

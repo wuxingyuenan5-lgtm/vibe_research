@@ -5,9 +5,7 @@ origin: custom
 version: 2.0.3
 ---
 
-> 📦 项目主页：https://github.com/simonlin1212/global-stock-data — 更新、反馈、支持作者
-> 
-> 作者：Simon 林 · X [@linsizhen](https://x.com/linsizhen) · 邮箱：simonlin0423@gmail.com
+> 📦 项目主页：原始开源仓库 `global-stock-data`（仓库地址见目录内 LICENSE）
 
 # 美股港股全栈数据工具包 V2.0 — 官方源优先
 
@@ -1551,7 +1549,7 @@ def options_chain(symbol: str, expiration: int = None) -> dict:
 ### 7.1 SEC Filing 列表 — EDGAR submissions
 
 ```python
-SEC_HEADERS = {"User-Agent": "SimonLin global-stock-data/1.0 (contact@example.com)"}
+SEC_HEADERS = {"User-Agent": "YourName your-project/1.0 (you@example.com)"}
 
 def sec_filings(cik: str, form_type: str = None) -> dict:
     """
@@ -2218,4 +2216,4 @@ def earnings_calendar(date: str = None) -> dict:
 
 **级别含义**：**S**＝美国政府数据，可商用可再分发｜**B**＝主动公开的数据文件，商用需自行确认｜**C**＝需事先授权或条款未核实，仅个人研究。各级依据的条款原文见顶部「数据源合规分级」。
 
-> 📦 https://github.com/simonlin1212/global-stock-data — Star ⭐ 是最好的支持
+> 📦 原始开源仓库 `global-stock-data` — 仓库地址见目录内 LICENSE

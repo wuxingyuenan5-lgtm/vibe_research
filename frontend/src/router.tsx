@@ -22,6 +22,7 @@ export const router = createBrowserRouter([
       { path: "/", element: <Navigate to="/a-stock-monitor" replace /> },
       { path: "/a-stock-monitor", element: <AStockMonitor /> },
       { path: "/stock-pool", element: <StockPool /> },
+      { path: "/watchlist", element: <Navigate to="/stock-pool" replace /> },
       { path: "/morning-brief", element: <MorningBrief /> },
       { path: "/daily-review", element: <DailyReview /> },
       { path: "/intel", element: <Intel /> },
@@ -36,4 +37,6 @@ export const router = createBrowserRouter([
       { path: "/settings", element: <Settings /> },
     ],
   },
+  // 嵌入模式（自选股弹窗 iframe 用）：无侧边栏/顶栏，仅个股数据内容
+  { path: "/stock-data-embed", element: <StockData embed /> },
 ]);

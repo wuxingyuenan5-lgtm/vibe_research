@@ -5,9 +5,7 @@ origin: custom
 version: 3.5.1
 ---
 
-> 📦 项目主页：https://github.com/simonlin1212/a-stock-data — 更新、反馈、支持作者
-> 
-> 作者：Simon 林 · X [@linsizhen](https://x.com/linsizhen) · 邮箱：simonlin0423@gmail.com
+> 📦 项目主页：原始开源仓库 `a-stock-data`（仓库地址见目录内 LICENSE）
 
 # A股全栈数据工具包 V3.5.0
 
@@ -3007,4 +3005,4 @@ export IWENCAI_API_KEY="your_key_here"
 
 ---
 
-> 📦 https://github.com/simonlin1212/a-stock-data — Star ⭐ 是最好的支持
+> 📦 原始开源仓库 `a-stock-data` — 仓库地址见目录内 LICENSE
