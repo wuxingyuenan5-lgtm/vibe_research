@@ -31,17 +31,8 @@ def _num(v) -> int:
         return 0
 
 
-def _sentiment() -> dict:
-    """市场情绪：涨跌家数/涨停跌停/活跃度 + 大盘宽度、题材投机（客观数据机械分档）。"""
-    try:
-        # akshare 惰性导入（同 astock 模式）：未装时降级返回空，不挡整个服务启动
-        df = astock._akshare().stock_market_activity_legu()
-        d = {row["item"]: row["value"] for _, row in df.iterrows()}
-    except Exception:
-        return {}
-    up, down, flat = _num(d.get("上涨")), _num(d.get("下跌")), _num(d.get("平盘"))
-    zt, zt_real = _num(d.get("涨停")), _num(d.get("真实涨停"))
-    dt, dt_real = _num(d.get("跌停")), _num(d.get("真实跌停"))
+def _sentiment_breadth_speculation(up: int, down: int, zt_real: int) -> tuple[str, str]:
+    """市场宽度 / 题材投机分档（客观数据机械分档，与前端弹窗口径一致）。"""
     r = up / max(down, 1)
     if up < 600:
         breadth = "冰点"
@@ -54,6 +45,74 @@ def _sentiment() -> dict:
     else:
         breadth = "普涨"
     speculation = "亢奋" if zt_real >= 100 else "活跃" if zt_real >= 60 else "普通" if zt_real >= 30 else "冰点"
+    return breadth, speculation
+
+
+def _sentiment_fallback() -> dict:
+    """akshare（乐咕乐股）不可达时的东财备用源：涨跌家数（ulist f104/f105/f106）+ 涨跌停家数（复用涨停池）。
+
+    乐咕乐股页面偶发反爬/空表（No tables found），且 launchd/守护环境直连可能持续失败；
+    东财 push2 在国内网络普遍可达，作为兜底保证「市场情绪」不空。
+    """
+    import json  # noqa: PLC0415
+    import urllib.request  # noqa: PLC0415
+    try:
+        url = "https://push2delay.eastmoney.com/api/qt/ulist.np/get?fltt=2&secids=1.000001,0.399001&fields=f104,f105,f106"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://quote.eastmoney.com/"})
+        # 国内财经站直连（绕系统/WorkBuddy 代理）；push2 常被掐断，用 push2delay 延迟行情兜底
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        d = json.loads(opener.open(req, timeout=8).read().decode("utf-8"))
+        diffs = (d.get("data") or {}).get("diff") or []
+        up = sum(int(x.get("f104") or 0) for x in diffs)
+        down = sum(int(x.get("f105") or 0) for x in diffs)
+        flat = sum(int(x.get("f106") or 0) for x in diffs)
+        if not (up or down):
+            return {}
+        # 涨跌停家数：复用东财涨停池（emotion 同源，守护环境下同样可达）
+        zt = dt = zt_real = dt_real = 0
+        try:
+            emo = get_short_term_emotion()
+            zt = int(emo.get("zt_count") or 0)
+            dt = int(emo.get("dt_count") or 0)
+            zt_real = zt
+            dt_real = dt
+        except Exception:  # noqa: BLE001
+            pass
+        breadth, speculation = _sentiment_breadth_speculation(up, down, zt_real)
+        return {
+            "up": up, "down": down, "flat": flat,
+            "zt": zt, "zt_real": zt_real, "dt": dt, "dt_real": dt_real,
+            "active": "",
+            "breadth": breadth, "speculation": speculation,
+            "date": datetime.now(BEIJING).strftime("%Y-%m-%d"),
+        }
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _sentiment() -> dict:
+    """市场情绪：涨跌家数/涨停跌停/活跃度 + 大盘宽度、题材投机（客观数据机械分档）。
+
+    数据源：akshare 乐咕乐股（全量字段）→ 失败时降级东财（涨跌家数 + 涨停池计数）。
+    """
+    try:
+        ak = astock._akshare()
+        df = None
+        for _ in range(3):  # 乐咕乐股接口间歇性 "No tables found"（~25%），重试提高成功率
+            try:
+                df = ak.stock_market_activity_legu()
+                break
+            except Exception:
+                time.sleep(0.8)
+        if df is None or len(df) == 0:
+            return _sentiment_fallback()  # 乐咕乐股持续失败 → 东财兜底
+        d = {row["item"]: row["value"] for _, row in df.iterrows()}
+    except Exception:
+        return _sentiment_fallback()
+    up, down, flat = _num(d.get("上涨")), _num(d.get("下跌")), _num(d.get("平盘"))
+    zt, zt_real = _num(d.get("涨停")), _num(d.get("真实涨停"))
+    dt, dt_real = _num(d.get("跌停")), _num(d.get("真实跌停"))
+    breadth, speculation = _sentiment_breadth_speculation(up, down, zt_real)
     return {
         "up": up, "down": down, "flat": flat,
         "zt": zt, "zt_real": zt_real, "dt": dt, "dt_real": dt_real,
@@ -63,13 +122,42 @@ def _sentiment() -> dict:
     }
 
 
+def _sectors_fallback() -> list[dict]:
+    """akshare 行业资金流失败时的东财 push2delay 直连兜底（fid=f62 主力净流入降序）。"""
+    import json  # noqa: PLC0415
+    import urllib.request  # noqa: PLC0415
+    try:
+        url = ("https://push2delay.eastmoney.com/api/qt/clist/get?pn=1&pz=50&po=1&np=1&fltt=2&invt=2"
+               "&fid=f62&fs=m:90+t:2&fields=f12,f14,f3,f62")
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://quote.eastmoney.com/"})
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        d = json.loads(opener.open(req, timeout=8).read().decode("utf-8"))
+        diffs = (d.get("data") or {}).get("diff") or []
+        out = []
+        for x in diffs:
+            net = float(x.get("f62") or 0)
+            if net == 0:
+                continue
+            out.append({
+                "name": str(x.get("f14") or ""),
+                "pct": round(float(x.get("f3") or 0), 2),
+                "net": round(net, 2),
+                "inflow": round(max(net, 0), 2),
+                "outflow": round(-min(net, 0), 2),
+                "firms": 0,
+            })
+        return out
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def _sectors() -> list[dict]:
     """行业资金流（按净额降序）。不含领涨股等个股字段。"""
     try:
         f = astock._akshare().stock_fund_flow_industry(symbol="即时")
         f = f.sort_values("净额", ascending=False)
     except Exception:
-        return []
+        return _sectors_fallback()
     out = []
     for _, row in f.iterrows():
         out.append({

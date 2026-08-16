@@ -14,7 +14,9 @@ import { AssetOverviewTable, BRIEF_CODE_MAP, type AssetRow } from "@/components/
 import { SectorTrendTable, FundRotation, TurnoverTopTable, LianbanTable, HotStockMatrixTable } from "@/components/ui/marketPanels";
 import { hasLlm, chatStream } from "@/lib/llm";
 import { cn } from "@/lib/utils";
+import { DailyReviewReport, type ReviewPayload } from "@/components/ui/DailyReviewReport";
 import "./astock-monitor.css";  // 加载 .asm-root 样式给 TrendCharts 用
+import "./morning-brief.css";   // 晨报样式（AI 复盘用晨报同款版式渲染）
 import {
   api, ApiError,
   type IndexQuote, type GlobalIndex, type MarketOverview, type MarketSentiment, type ShortTermEmotion,
@@ -25,9 +27,141 @@ const fmt = (v: number | null | undefined, suffix = "") => (v == null || Number.
 const pct = (v: number | null | undefined) => (v == null || !Number.isFinite(Number(v)) ? "—" : `${Number(v) > 0 ? "+" : ""}${Number(v).toFixed(2)}%`);
 const pctColor = (v: number | null | undefined) => (v != null && v > 0 ? "text-danger" : v != null && v < 0 ? "text-success" : "text-muted-foreground");
 const yi = (v: number | null | undefined) => (v == null ? "—" : `${(v / 1e8).toFixed(2)} 亿`);
+const yiInt = (v: number | null | undefined) => (v == null ? "—" : `${(v / 1e8).toFixed(0)}亿`);
 
-// 申万一级行业（report_data.sw_industry_latest 中文键）
-interface SwRow { 日期: string; 一级行业: string; 收盘价: number | null; 成交额: number | null; 日收益率: number | null }
+// —— AI 当日复盘：客观数据聚合（页面 7 路 + 晨报 payload；缺哪路标「无数据」，不阻塞复盘） ——
+function buildReviewData(d: {
+  indices: IndexQuote[]; globalIdx: GlobalIndex[]; sentiment: MarketSentiment | null;
+  emotion: ShortTermEmotion | null; turnover: TurnoverTop | null; sectors: SectorFlow[];
+  reportData: ReportData | null; brief: BriefPayload | null;
+}): string {
+  const L: string[] = [];
+  const { indices, globalIdx, sentiment, emotion, turnover, sectors, reportData, brief } = d;
+
+  L.push(indices.length
+    ? "【A股主要指数】" + indices.map((i) => `${i.name} ${i.price}（${pct(i.change_pct)}）`).join("；")
+    : "【A股主要指数】（无数据）");
+
+  L.push(globalIdx.length
+    ? "【全球指数】" + globalIdx.map((g) => `${g.name} ${g.price ?? "—"}（${pct(g.change_pct)}）`).join("；")
+    : "【全球指数】（无数据）");
+
+  if (sentiment) {
+    L.push(`【市场情绪】上涨${sentiment.up} / 下跌${sentiment.down} / 平盘${sentiment.flat}；涨停${sentiment.zt}（真实${sentiment.zt_real}） / 跌停${sentiment.dt}（真实${sentiment.dt_real}）；活跃度${sentiment.active}；宽度等级「${sentiment.breadth}」；投机等级「${sentiment.speculation}」`);
+  } else L.push("【市场情绪】（无数据）");
+
+  if (emotion) {
+    const ladderS = emotion.ladder.slice(0, 5).map((t) => `${t.boards}${t.plus ? "+" : ""}板×${t.count}`).join("、");
+    L.push(`【短线情绪】涨停${emotion.zt_count} / 跌停${emotion.dt_count} / 炸板${emotion.zb_count}；最高${emotion.max_boards}板，连板${emotion.lianban_count}家；封板率${emotion.seal_rate == null ? "—" : `${(emotion.seal_rate * 100).toFixed(0)}%`}，炸板率${emotion.break_rate == null ? "—" : `${(emotion.break_rate * 100).toFixed(0)}%`}，晋级率${emotion.promotion_rate == null ? "—" : `${(emotion.promotion_rate * 100).toFixed(0)}%`}；连板梯队：${ladderS || "—"}`);
+  } else L.push("【短线情绪】（无数据）");
+
+  const topStocks = turnover?.stocks?.slice(0, 10) ?? [];
+  L.push(topStocks.length
+    ? "【成交额榜Top10】" + topStocks.map((s) => `${s.name} ${s.price ?? "—"}（${pct(s.pct)}，${yiInt(s.amount)}）`).join("；")
+    : "【成交额榜】（无数据）");
+
+  if (sectors.length) {
+    const byNet = [...sectors].sort((a, b) => b.net - a.net);
+    const top = byNet.slice(0, 5).map((s) => `${s.name} ${yiInt(s.net)}`).join("、");
+    const bot = byNet.slice(-5).map((s) => `${s.name} ${yiInt(s.net)}`).join("、");
+    L.push(`【板块资金】净流入Top5：${top}；净流出Top5：${bot}`);
+  } else L.push("【板块资金】（无数据）");
+
+  const latest = reportData?.market_history?.[reportData.market_history.length - 1];
+  if (latest) {
+    const bw = latest.market_breadth;
+    L.push(`【市场概况】全A成交额 ${latest.total_amount_100m == null ? "—" : `${latest.total_amount_100m.toLocaleString()}亿`}；市场宽度 ${bw == null ? "—" : `${(bw * 100).toFixed(1)}%`}；百亿成交股 ${reportData?.hot_stocks_latest?.length ?? 0} 只`);
+  }
+
+  if (brief) {
+    const b = brief;
+    if (b.summary?.kicker) L.push(`【晨报总判断】${b.summary.kicker}`);
+    if (b.summary?.overnight_changes?.length) {
+      L.push("【晨报隔夜变化】" + b.summary.overnight_changes.map((c) => `${c.title}${c.text ?? ""}`).join("；"));
+    }
+    if (b.summary?.china_changes?.length) {
+      L.push("【晨报昨日中国结构】" + b.summary.china_changes.map((c) => `${c.title}${c.text ?? ""}`).join("；"));
+    }
+    if (b.mainlines?.items?.length) {
+      L.push("【晨报三条主线】" + b.mainlines.items.map((m, i) => `主线${i + 1}：${m.title}（证据：${m.evidence || "—"}；验证：${m.validation || "—"}）`).join("\n"));
+    }
+    if (b.today_validation?.rows?.length) {
+      L.push("【晨报今日验证清单】" + b.today_validation.rows.slice(0, 5).map((r) => `${r.subject || "?"}：${r.look || r.question || ""}`).join("；"));
+    }
+    if (b.events?.rows?.length) {
+      L.push("【未来7天事件】" + b.events.rows.slice(0, 8).map((e) => `${e.time} ${e.event}${e.markets ? `（${e.markets}）` : ""}`).join("；"));
+    }
+    if (b.tracking?.rows?.length) {
+      L.push("【跟踪主题】" + b.tracking.rows.slice(0, 4).map((t) => `${t.topic}：${t.judgment || ""}`).join("；"));
+    }
+  } else {
+    L.push("【晨报】（无晨报 payload，跳过主线对照/事件）");
+  }
+
+  return L.join("\n\n");
+}
+
+// —— AI 当日复盘：盘后化 JSON 输出（晨报 schema 子集，砍资产总览；只喂数据、不编数字） ——
+const REVIEW_PROMPT_TMPL = `你是盘后复盘研究员。基于下面的客观数据快照（含当日晨报预期与主线），输出一份结构化复盘 JSON。
+
+【硬性要求】
+1. 只输出一个 JSON 对象：不要 markdown 代码围栏、不要任何解释或前后缀文字。
+2. 只基于喂入数据，禁止编造数字；数据缺失的字段省略或填空串。
+3. 不预测涨跌、不给买卖/仓位建议、不打分。
+4. 不输出海内外大类资产总览类内容（页面已有展示）。
+
+【写作原则（像晨报那样写）】
+- 先结论后证据：每段开头一句主判断，再展开数据/事实；不要先讲半天数据再总结。
+- 信息密度：每句话至少一个数据点；杜绝"今日市场表现平稳"这类空话；用具体家数/行业/金额/百分比。
+- 因果表达谨慎：除非有正式来源明确归因，否则用「可能与…有关」「价格反应与…一致」「目前证据更支持…」「尚不能排除…」「仍需由…验证」；不写确定性因果。
+- 分歧与反方：主结论后必须给反方证据/分歧（塞进 mainlines.evidence）。
+- 区分重要与噪音：明确写出「可忽略噪音」（晨报 90秒摘要必含）。
+- 输出前自查：结论先行、数据支撑、给出反方、说明噪音、不编数字。
+
+【结构约束】
+- china_market 是复盘的系统性数据底表（替代晨报「昨日中国市场：从大类资产到A股内部结构」），**必须完整填**：priority（一段最重要的日内结构总结）、breadth（用喂入的上涨/下跌家数与宽度等级）、industry（申万行业涨跌数 + 净流入/流出 Top3 行业名）、switch（昨日 vs 今日关键对比数字）。这是市场总览数据的系统性总结，不可省略。
+- mainlines.tags 用「兑现/部分兑现/未兑现/无法判断」之一，贴在主线条目前端。
+- mainlines.evidence = 分歧与反方证据；mainlines.validation = 明日继续看什么。
+- funding_industry 用 grid-3 卡片，**只填最关键的 3-4 张卡片**（如全A成交 / 板块净流入 / 板块净流出 / 短线情绪 / 活跃度），别堆 7-8 张变流水账。
+- today_validation 2-3 条；events 只用数据中出现的正式日程。
+
+【输出 JSON 结构】
+{
+  "report_meta": { "report_name": "AI 当日复盘", "report_date": "最近交易日 YYYY-MM-DD", "report_cutoff": "收盘时点", "china_market_date": "X月X日收盘", "headline": "一句话总判断" },
+  "summary": {
+    "kicker": "总判断一句话",
+    "overnight_title": "今日重要变化",
+    "overnight_changes": [{ "title": "变化一：", "text": "细节" }, { "title": "变化二：", "text": "细节" }, { "title": "变化三：", "text": "细节" }],
+    "china_title": "今日中国结构变化",
+    "china_changes": [{ "title": "结构一：", "text": "细节" }, { "title": "结构二：", "text": "细节" }],
+    "priority_card": { "label": "明天最高优先级", "title": "主题", "note": "为什么" },
+    "priorities": [{ "head": "优先级一：", "text": "说明" }]
+  },
+  "china_market": {
+    "title": "今日中国市场：一句话概括", "kicker": "A股核心行情简版（底表不全时）或省略",
+    "priority": "最重要的日内结构段落", "warning": "数据局限（没有可省略）",
+    "switch": [{ "label": "昨日 vs 今日", "metric": "关键数字", "cls": "up|down|flat", "note": "说明" }],
+    "breadth": { "title": "市场宽度", "up": "上涨家数", "down": "下跌家数", "up_pct": 数值, "down_pct": 数值, "note": "说明" },
+    "industry": { "title": "申万一级行业宽度", "up": "上涨行业数", "down": "下跌行业数", "up_pct": 数值, "down_pct": 数值, "note": "说明" }
+  },
+  "mainlines": {
+    "kicker": "晨报主线今日兑现对照",
+    "items": [{ "tags": ["兑现"], "title": "主线标题", "paras": ["今日盘面如何回应"], "evidence": "分歧与反方证据", "validation": "明日继续看什么" }]
+  },
+  "today_validation": {
+    "kicker": "把主线压缩成盘中可观察的问题",
+    "rows": [{ "subject": "观察对象", "question": "今天留下的问题", "look": "明天看什么", "meaning": "判断含义" }]
+  },
+  "previous_review": { "kicker": "对晨报判断的复盘", "rows": [{ "judgment": "原判断", "facts": "新增事实", "state": "兑现/部分兑现/未兑现/无法判断", "state_cls": "up|down|neutral", "adjust": "框架是否调整" }] },
+  "funding_industry": { "kicker": "资金与产业数据", "items": [{ "label": "成交", "metric": "数字", "cls": "up|down|flat", "note": "说明" }] },
+  "tracking": { "kicker": "3-6 个跟踪主题", "rows": [{ "topic": "主题", "judgment": "当前判断", "support": "支持证据", "counter": "反方证据", "next": "下一验证", "falsify": "证伪条件", "period": "周期" }] },
+  "events": { "kicker": "未来7天事件（仅用数据中出现的正式日程）", "rows": [{ "time": "北京时间", "event": "事件", "markets": "影响市场", "var": "核心验证变量" }] }
+}
+
+【数据】
+{{DATA}}`;
+
+// 晨报 payload（MorningBrief 同款结构子集；行情总览 asset_overview 此处不用）
 interface BriefPayload {
   report_meta?: { date?: string; title?: string };
   summary?: {
@@ -36,7 +170,10 @@ interface BriefPayload {
     china_changes?: { title?: string; text?: string }[];
   };
   china_market?: { title?: string; kicker?: string; warning?: string; switch?: string; breadth?: string; industry?: string };
-  mainlines?: { kicker?: string; items?: { tags?: string[]; title?: string; paras?: string[] }[] };
+  mainlines?: { kicker?: string; items?: { tags?: string[]; title?: string; paras?: string[]; evidence?: string; validation?: string }[] };
+  today_validation?: { kicker?: string; rows?: { subject?: string; question?: string; look?: string }[] };
+  events?: { kicker?: string; rows?: { time?: string; event?: string; markets?: string }[] };
+  tracking?: { kicker?: string; rows?: { topic?: string; judgment?: string; support?: string; counter?: string; next?: string; falsify?: string; period?: string }[] };
 }
 
 export function MarketOverview() {
@@ -50,6 +187,8 @@ export function MarketOverview() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [updated, setUpdated] = useState("");
+  // 白银/铜/锂占位行的实时快照（从后端 K 线最新两条算价格+涨跌；避开新浪实时字段不稳定的坑）
+  const [placeholderQuotes, setPlaceholderQuotes] = useState<Record<string, { price: string; change: string; cls: "up" | "down" | "flat" }>>({});
   const runIdRef = useRef(0);
 
   const load = async () => {
@@ -86,6 +225,33 @@ export function MarketOverview() {
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
+  // 占位行（白银/铜/锂）的价格 + 变化：从最新两条 K 线算（避开新浪实时字段不稳定）
+  useEffect(() => {
+    const map: Record<string, string> = { "白银": "AG0", "铜": "CU0", "锂": "LC0" };
+    let cancelled = false;
+    (async () => {
+      await Promise.all(Object.entries(map).map(async ([asset, sym]) => {
+        try {
+          const r = await fetch(`/api/kline?code=s%3A${sym}&period=day&offset=5`).then((x) => x.json());
+          const bars: Array<{ close: number }> = (r?.data || []).slice(-2);
+          if (cancelled || bars.length < 2) return;
+          const last = bars[bars.length - 1].close;
+          const prev = bars[bars.length - 2].close;
+          const chg = prev ? (last - prev) / prev : 0;
+          setPlaceholderQuotes((q) => ({
+            ...q,
+            [asset]: {
+              price: last.toLocaleString(undefined, { maximumFractionDigits: 2 }),
+              change: `${chg >= 0 ? "+" : ""}${(chg * 100).toFixed(2)}%`,
+              cls: chg > 0 ? "up" : chg < 0 ? "down" : "flat",
+            },
+          }));
+        } catch { /* 静默失败，保持"—" */ }
+      }));
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   // 自动更新：仅 A 股开盘时段（工作日 9:15-15:05）每 1h 一次；
   // 收盘/夜盘/周末大部分标的不动，不自动拉（需要实时时手动点「刷新」全量更新）
   useEffect(() => {
@@ -115,14 +281,12 @@ export function MarketOverview() {
     setReviewErr(null); setNeedConfig(false);
     if (!hasLlm()) { setNeedConfig(true); return; }
     setReviewLoading(true); setReview("");
-    const dataSummary = indices.length
-      ? indices.map((i) => `${i.name} ${i.price}（${i.change_pct > 0 ? "+" : ""}${i.change_pct}%）`).join("；")
-      : "（指数数据未取到）";
-    const prompt =
-      `以下是今天 A 股大盘的客观数据：\n${dataSummary}\n\n` +
-      "请用中文做一段当天大盘复盘：整体涨跌、主要指数表现、盘面值得注意的点。";
+    const data = buildReviewData({
+      indices, globalIdx, sentiment, emotion, turnover, sectors, reportData, brief,
+    });
+    const prompt = REVIEW_PROMPT_TMPL.replace("{{DATA}}", data);
     try {
-      await chatStream([{ role: "user", content: prompt }], `今日大盘数据：${dataSummary}`, {
+      await chatStream([{ role: "user", content: prompt }], data, {
         onDelta: (t) => setReview((r) => r + t),
       });
     } catch (e) {
@@ -131,6 +295,20 @@ export function MarketOverview() {
       setReviewLoading(false);
     }
   };
+
+  // 流式全文 → 结构化 payload（AI 输出 JSON；剥代码围栏，失败回退 null → 原样 Markdown 展示）
+  const reviewObj = useMemo<ReviewPayload | null>(() => {
+    if (!review) return null;
+    try {
+      const t = review.trim();
+      const f = t.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      const raw = f ? f[1] : t;
+      const obj = JSON.parse(raw);
+      return obj && typeof obj === "object" ? (obj as ReviewPayload) : null;
+    } catch {
+      return null;
+    }
+  }, [review]);
 
   const sentiment = overview?.sentiment;
   const sectors = overview?.sectors || [];
@@ -198,15 +376,23 @@ export function MarketOverview() {
         !(r.asset === "上证综指" && realtimeNames.has("上证指数"))
       );
 
-    // 商品占位：白银/铜/锂（待接入实时源，目前显示"待接入"）
-    const placeholder: AssetRow[] = [
-      { market: "商品", asset: "白银", value: "—", change: "—", cls: "flat", source: "待接入", meaning: "待接入实时源（新浪/英为财情）", code: undefined, kMarket: undefined },
-      { market: "商品", asset: "铜", value: "—", change: "—", cls: "flat", source: "待接入", meaning: "待接入实时源（新浪/英为财情）", code: undefined, kMarket: undefined },
-      { market: "商品", asset: "锂", value: "—", change: "—", cls: "flat", source: "待接入", meaning: "待接入实时源（新浪/英为财情）", code: undefined, kMarket: undefined },
-    ];
+    // 商品占位：白银/铜/锂（K 线已接新浪期货主力连续；价格/变化从最新两条 K 线算）
+    const placeholder: AssetRow[] = ["白银", "铜", "锂"].map((asset) => {
+      const q = placeholderQuotes[asset];
+      return {
+        market: "商品",
+        asset,
+        value: q?.price ?? "—",
+        change: q?.change ?? "—",
+        cls: q?.cls ?? ("flat" as const),
+        source: q ? ("实时" as const) : ("待接入" as const),
+        meaning: q ? "国内期货主力连续（新浪源）" : "K 线用国内期货主力连续（新浪源）",
+        code: BRIEF_CODE_MAP[asset]?.code,
+        kMarket: BRIEF_CODE_MAP[asset]?.market,
+      };
+    });
     return [...realtime, ...briefRows, ...placeholder];
-    return [...realtime, ...briefRows];
-  }, [indices, globalIdx, brief]);
+  }, [indices, globalIdx, brief, placeholderQuotes]);
 
   return (
     <div>
@@ -249,9 +435,15 @@ export function MarketOverview() {
           </div>
         )}
         {review && !reviewCollapsed && (
-          <div className="prose prose-sm dark:prose-invert mt-4 max-w-none text-foreground">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{review}</ReactMarkdown>
-          </div>
+          reviewObj ? (
+            <div className="mt-4">
+              <DailyReviewReport p={reviewObj} />
+            </div>
+          ) : (
+            <div className="prose prose-sm dark:prose-invert mt-4 max-w-none text-foreground">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{review}</ReactMarkdown>
+            </div>
+          )
         )}
         {review && reviewCollapsed && (
           <p className="mt-3 text-[11px] text-muted-foreground/60">已收起分析（{review.length} 字）</p>

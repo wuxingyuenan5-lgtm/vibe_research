@@ -634,12 +634,59 @@ def disclosure(code: str = Query(...)):
         raise HTTPException(502, f"公告源异常：{e}") from e
 
 
+def _kline_sina(symbol: str, period: str, offset: int):
+    """新浪期货主力连续日 K：AG0 沪银 / CU0 沪铜 / LC0 碳酸锂 / T0 国债期货。
+    返回全部历史（3000+ 条），截取最近 offset 条；OHLCV 形状与腾讯/yahoo 一致。
+    """
+    import urllib.parse  # noqa: PLC0415
+    if period != "day":
+        raise HTTPException(400, "新浪期货源仅支持 day 日线")
+    url = (
+        "https://stock2.finance.sina.com.cn/futures/api/jsonp.php/var%20_/"
+        f"InnerFuturesNewService.getDailyKLine?symbol={urllib.parse.quote(symbol)}"
+    )
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 financial-data", "Referer": "https://finance.sina.com.cn/"})
+        text = urllib.request.build_opener(urllib.request.ProxyHandler({})).open(req, timeout=10).read().decode("utf-8")
+        # JSONP 响应：var _( [{d,o,h,l,c,v,p,s}, ...] );
+        m = re.search(r"\((\[.*\])\)", text, re.S)
+        if not m:
+            raise HTTPException(502, "新浪期货 K 线返回格式异常")
+        arr = json.loads(m.group(1))
+        if not arr:
+            raise HTTPException(404, f"新浪期货无 {symbol} 数据")
+        out = []
+        for r in arr[-offset:]:
+            out.append({
+                "date": r.get("d"),
+                "open": float(r.get("o") or 0),
+                "close": float(r.get("c") or 0),
+                "high": float(r.get("h") or 0),
+                "low": float(r.get("l") or 0),
+                "volume": float(r.get("v") or 0),
+            })
+        return {"data": out, "symbol": symbol, "period": period, "count": len(out),
+                "source": "sina", "currency": "CNY"}
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"新浪期货 K 线获取失败：{e}") from e
+
+
 @app.get("/api/kline")
 def kline(code: str = Query(...), period: str = Query("day"), offset: int = Query(180, ge=1, le=800)):
-    """K线（腾讯）：A 股 6 位 / 港股 5 位 / 美股字母。period=day|week|month|60m。
-    day/week/month 为前复权（fqkline）；60m 为 1 小时线（mkline，不复权）。
+    """K线：腾讯（A/H/美股股票）+ Yahoo v8（指数/期货/外汇/国债收益率，code 加 y: 前缀）
+    + 新浪（国内期货主力连续 AG0/CU0/LC0/T0，code 加 s: 前缀）。
+    period=day|week|month|60m。day/week/month 走前复权/复权口径；60m 仅腾讯支持。
     返回 [{date,open,close,high,low,volume}]。"""
-    code = code.strip().upper()
+    code = code.strip()
+    # Yahoo 源：code 以 "y:" 开头 → symbol = "y:^GSPC"[2:]
+    if code.lower().startswith("y:"):
+        return _kline_yahoo(code[2:], period.lower(), offset)
+    # 新浪期货源：code 以 "s:" 开头 → symbol = "s:AG0"[2:]
+    if code.lower().startswith("s:"):
+        return _kline_sina(code[2:], period.lower(), offset)
+    code = code.upper()
     # 带前缀代码：指数（sh000001/sz399006）、港股指数（hkHSI/hkHSTECH）等直接透传
     if re.match(r"^(SH|SZ)\d{6}$", code):
         sym = code.lower()
@@ -680,6 +727,75 @@ def kline(code: str = Query(...), period: str = Query("day"), offset: int = Quer
         return {"data": out, "symbol": sym, "period": period, "count": len(out)}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"K线获取失败：{e}") from e
+
+
+def _kline_yahoo(symbol: str, period: str, offset: int):
+    """Yahoo Finance v8 chart：美股指数 / 商品期货 / 外汇 / 国债收益率指数。
+    仅支持日/周/月线（60m 走腾讯）。返回与腾讯源相同的 OHLCV 形状，前端无感。
+    来源参考：~/Desktop/my_skill/skills/financial-data/providers/yahoo.md + adapters/yahoo_chart.py
+    """
+    import urllib.parse  # noqa: PLC0415
+    from datetime import datetime, timezone  # noqa: PLC0415
+    period_map = {"day": "1d", "week": "1wk", "month": "1mo"}
+    if period not in period_map:
+        raise HTTPException(400, "Yahoo 源仅支持 day/week/month（60m 请走腾讯源）")
+    interval = period_map[period]
+    # range 按 offset 选：1mo≈22d, 3mo≈66d, 6mo≈130d, 1y≈252d, 2y, 5y, 10y, ytd, max
+    range_map = {96: "6mo", 180: "1y", 252: "1y", 500: "2y", 800: "5y"}
+    rng = range_map.get(offset, "1y")
+    url = (
+        f"https://query2.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(symbol)}"
+        f"?interval={interval}&range={rng}&events=div,splits"
+    )
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 financial-data"})
+        d = json.loads(urllib.request.build_opener(urllib.request.ProxyHandler({})).open(req, timeout=10).read().decode("utf-8"))
+        result = (d.get("chart") or {}).get("result") or []
+        if not result:
+            err = (d.get("chart") or {}).get("error")
+            raise HTTPException(404, f"Yahoo 无 {symbol} 数据" + (f"：{err}" if err else ""))
+        r = result[0]
+        meta = r.get("meta") or {}
+        timestamps = r.get("timestamp") or []
+        quotes = (r.get("indicators") or {}).get("quote") or [{}]
+        q = quotes[0] if quotes else {}
+        opens = q.get("open") or []
+        highs = q.get("high") or []
+        lows = q.get("low") or []
+        closes = q.get("close") or []
+        vols = q.get("volume") or []
+        out = []
+        for i, ts in enumerate(timestamps):
+            try:
+                o, c, h, l = opens[i], closes[i], highs[i], lows[i]
+            except IndexError:
+                continue
+            if o is None or c is None:
+                continue
+            dt = datetime.fromtimestamp(int(ts), timezone.utc).strftime("%Y-%m-%d")
+            out.append({
+                "date": dt,
+                "open": float(o),
+                "close": float(c),
+                "high": float(h),
+                "low": float(l),
+                "volume": float(vols[i] or 0) if i < len(vols) else 0.0,
+            })
+        # 单位提示：^TNX 等收益率指数单位是 %（不是价格）
+        unit = "%" if symbol.startswith("^TNX") or symbol.startswith("^TYX") or symbol.startswith("^FVX") or symbol.startswith("^IRX") else None
+        return {
+            "data": out,
+            "symbol": symbol,
+            "period": period,
+            "count": len(out),
+            "source": "yahoo",
+            "currency": meta.get("currency"),
+            "unit": unit,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"Yahoo K线获取失败：{e}") from e
 
 
 @app.get("/api/finance")

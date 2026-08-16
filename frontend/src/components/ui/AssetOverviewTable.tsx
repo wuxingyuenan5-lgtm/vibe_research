@@ -22,7 +22,10 @@ export interface AssetRow {
   kMarket?: "A" | "HK" | "US";
 }
 
-// 晨报资产 → 腾讯 K 线代码（仅供晨报静态行使用；实时行由 MarketOverview 直接带 code）
+// 晨报资产 → K 线代码（实时行由 MarketOverview 直接带 code）
+// - A/H 股票指数：腾讯源（裸 code，如 sh000001）
+// - 海外/商品/汇率/国债：Yahoo v8 chart（code 加 "y:" 前缀；后端识别后走 yahoo）
+// - 中证商品期货指数 / 中国10Y国债活跃券 / 锂：yahoo 无数据，保持 null
 export const BRIEF_CODE_MAP: Record<string, { code: string; market: "A" | "HK" | "US" } | null> = {
   "上证综指": { code: "sh000001", market: "A" },
   "沪深300": { code: "sh000300", market: "A" },
@@ -32,10 +35,23 @@ export const BRIEF_CODE_MAP: Record<string, { code: string; market: "A" | "HK" |
   "科创50": { code: "sh000688", market: "A" },
   "恒生指数": { code: "hkHSI", market: "HK" },
   "恒生科技": { code: "hkHSTECH", market: "HK" },
-  // 非股票指数（海外/商品/汇率/国债）：暂无 K 线
-  "标普500": null, "纳斯达克综指": null, "美国10Y国债": null, "DXY（美元指数）": null,
-  "现货黄金": null, "Brent原油": null, "WTI原油": null,
-  "中证商品期货价格指数": null, "USD/CNY": null, "中国10Y国债活跃券": null,
+  // Yahoo v8 覆盖的 11 个：美股指数 3 + 外汇 + DXY 期货 + 商品期货 5 + 美国10Y国债收益率
+  "标普500": { code: "y:^GSPC", market: "US" },
+  "纳斯达克综指": { code: "y:^IXIC", market: "US" },
+  "道琼斯": { code: "y:^DJI", market: "US" },
+  "美国10Y国债": { code: "y:^TNX", market: "US" },            // 收益率指数，单位 %
+  "DXY（美元指数）": { code: "y:DX-Y.NYB", market: "US" },     // 美元指数期货
+  "USD/CNY": { code: "y:CNY=X", market: "US" },               // 在岸人民币（用户决定保留 CNY 口径）
+  "现货黄金": { code: "y:GC=F", market: "US" },
+  "白银": { code: "s:AG0", market: "A" },                     // 沪银主力连续（新浪期货，用户点名沪银）
+  "铜": { code: "s:CU0", market: "A" },                       // 沪铜主力连续（新浪期货）
+  "Brent原油": { code: "y:BZ=F", market: "US" },
+  "WTI原油": { code: "y:CL=F", market: "US" },
+  // 新浪期货主力连续（国内品种）
+  "锂": { code: "s:LC0", market: "A" },                       // 碳酸锂主力连续（新浪期货）
+  "中国10Y国债活跃券": { code: "s:T0", market: "A" },         // 国债期货 T 主力（现货收益率无公开 K 线源，用期货替代）
+  // 无公开 K 线源
+  "中证商品期货价格指数": null,
 };
 
 const MARKET_BADGE: Record<string, string> = {

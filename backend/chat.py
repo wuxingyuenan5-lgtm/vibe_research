@@ -106,6 +106,13 @@ def _check_base_url(url: str) -> None:
                 raise RuntimeError("Base URL 解析到了不允许的内网地址")
 
 
+# LLM 端点请求：默认绕过环境代理直连（本地代理进程挂掉会报 ProxyError / Connection refused，
+# 且 DeepSeek 等端点国内直连通常可达）。需要 LLM 调用走代理时：export VR_CHAT_NO_PROXY=0 再重启后端。
+_LLM_SESSION = requests.Session()
+if os.getenv("VR_CHAT_NO_PROXY", "1") != "0":
+    _LLM_SESSION.trust_env = False
+
+
 def _call_llm(cfg: dict, messages: list, use_tools: bool) -> dict:
     _check_base_url(cfg.get("baseURL", ""))
     base = cfg["baseURL"].rstrip("/")
@@ -116,7 +123,7 @@ def _call_llm(cfg: dict, messages: list, use_tools: bool) -> dict:
     if use_tools:
         payload["tools"] = TOOLS
         payload["tool_choice"] = "auto"
-    r = requests.post(
+    r = _LLM_SESSION.post(
         f"{base}/chat/completions",
         headers={"Authorization": f"Bearer {cfg['apiKey']}", "Content-Type": "application/json"},
         json=payload,
@@ -197,7 +204,7 @@ def _call_llm_stream(cfg: dict, messages: list, use_tools: bool):
     if use_tools:
         payload["tools"] = TOOLS
         payload["tool_choice"] = "auto"
-    r = requests.post(
+    r = _LLM_SESSION.post(
         f"{_resolve_base(cfg)}/chat/completions",
         headers={"Authorization": f"Bearer {cfg['apiKey']}", "Content-Type": "application/json"},
         json=payload, timeout=120, stream=True,
