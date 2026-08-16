@@ -1,7 +1,7 @@
 {
   "pool_name": "核心股票池",
-  "version": "2026-08-15-codes",
-  "count": 162,
+  "version": "2026-08-14",
+  "count": 161,
   "stocks": [
     {
       "instrument_id": "legacy:工商银行",
@@ -534,13 +534,6 @@
       "exchange": "SZ",
       "name": "通富微电",
       "industry": "半导体"
-    },
-    {
-      "instrument_id": "legacy:贵州茅台",
-      "code": "600519",
-      "exchange": "SH",
-      "name": "贵州茅台",
-      "industry": "白酒"
     },
     {
       "instrument_id": "legacy:金盘科技",
@@ -1138,5 +1131,5 @@
       "industry": "化学制药"
     }
   ],
-  "updated_at": "2026-08-15T18:45:44+08:00"
+  "updated_at": "2026-08-16T12:50:00+08:00"
 }
