@@ -1,228 +1,163 @@
-<p align="center"><a href="README.md">简体中文</a> | <b>English</b></p>
+# Vibe-Research · Personal AI Research Workspace (A-share / US / HK)
 
-<h1 align="center">Vibe-Research · Your Personal AI Research Dashboard (A-share / US / HK)</h1>
+> A clean dashboard that aggregates A-share, US, and HK data — quotes, research reports, valuation, fundamentals, filings, fund flows, news — and exposes an interface for *my* AI to consume. Direction and conclusions are decided by the model *I* configure.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: TODO](https://img.shields.io/badge/License-TODO-lightgrey)](#license)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![中文 README](https://img.shields.io/badge/📖_中文-README-F35D2B?style=flat)](README.md)
+[![简体中文 README](https://img.shields.io/badge/📖_简体中文-README-1F6FEB?style=flat)](README.md)
 
 <p align="center">
-  <a href="https://viberesearch.wiki">Website</a> ·
-  <a href="#screenshots">Screenshots</a> ·
-  <a href="#features">Features</a> ·
-  <a href="#data-sources">Data Sources</a> ·
-  <a href="#quick-start">Quick Start</a> ·
-  <a href="#bring-your-own-ai">Bring Your Own AI</a> ·
-  <a href="#compliance">Compliance</a>
+  <a href="#what-it-is">What it is</a> ·
+  <a href="#core-features">Core features</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#project-structure">Project structure</a> ·
+  <a href="#pluggable-ai">Pluggable AI</a> ·
+  <a href="#roadmap">Roadmap</a> ·
+  <a href="#privacy">Privacy</a>
 </p>
-
-> **Vibe-Research: Your Personal Trading Research Agent.**
->
-> An open dashboard for China A-share (plus US / HK): it wires up all the data and plugs into **your own AI / agent** — it never recommends a stock. You bring the model, it brings the data.
-
-Vibe-Research is an open-source research dashboard built primarily for **China A-share**, with US and HK markets included (A-share traders usually check overnight Wall Street and Hong Kong first, so the data is wired up too).
-
-It does not make decisions for you. It pulls together quotes, analyst reports, valuation, financials, filings, fund flows and news into one clean dashboard, then leaves an interface where **you plug in your own AI**. The direction and the conclusions come from the model or agent *you* configure.
-
-## Screenshots
-
-**Daily Review** — indices, market breadth, sector fund flows and turnover leaders on one screen, then hand it to your AI
-
-![Vibe-Research Daily Review](docs/screenshots/daily-review.png)
-
-<table>
-<tr>
-<td width="50%">
-
-**Stock Data** — earnings snapshot, valuation percentile and fund flows in one view
-
-![Stock Data](docs/screenshots/stock-detail.png)
-
-</td>
-<td width="50%">
-
-**News Radar** — 108 public feeds across 12 industry tracks, distilled on demand
-
-![News Radar](docs/screenshots/intel.png)
-
-</td>
-</tr>
-</table>
 
 ---
 
-## Features
+## What it is
 
-| Page | What's in it |
+Vibe-Research is the cross-market research workspace I use day-to-day. **Primary focus: A-share; US / HK included for overnight context** (A-share often moves on the previous night's overseas tape, so having all three is convenient). It doesn't make decisions for me —
+
+- **Data layer**: quotes, research reports, valuation, fundamentals, filings, fund flows, news — all wired into one clean dashboard;
+- **Interface layer**: a pluggable surface so *my* AI can read the structured data and produce direction;
+- **What it deliberately does *not* do**: buy/sell calls, target prices, timing signals — those are the AI's job. This system only assembles data and structures the factual brief.
+
+> Strategic direction, target audience, and technical trade-offs are documented in [VISION.md](VISION.md); iteration rhythm in [ROADMAP.md](ROADMAP.md).
+
+## Core features
+
+| Module | What it does |
 |---|---|
-| 📊&nbsp;**Daily&nbsp;Review** | Index quotes · **Global markets** (Dow / S&P / Nasdaq overnight + Hang Seng / HS Tech) · Watchlist quotes · **Short-term sentiment** (consecutive limit-up ladder, seal rate, break rate, promotion rate) · **Market-wide turnover top 20** · Market breadth · Sector fund-flow trends · Sector rotation · One-click AI review |
-| 📡&nbsp;**News&nbsp;Radar** | 108 public RSS feeds across 12 tracks · AI-distilled "today's takeaways" · A-share filings and public news linked to your watchlist |
-| 🔍&nbsp;**Stock&nbsp;Data** | **A-share**: quotes · valuation matrix (forward PE / PEG) · **earnings snapshot** · valuation percentile vs. own 5-year history · key financials · analyst reports · filings · news · **fund flows** (margin trading, shareholder count, main-force flow, dividends, block trades) · top-list (Dragon-Tiger) · lockup expiry · sector membership · trending concepts · investor Q&A.<br>**US / HK / KR** (enter `AAPL` / `00700` / `005930.KS`): quotes · market cap · key financials (KR is quotes only) |
-| ⚔️&nbsp;**Bull&nbsp;vs&nbsp;Bear** | **Multi-agent**: the backend first pulls a 13-item factual dossier, then a **bull researcher** and a **bear researcher** argue from that same data (optional rebuttal round), and a **neutral moderator** summarizes "what both sides agree on / where they actually disagree / what to verify / what data is missing". **Deliberately produces no buy or sell conclusion.**<br>⏱ Heavier than a chat: ~100s and 3 model calls per round — see [cost](#-what-one-debate-costs-read-before-you-run-it) first |
-| ⭐&nbsp;**Watchlist** | **Paste a whole batch of tickers at once** (commas, spaces or newlines) · one-screen table (price, change, PE, PB, turnover) · **live quotes toggle** (top right, off by default; refreshes every 3s during trading hours, auto-pauses outside them and when the tab is hidden) · hand the whole list to your AI. Stored locally |
-| 🧩&nbsp;**Sectors** | Sector and value-chain skeletons |
-| 💼&nbsp;**Portfolio** | Enter cost and size, see live P&L · closed-position log (local only, never uploaded) |
-| 📄&nbsp;**My Reports** | Drag-and-drop your own research PDFs / Word / spreadsheets · auto-filed by industry from the filename · download or delete. **Stored in your local deploy directory only** |
-| 📝&nbsp;**Research Notes** | Save AI reviews, takeaways, Q&A and debates locally · **reflection audit**: have the AI audit its own reasoning — which claims are backed by data, which are speculation, where the weakest link is, and what to check next |
-| 🔌&nbsp;**Bring Your AI** | Subscription mode (local CLI, no API key) · API mode (any OpenAI-compatible endpoint) · MCP (mount into Claude Code and other agents) |
+| 📊&nbsp;**Daily review** | Index / sentiment (limit-up boards, top-20 by turnover) / sector flows on one screen; one-click AI review |
+| 📡&nbsp;**News radar** | Public news aggregation across verticals + AI key-point extraction; tied to watchlist |
+| 🔍&nbsp;**Single-stock data** | A / US / HK / KR — quotes, valuation matrix, key fundamentals, fund flows, reports, filings, top-list, unlock schedule |
+| ⚔️&nbsp;**Bull / Bear debate** | Multi-agent debate: factual brief → bull case / bear case (optional cross-rebuttal) → neutral moderator (consensus + real disagreements). **Deliberately outputs no buy/sell** |
+| ⭐&nbsp;**Watchlist** | Paste a list of codes to add; live quote toggle (3s refresh during trading hours, auto-pause otherwise) |
+| 🧩&nbsp;**Sector hub** | Sectors + industry-chain nodes |
+| 💼&nbsp;**My positions** | Live P&L + closed-position history (**local-only, never uploaded**) |
+| 📄&nbsp;**My research notes** | Private research archive (PDF / Word / txt / sheets / images), **local-only** |
+| 📝&nbsp;**Research journal** | Daily reviews / AI Q&A / debate results stored locally + retrospective audit (let AI critique this reasoning) |
+| 🔌&nbsp;**Pluggable AI** | Subscription CLI (no key) / API multi-model (auto baseURL) / MCP (plug into Claude Code et al.) |
 
-> **Built-in analysis framework**: when your AI analyzes a stock it organizes findings across five dimensions — valuation, fund flows, earnings quality, industry cycle, catalysts and risks. The framework only prescribes *how to read the data*, never what to buy. The direction still comes from your own model.
+> **Deliberately not provided**: buy/sell calls, target prices, timing signals — delegated to AI / agent. This system only assembles data and structures the factual brief.
+
+## Data sources
+
+Multiple public data sources are integrated (A-share / US / HK / news / KR), **direct-fetch + embedded offline snapshots** — `git clone` is enough, no extra download or wiring needed.
+
+> ⚠️ Data is for personal research only, **not investment advice**.
 >
-> Limit-up lists and turnover rankings are **objective public data, presented as-is — no recommendation, no prediction**.
+> Technical details, call patterns, and compliance levels are in each sub-module's `SKILL.md`. **Upstream repository addresses are intentionally not exposed in this README** — LICENSE / NOTICE files inside the repo preserve traceability.
 
-## Data Sources
+## Quick start
 
-Three public data toolkits are **vendored directly into this repo** — `git clone` and everything works, no extra downloads or wiring.
+### Requirements
 
-### A-share full-stack data · AStockData
+- Python 3.10+ (3.13 recommended)
+- Node.js 18+ (22 recommended)
+- pnpm
 
-- Lives in [`a-stock-data/`](a-stock-data/) (v3.5.1). Ten data layers, 44 endpoints, 15 sources, with fallback sources when a primary one gets blocked. [`a-stock-data/SKILL.md`](a-stock-data/SKILL.md) **embeds every call as runnable code** — self-contained, with built-in rate limiting for Eastmoney endpoints.
-- **Covers**: quotes / candles / analyst reports / consensus estimates / valuation / historical percentiles / financial statements / filings / Dragon-Tiger list / margin trading / block trades / shareholder counts / dividends / fund flows / lockup expiry / concept sectors / limit-up sentiment / ETF options / investor Q&A / market-wide industry rankings.
-- **For agents**: running this repo with Claude Code or similar? Point them at `SKILL.md` — every endpoint has copy-paste ready code. The backend data layer (`backend/astock.py`) is ported from it.
-- **Runtime deps**: `pip install mootdx requests pandas stockstats`
-- **Upstream**: the vendored copy in this repo is a pinned snapshot and keeps working even if you never update it. See the `LICENSE` file in the source folder for the original upstream location.
+### One-command start (recommended)
 
-### US / HK data · global-stock-data
+```bash
+./start.command   # starts backend (8900) + frontend (5899)
+./stop.command    # stops both
+```
 
-- Lives in [`global-stock-data/`](global-stock-data/) (v2.0.3). 13 data layers, 30+ endpoints, 11 sources, no auth required — quotes, candles, technicals, financial statements, fund flows, options (CBOE official chain with full Greeks and 0DTE flow), FINRA short volume, and the SEC EDGAR filing stream plus market-wide screener. Every source is labeled with its compliance tier.
-- `backend/gstock.py` ports the Eastmoney-domain subset: global indices (the "Global markets" row on Daily Review) plus US/HK quotes and key financials.
-- **Korean stocks**: append `.KS` to the 6-digit code (e.g. Samsung `005930.KS`). ⚠️ KR codes are also 6 digits like A-share tickers, so **the suffix is required** for correct routing. Quotes only, no financials. Taiwan is covered via US ADRs (e.g. `TSM`).
-- **Upstream**: the vendored copy in this repo is a pinned snapshot. See the `LICENSE` file in the source folder for the original upstream location.
+### Manual start
 
-### Global news · investment-news
+```bash
+# Backend (port 8900)
+cd backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python3 app.py
 
-- 108 public RSS feeds across 12 industry tracks, merged into `backend/newsradar.py`. Standard library only, no API keys.
-- **Upstream**: the original open-source `investment-news` project; see the source folder's `LICENSE` for the original location.
+# Frontend (port 5899)
+cd frontend
+pnpm install
+pnpm dev
+```
 
-> All data comes from public sources. Vibe-Research only performs objective data aggregation and presents public rankings as-is — **it does not recommend stocks, predict price moves, time trades, or assign subjective scores**. What you do with the data is up to you and your AI.
+Open http://localhost:5899.
 
-## Architecture
+> Daemon / launchd / log rotation scripts are in [`tools/`](tools/).
 
-One data layer, three AI outlets:
+## Project structure
 
 ```
 Vibe-Research/
-├── a-stock-data/      A-share data toolkit (vendored v3.5.1, ready to use)
-├── global-stock-data/ US / HK data toolkit (vendored v2.0.3, ready to use)
-├── backend/           FastAPI :8900
-│   ├── astock.py        A-share data
-│   ├── gstock.py        US / HK data
-│   ├── newsradar.py     News radar
-│   ├── market.py        Market breadth + sector fund flows + global indices
-│   ├── portfolio.py     Portfolio (stored in your local user directory)
-│   ├── tools.py         AI tool layer (23 data tools, shared by chat / MCP / debate)
-│   ├── chat.py          In-app AI (OpenAI-compatible function calling)
-│   ├── debate.py        Bull-vs-bear orchestration (dossier → bull / bear / moderator)
-│   ├── reflection.py    Reflection audit (audits reasoning in existing analysis)
-│   └── mcp_server.py    MCP server (for Claude Code and other agents)
-└── frontend/          Vite + React 19 + TS + Tailwind :5899
+├── backend/                 # FastAPI backend
+│   ├── app.py
+│   ├── astock.py            # A-share data layer (from a-stock-data submodule)
+│   ├── gstock.py            # US/HK data layer (from global-stock-data submodule)
+│   ├── newsradar.py
+│   ├── market_monitor/      # Stock pool / sector hub / daily review
+│   └── data/                # Runtime cache (.gitignore)
+├── frontend/                # React 19 + Vite + TypeScript
+│   └── src/{pages,components,hooks}/
+├── a-stock-data/            # Embedded A-share data submodule (MIT)
+├── global-stock-data/       # Embedded US/HK data submodule (MIT)
+├── data/                    # Public snapshots tracked in git (stock pool etc.)
+├── docs/
+├── tools/                   # Local ops scripts
+├── .workbuddy/              # WorkBuddy project memory (.gitignore)
+├── start.command
+└── stop.command
 ```
 
-**Tiered dependencies**: quotes (Tencent) and reports/filings (Eastmoney) work with a minimal install. `akshare` / `mootdx` are imported lazily — if missing, only those endpoints return 501 with an install hint; the service still runs.
+## Pluggable AI
 
-## Quick Start
+Core positioning: **data + factual brief**. All analysis / decisions flow through the AI interface. Three modes:
 
-```bash
-# Backend (:8900)
-cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8900
-
-# Frontend (:5899)
-cd frontend && npm install && npm run dev
-# Open http://localhost:5899
-```
-
-## Bring Your Own AI
-
-Configure once on the "Bring your AI" page and every AI feature across the dashboard uses your model. **All analysis comes from your model — this project does not tune or bias it.** Three options:
-
-### 1. Subscription mode (uses a CLI you're already logged into — no API key)
-
-Uses your existing subscription instead of paying per API call. Supported: **Claude Code · Codex · Qwen Code · DeepSeek CLI**.
-
-- **Requirements**: the backend runs on your own machine, and the CLI is installed, logged in and on your `PATH`.
-- Pick one on the "Bring your AI" page — no key needed.
-- ⚠️ CLIs answer in one shot without multi-step tool calls, so this suits flows where the data is already prepared (daily review, takeaways, asking about the stock currently on screen). For open-ended questions where the AI should fetch data itself, use API mode.
-
-### 2. API mode (bring your own key)
-
-Pick a model and the base URL is filled in for you — just paste the key. Built-in presets for **DeepSeek / Doubao / MiniMax / OpenAI / OpenRouter / Groq / Together / MiMo / any OpenAI-compatible endpoint**. This mode supports function calling, so the AI fetches quotes, valuation, reports and news on its own. Your key stays in your browser's local storage and is sent only to your own backend.
-
-### 3. MCP (for Claude Code and other agents)
-
-Mount the backend as an MCP server so your agent can call Vibe-Research's data tools with its own subscription. See [`backend/README.md`](backend/README.md).
-
-## How the Multi-Agent Part Is Designed
-
-Open-source multi-agent finance frameworks (TradingAgents, ai-hedge-fund and friends) end their pipeline with a trader or portfolio_manager role that outputs "buy / sell / how much". **This project deliberately omits that layer.**
-
-Here the endpoint of the multi-agent flow is **disagreement**, not a verdict:
-
-```
-① Factual dossier   backend pulls 13 objective datasets (no LLM involved)
-                     ↓  both sides argue over the same data — nobody can win by making numbers up
-② Bull researcher   builds the case: thesis + supporting evidence + what must hold for it to work
-③ Bear researcher   builds the counter-case: doubts + risk evidence + what must hold for it to work
-   (optional)       rebuttal round: address each point, concede what's conceded, refute with data
-④ Neutral moderator shared ground / real disagreements (missing data or differing reads?) /
-                     what to verify / what data is absent
-```
-
-Deliberate constraints:
-
-- **Dossier first** — the model isn't left to remember which tool to call. Data is deterministic and reproducible; missing items are stated in the dossier with an explicit "do not speculate" instruction.
-- **Every claim must cite the specific data it rests on**; anything unsupported must be labeled as such.
-- **The moderator does not pick a winner** and gives no rating or lean — its output is "here's what to look at next".
-- Rate-limited endpoints are fetched **serially**: the throttle is timestamp-based rather than lock-based, so concurrency would blow straight through it.
-
-### What one debate costs (read before you run it)
-
-A debate is much heavier than a chat — it runs a full pipeline and **every role carries the complete dossier**. Measured:
-
-| | 1 round | 2 rounds (with rebuttal) |
+| Mode | When | Where |
 |---|---|---|
-| Model calls | **3** | **5** |
-| Input sent | ~35k CJK chars | ~60k |
-| Output | ~4k | ~7k |
-| Wall clock | **~100–120s** | ~3 min |
+| **Subscription CLI** | Local CLI client (Claude Code / Codex / OpenCode …) — no API key | Frontend → "AI" → "Subscription" |
+| **API multi-model** | Any OpenAI-compatible endpoint (DeepSeek / Qwen / self-hosted) | Frontend → "AI" → "API" → baseURL + model |
+| **MCP** | External agents (Claude Code etc.) call this project's tools directly | Register backend in `mcp_config.json` |
 
-Roughly 35s of that is fetching the dossier — a dozen public endpoints, **zero tokens**. The rest is generation.
+> Before wiring AI, skim [`docs/upstreams/`](docs/upstreams/) — the debate / research-framework examples show how this system structures factual briefs.
 
-**To keep costs down:**
+## Roadmap
 
-1. **One round is usually enough.** Two rounds doubles everything.
-2. **Prefer subscription mode** (local CLI) over an API key.
-3. **A debate doesn't need an expensive model.** The data is already in the dossier; the model only organizes and expresses it. Save your budget for your own deep questions.
-4. **Don't spam it.** The dossier hits a dozen throttled endpoints.
+Iterates on my own research needs; see [ROADMAP.md](ROADMAP.md).
 
-### Reflection audit
+Recent focus (**no time commitment — driven by need**):
 
-The same idea applied to writing you already have: audit the reasoning and surface the parts that *sound* reasonable but aren't backed by anything. In testing it reliably catches things like "widely recognized by institutions" (generalizing from three data points) or "frequently raised estimates" (never quantified).
+- [ ] **Cross-market arbitrage** — gold cross-market (XAUUSDT vs XAUUSD) spread monitor (with Variable-Global platform)
+- [ ] **Local morning-meeting / review automation** — faster-whisper → LLM minutes → in-app archive
+- [ ] **300+ curated info-source aggregator** — YouTube / Twitter / WeChat multi-agent pipeline, themed output
+- [ ] **Private factor library + backtest** — local factor compute + vectorized backtest, no external framework
+- [ ] **Cross-device experience** — mobile layout polish + desktop PWA
 
-Much cheaper — **a single model call** over the text you selected.
+## Privacy
 
-## Tests
+This is a **personal project**. **No external contributions, no public distribution.**
 
-```bash
-cd backend && .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest -m "not live"   # offline unit + API tests (fast, no network)
-.venv/bin/pytest -m live         # verifies live data source shapes (run before releases)
-```
+- **Local data** (watchlist / positions / research notes / journal): **stored only on local deployment**, never uploaded
+- **Public snapshots** (`data/` — stock-pool JSONs, history CSVs): deliberately committed by me, scoped to data I choose to share
+- **WorkBuddy memory** (`.workbuddy/`): in `.gitignore`, local-only
+- **Code pushes** go to my own `wuxingyuenan5-lgtm/vibe_research`; `origin` stays on upstream `simonlin1212/Vibe-Research` for syncing
 
-## Compliance
-
-- Objective data aggregation and public-ranking display only: **no stock recommendations, no price predictions, no trade timing, no return promises, no subjective scoring.** Neutral by design.
-- Limit-up lists and turnover rankings are **objective public data** (the same numbers Eastmoney and Tonghuashun publish); the product displays them as-is with nothing attached.
-- All analytical direction comes from the AI *you* configure, not from this project. There are no buy/sell buttons in the UI, and valuation percentiles mark position only — no lines suggesting when to act.
-- **Your portfolio, watchlist, uploaded reports and API keys stay on your machine.** Nothing is uploaded; nothing enters the repo.
-- Portfolio and uploaded reports default to `~/.vibe-research/` (override with `VR_DATA_DIR` / `VR_REPORTS_DIR`) — outside the project folder, so re-downloading or overwriting the project never loses your data.
-
-## Disclaimer
-
-This project is for learning and research purposes and **does not constitute investment advice**. The dashboard performs objective data aggregation and displays public rankings — it does not recommend stocks, predict price movements, time trades, or promise returns. All analytical conclusions come from the AI you configure yourself and have nothing to do with this project. Markets carry risk; verify independently and decide for yourself.
+> If you fork / clone: apart from `data/` public snapshots, **all runtime data is private**. Configure your own backup if you need cross-device sync (uploading personal data to any cloud is *not* recommended).
 
 ## License
 
-MIT
+<!-- TODO: pick one — MIT / personal-use-only / AGPL / Apache 2.0. Update LICENSE file accordingly. -->
+
+**Project itself**: TODO
+
+**Embedded sub-modules** retain their original licenses (compliance requirement):
+
+- [`a-stock-data/`](a-stock-data/) — MIT (see its LICENSE)
+- [`global-stock-data/`](global-stock-data/) — MIT (see its LICENSE)
+
+## Acknowledgements
+
+<!-- TODO: optional — short paragraph (<10 lines) crediting original author simonlin1212 / upstream data sources / libraries / tools. -->
