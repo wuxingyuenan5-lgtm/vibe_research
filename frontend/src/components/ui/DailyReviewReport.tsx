@@ -109,7 +109,7 @@ export function DailyReviewReport({ p }: { p: ReviewPayload }) {
             {cm.warning && <div className="warning">{cm.warning}</div>}
             {cm.switch && cm.switch.length > 0 && (
               <div className="switch-grid">
-                {cm.switch.map((sw, i) => (
+                {cm.switch.slice(0, 2).map((sw, i) => (
                   <div key={i} style={{ display: "contents" }}>
                     <div className="card">
                       <div className="label">{sw.label}</div>
@@ -217,13 +217,17 @@ export function DailyReviewReport({ p }: { p: ReviewPayload }) {
 
         {fi && fi.items && fi.items.length > 0 && (
           <section>
-            <div className="section-head"><h2>资金、仓位与产业数据</h2>{fi.kicker && <span className="kicker">{fi.kicker}</span>}</div>
-            <div className="grid-3">
+            <div className="section-head"><h2>资金、仓位与产业数据点评</h2>{fi.kicker && <span className="kicker">{fi.kicker}</span>}</div>
+            <div className="space-y-4">
               {fi.items.map((f, i) => (
-                <div className="card" key={i}>
-                  <div className="label">{f.label}</div>
-                  <div className={`metric ${upDown(f.cls)}`}>{f.metric}</div>
-                  {f.note && <div className="note">{f.note}</div>}
+                <div key={i} className="border-l-2 border-primary/40 pl-4 py-1">
+                  <div className="flex items-baseline gap-3 flex-wrap">
+                    <h3 className="!mb-0">{f.label}</h3>
+                    <span className={`metric !text-[20px] ${upDown(f.cls)}`}>{f.metric}</span>
+                  </div>
+                  {f.note && (
+                    <div className="mt-1.5 text-sm leading-relaxed text-foreground/90 whitespace-pre-line">{f.note}</div>
+                  )}
                 </div>
               ))}
             </div>

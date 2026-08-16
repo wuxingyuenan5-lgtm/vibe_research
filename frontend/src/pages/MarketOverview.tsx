@@ -4,7 +4,7 @@
  * 原三页（a股监控板 / 统一交易晨报 / 每日复盘）保留，本页做好后由用户确认再删。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { RefreshCw, Loader2, Gauge, Flame, TrendingUp, TrendingDown, ArrowDownUp, Wallet, Newspaper, AlertCircle, Sparkles, X } from "lucide-react";
+import { RefreshCw, Loader2, Gauge, Flame, TrendingUp, TrendingDown, ArrowDownUp, Wallet, AlertCircle, Sparkles, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -119,10 +119,10 @@ const REVIEW_PROMPT_TMPL = `你是盘后复盘研究员。基于下面的客观�
 - 输出前自查：结论先行、数据支撑、给出反方、说明噪音、不编数字。
 
 【结构约束】
-- china_market 是复盘的系统性数据底表（替代晨报「昨日中国市场：从大类资产到A股内部结构」），**必须完整填**：priority（一段最重要的日内结构总结）、breadth（用喂入的上涨/下跌家数与宽度等级）、industry（申万行业涨跌数 + 净流入/流出 Top3 行业名）、switch（昨日 vs 今日关键对比数字）。这是市场总览数据的系统性总结，不可省略。
+- china_market 是复盘的系统性数据底表（替代晨报「昨日中国市场：从大类资产到A股内部结构」），**必须完整填**：priority（一段最重要的日内结构总结）、breadth（用喂入的上涨/下跌家数与宽度等级）、industry（申万行业涨跌数 + 净流入/流出 Top3 行业名）、switch 数组**严格 2 项**（昨日 vs 今日两个最关键对比：宽度对比 + 全A成交对比；不要 3 项，3 项排不开）。这是市场总览数据的系统性总结，不可省略。
 - mainlines.tags 用「兑现/部分兑现/未兑现/无法判断」之一，贴在主线条目前端。
 - mainlines.evidence = 分歧与反方证据；mainlines.validation = 明日继续看什么。
-- funding_industry 用 grid-3 卡片，**只填最关键的 3-4 张卡片**（如全A成交 / 板块净流入 / 板块净流出 / 短线情绪 / 活跃度），别堆 7-8 张变流水账。
+- funding_industry 改为**长点评版式**（不要 grid-3 简卡，区别于晨报）：3-5 段，每段包含一个数据点（建议：全A成交 / 百亿成交股 / 板块净流入 / 板块净流出 / 短线情绪 / 活跃度 中选 3-4 个），结构为 { label: 小标题, metric: 关键数字, note: 多段分析点评（用 \\n\\n 分段，每段 2-4 句话，先结论后证据，每句话至少一个数据点，不要只写一句简注） }。
 - today_validation 2-3 条；events 只用数据中出现的正式日程。
 
 【输出 JSON 结构】
@@ -140,7 +140,7 @@ const REVIEW_PROMPT_TMPL = `你是盘后复盘研究员。基于下面的客观�
   "china_market": {
     "title": "今日中国市场：一句话概括", "kicker": "A股核心行情简版（底表不全时）或省略",
     "priority": "最重要的日内结构段落", "warning": "数据局限（没有可省略）",
-    "switch": [{ "label": "昨日 vs 今日", "metric": "关键数字", "cls": "up|down|flat", "note": "说明" }],
+    "switch": [{ "label": "昨日 vs 今日", "metric": "关键数字", "cls": "up|down|flat", "note": "说明" }, { "label": "昨日 vs 今日", "metric": "关键数字", "cls": "up|down|flat", "note": "说明" }],
     "breadth": { "title": "市场宽度", "up": "上涨家数", "down": "下跌家数", "up_pct": 数值, "down_pct": 数值, "note": "说明" },
     "industry": { "title": "申万一级行业宽度", "up": "上涨行业数", "down": "下跌行业数", "up_pct": 数值, "down_pct": 数值, "note": "说明" }
   },
@@ -333,9 +333,6 @@ export function MarketOverview() {
     { k: "活跃度", v: sentiment.active || "—", c: "text-muted-foreground" },
   ] : [];
 
-  const briefSummary = brief?.summary;
-  const briefMainlines = brief?.mainlines?.items || [];
-
   // 资产总览合并：实时（国内 6 指数 + 港股）+ 晨报（海外/商品/汇率/国债），按 code 去重
   const assetRows = useMemo<AssetRow[]>(() => {
     const INDICES_CODE: Record<string, string> = {
@@ -458,40 +455,6 @@ export function MarketOverview() {
           <AlertCircle className="h-4 w-4 shrink-0" /> {err}
         </div>
       )}
-
-      {/* 统一交易晨报摘要（放 AI 当日复盘下，后续两者合并） */}
-      <GlassCard className="mt-4 p-4">
-        <div className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
-          <Newspaper className="h-4 w-4 text-primary" /> 统一交易晨报摘要
-          <span className="text-[11px] font-normal text-muted-foreground/50">· {brief?.report_meta?.date || "最新"}</span>
-          <a href="/morning-brief" className="ml-auto text-[11px] text-primary hover:underline">查看完整晨报 →</a>
-        </div>
-        {!briefSummary ? (
-          <p className="text-xs text-muted-foreground/60">暂无晨报数据（后端 data/market-monitor/morning-brief/ 无 payload）</p>
-        ) : (
-          <div className="space-y-4">
-            {briefSummary.kicker && (
-              <p className="rounded-lg bg-primary/5 px-3 py-2 text-sm font-medium text-primary">{briefSummary.kicker}</p>
-            )}
-            {briefSummary.overnight_changes && briefSummary.overnight_changes.length > 0 && (
-              <div>
-                <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">{briefSummary.overnight_title || "隔夜变化"}</p>
-                <div className="space-y-1.5">
-                  {briefSummary.overnight_changes.slice(0, 2).map((c, i) => (
-                    <p key={i} className="text-xs leading-relaxed text-foreground/90"><b className="text-foreground">{c.title}</b>{c.text}</p>
-                  ))}
-                </div>
-              </div>
-            )}
-            {briefMainlines.slice(0, 2).map((m, i) => (
-              <div key={i}>
-                <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">主线 {i + 1}</p>
-                <p className="text-xs leading-relaxed text-foreground/90"><b className="text-foreground">{m.title}</b>{" "}{m.paras?.[0]}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </GlassCard>
 
       {/* ② 合并资产总览（实时指数 + 晨报海外/商品；点击行看 K 线） */}
       <AssetOverviewTable rows={assetRows} />
