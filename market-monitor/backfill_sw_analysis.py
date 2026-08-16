@@ -15,7 +15,7 @@ from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent
-HISTORY = ROOT / "data/history/sw_analysis_daily_second.csv"
+DEFAULT_HISTORY = ROOT / "data/history/sw_analysis_daily_second.csv"
 BATCH_DAYS = 10  # 每批 10 个自然日（约 7 个交易日），控制接口压力
 
 
@@ -27,14 +27,17 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--start", default="2026-01-05")
     ap.add_argument("--end", default="2026-08-03")
+    ap.add_argument("--history-path", default=str(DEFAULT_HISTORY),
+                    help=f"目标 sw_analysis_daily_second.csv 路径（默认 {DEFAULT_HISTORY}）")
     args = ap.parse_args()
+    history_path = Path(args.history_path)
 
     import akshare as ak
 
     # 已存在的历史日期（避免重复拉取）
     existing: set[str] = set()
-    if HISTORY.exists():
-        old = pd.read_csv(HISTORY, encoding="utf-8-sig")
+    if history_path.exists():
+        old = pd.read_csv(history_path, encoding="utf-8-sig")
         dc = next((c for c in ("发布日期", "日期", "date") if c in old.columns), None)
         if dc:
             existing = set(pd.to_datetime(old[dc], errors="coerce").dropna().dt.strftime("%Y-%m-%d"))
@@ -66,8 +69,8 @@ def main() -> None:
         print("无新增数据")
         return
     merged = pd.concat(batches, ignore_index=True, sort=False).drop_duplicates(keep="last")
-    if HISTORY.exists():
-        old = pd.read_csv(HISTORY, encoding="utf-8-sig")
+    if history_path.exists():
+        old = pd.read_csv(history_path, encoding="utf-8-sig")
         merged = pd.concat([old, merged], ignore_index=True, sort=False).drop_duplicates(keep="last")
     dc = next((c for c in ("发布日期", "日期", "date") if c in merged.columns), None)
     if dc:
@@ -75,7 +78,7 @@ def main() -> None:
         # 注意：只能按「整行完全重复」去重（canonical gate 规则），绝不能按日期列 subset——
         # 同一天有 131 个二级行业，按日期去重会把每天只剩 1 行，摧毁数据。
         merged = merged.sort_values(dc).drop_duplicates(keep="last")
-    merged.to_csv(HISTORY, index=False, encoding="utf-8-sig")
+    merged.to_csv(history_path, index=False, encoding="utf-8-sig")
     print(f"完成: sw_analysis_daily_second.csv 现 {len(merged)} 行, 日期 {merged[dc].min()} ~ {merged[dc].max()}")
 
 
