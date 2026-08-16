@@ -14,8 +14,7 @@
   <a href="#quick-start">Quick start</a> ·
   <a href="#project-structure">Project structure</a> ·
   <a href="#pluggable-ai">Pluggable AI</a> ·
-  <a href="#roadmap">Roadmap</a> ·
-  <a href="#privacy">Privacy</a>
+  <a href="#license">License</a>
 </p>
 
 ---
@@ -123,29 +122,6 @@ Core positioning: **data + factual brief**. All analysis / decisions flow throug
 | **MCP** | External agents (Claude Code etc.) call this project's tools directly | Register backend in `mcp_config.json` |
 
 > Before wiring AI, skim [`docs/upstreams/`](docs/upstreams/) — the debate / research-framework examples show how this system structures factual briefs.
-
-## Roadmap
-
-Iterates on my own research needs; see [ROADMAP.md](ROADMAP.md).
-
-Recent focus (**no time commitment — driven by need**):
-
-- [ ] **Cross-market arbitrage** — gold cross-market (XAUUSDT vs XAUUSD) spread monitor (with Variable-Global platform)
-- [ ] **Local morning-meeting / review automation** — faster-whisper → LLM minutes → in-app archive
-- [ ] **300+ curated info-source aggregator** — YouTube / Twitter / WeChat multi-agent pipeline, themed output
-- [ ] **Private factor library + backtest** — local factor compute + vectorized backtest, no external framework
-- [ ] **Cross-device experience** — mobile layout polish + desktop PWA
-
-## Privacy
-
-This is a **personal project**. **No external contributions, no public distribution.**
-
-- **Local data** (watchlist / positions / research notes / journal): **stored only on local deployment**, never uploaded
-- **Public snapshots** (`data/` — stock-pool JSONs, history CSVs): deliberately committed by me, scoped to data I choose to share
-- **WorkBuddy memory** (`.workbuddy/`): in `.gitignore`, local-only
-- **Code pushes** go to my own `wuxingyuenan5-lgtm/vibe_research`; `origin` stays on upstream `simonlin1212/Vibe-Research` for syncing
-
-> If you fork / clone: apart from `data/` public snapshots, **all runtime data is private**. Configure your own backup if you need cross-device sync (uploading personal data to any cloud is *not* recommended).
 
 ## License
 
