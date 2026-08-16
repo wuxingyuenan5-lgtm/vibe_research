@@ -31,9 +31,9 @@ SYNC_DIRS = ["data", "sw_industry_history.csv", "sw_industry_latest.csv"]
 # data/ 内含 history/ 与 cache/；同步时排除明显运行时产物（如 .bak）
 
 
-def _run(cmd: list[str], label: str) -> None:
+def _run(cmd: list[str], label: str, cwd: Path | None = None) -> None:
     print(f"[1/5] {label} ...", flush=True)
-    r = subprocess.run(cmd, cwd=PROJECT, capture_output=True, text=True)
+    r = subprocess.run(cmd, cwd=cwd or PROJECT, capture_output=True, text=True)
     if r.returncode != 0:
         print(f"  ⚠ {label} 非零退出({r.returncode})：{r.stderr[-300:]}", file=sys.stderr)
         # 采集失败不中断后续（网络抖动常见），但记录
@@ -101,10 +101,12 @@ def main() -> None:
         _run(
             [sys.executable, "-m", "market_monitor.daily_refresh", "--date", args.date],
             "核心股票池日更",
+            cwd=PROJECT / "backend",
         )
         _run(
             [sys.executable, str(MARKET_MONITOR / "run_daily.py"), "--target-date", args.date],
             "Canonical 采集（市场/指数/百亿/创新药/申万）",
+            cwd=MARKET_MONITOR,
         )
 
     sync_market_data()
