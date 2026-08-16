@@ -652,6 +652,7 @@ def kline(code: str = Query(...), period: str = Query("day"), offset: int = Quer
         raise HTTPException(400, "period 仅支持 day|week|month|60m")
     try:
         import urllib.request  # noqa: PLC0415
+        _no_proxy = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # 国内财经站直连，绕系统代理
         if period == "60m":
             # 1 小时线走分钟 K 线接口（不复权），参数 m60
             url = f"https://ifzq.gtimg.cn/appstock/app/kline/mkline?param={sym},m60,,{offset}"
@@ -660,7 +661,7 @@ def kline(code: str = Query(...), period: str = Query("day"), offset: int = Quer
             url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={sym},{period},,,{offset},qfq"
             key = f"qfq{period}"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        d = json.loads(urllib.request.urlopen(req, timeout=10).read().decode("utf-8"))
+        d = json.loads(_no_proxy.open(req, timeout=10).read().decode("utf-8"))
         node = d.get("data", {}).get(sym, {}) or {}
         raw = node.get(key) or node.get(period) or []
         out = []

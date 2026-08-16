@@ -12,9 +12,15 @@ import csv
 import json
 import os
 import re
+import threading
+import urllib.request
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+# 国内财经站直连 opener（绕过系统代理；qt.gtimg.cn 走代理会被 Clash CONNECT 掐掉）
+# 注意：GitHub API 是国外域名，_push_github 仍走默认代理（直连反而更不稳）
+_no_proxy_opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 STOCK_FIELDS = (
     "instrument_id", "code", "exchange", "name", "industry", "price", "change",
@@ -93,7 +99,7 @@ def add_stock(name: str, code: str | None = None, industry: str = "") -> dict:
     }
     stocks.append(entry)
     save_pool(pool)
-    sync_to_github()
+    _async_sync_github()
     return {"ok": True, "count": len(stocks)}
 
 
@@ -108,7 +114,7 @@ def lookup_name(code: str) -> str | None:
     prefix = "hk" if len(code) == 5 else ("sh" if code.startswith(("6", "9")) else "sz")
     url = f"https://qt.gtimg.cn/q={prefix}{code}"
     try:
-        with urllib.request.urlopen(url, timeout=6) as r:
+        with _no_proxy_opener.open(url, timeout=6) as r:
             raw = r.read().decode("gbk", errors="ignore")
         m = re.search(r'="\d+~([^~]+)~', raw)
         return m.group(1).strip() if m else None
@@ -137,7 +143,7 @@ def add_stock_batch(codes: list[str]) -> dict:
         })
         added.append(code)
     save_pool(pool)
-    sync_to_github()
+    _async_sync_github()
     return {"ok": True, "added": added, "failed": failed, "existing": existing, "count": len(pool["stocks"])}
 
 
@@ -148,7 +154,7 @@ def remove_stock(instrument_id: str) -> dict:
     if len(pool["stocks"]) == before:
         return {"ok": False, "error": "未找到该标的"}
     save_pool(pool)
-    sync_to_github()
+    _async_sync_github()
     return {"ok": True, "count": len(pool["stocks"])}
 
 
@@ -204,6 +210,27 @@ def sync_to_github() -> dict:
     """把 pool.json 推送到 GitHub 真源（vibe_research/data/stock-pool/pool.json）。"""
     pool = load_pool()
     return _push_github(GITHUB_PATH, json.dumps(pool, ensure_ascii=False, indent=2), f"chore(data): 更新核心股票池 pool.json（{pool.get('count', 0)} 只）")
+
+
+def _async_sync_github() -> None:
+    """后台推送 pool.json 到 GitHub（不阻塞前端增删请求）。
+
+    pool.json 是幂等全量状态：本次推送失败，下次任何写操作会再推一次，最终一致。
+    失败只记录 backend/logs/github_sync.log，不打扰用户。
+    """
+    def _do() -> None:
+        try:
+            sync_to_github()
+        except Exception as e:  # noqa: BLE001
+            try:
+                log_dir = BASE_DIR / "logs"
+                log_dir.mkdir(exist_ok=True)
+                with (log_dir / "github_sync.log").open("a", encoding="utf-8") as f:
+                    f.write(f"{datetime.now().isoformat()} GitHub 同步失败: {e}\n")
+            except Exception:
+                pass
+
+    threading.Thread(target=_do, daemon=True).start()
 
 
 # ---------------- 近期关注（focus）独立存 GitHub ----------------

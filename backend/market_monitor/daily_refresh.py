@@ -28,7 +28,6 @@ OUT_DIR = BASE / "data" / "market-monitor" / "output" / "stock-pool"
 STOCKS_CSV = SNAPSHOT_DIR / "stocks.csv"
 INDICES_CSV = SNAPSHOT_DIR / "indices.csv"
 HISTORY_CSV = SNAPSHOT_DIR / "stocks_history.csv"           # 追加式行情母表（本地副本）
-HISTORY_KEEP_DAYS = 60                                       # 母表滚动保留天数
 GITHUB_HISTORY_PATH = "data/stock-pool/stocks_history.csv"   # GitHub 真源路径（与 pool.json 同目录）
 
 INDICES_FIELDS = [
@@ -62,9 +61,13 @@ ULIST_FIELDS = "f12,f14,f2,f3,f6,f8,f9,f20,f23,f109"
 KLINE_FIELDS = "f51,f53"
 
 
+# 国内财经站直连 opener（绕过系统代理：代理会把东财/腾讯的 CONNECT 掐掉，与估值 Connection refused 同款问题）
+_no_proxy_opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
 def _get(url: str) -> dict:
     req = urllib.request.Request(url, headers=HEADERS)
-    with urllib.request.urlopen(req, timeout=12) as resp:
+    with _no_proxy_opener.open(req, timeout=12) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
@@ -317,9 +320,8 @@ def _refill_pool_from_quote(stocks: list[dict]) -> int:
 def append_history(rows: list[list[str]], report_date: str) -> int:
     """把当日快照追加进 stocks_history.csv 母表并推 GitHub。
 
-    - 每行带 date 前缀（date + CSV_FIELDS），追加式累积
+    - 每行带 date 前缀（date + CSV_FIELDS），追加式**全量累积**（不裁剪，保留全部历史）
     - 按 (date, instrument_id) 去重：同日重跑以最新为准
-    - 滚动保留 HISTORY_KEEP_DAYS 天（本地与 GitHub 一致）
     - GitHub 推送失败仅告警，不阻断主流程
     返回当日写入行数。
     """
@@ -332,8 +334,6 @@ def append_history(rows: list[list[str]], report_date: str) -> int:
             old = [r for r in csv.reader(f) if r and r[0] != "date"]
 
     kept = [r for r in old if r[0] != report_date] + new_rows
-    cutoff = (datetime.strptime(report_date, "%Y-%m-%d") - timedelta(days=HISTORY_KEEP_DAYS)).strftime("%Y-%m-%d")
-    kept = [r for r in kept if r[0] >= cutoff]
     kept.sort(key=lambda r: (r[0], r[1]))
 
     header = ["date", *CSV_FIELDS]
@@ -420,10 +420,10 @@ def main() -> None:
     STOCKS_CSV.write_text("\n".join(",".join(r) for r in rows), encoding="utf-8")
     print(f"stocks.csv 已更新（{len(rows) - 1} 行），拉取失败 {len(missing)} 只: {missing[:10]}")
 
-    # 3.1) 追加行情母表（stocks_history.csv + 推 GitHub，滚动保留 HISTORY_KEEP_DAYS 天）
+    # 3.1) 追加行情母表（stocks_history.csv + 推 GitHub，全量累积不裁剪）
     try:
         n_hist = append_history(rows[1:], args.date)
-        print(f"stocks_history.csv 已追加 {n_hist} 行（滚动保留 {HISTORY_KEEP_DAYS} 天）→ GitHub")
+        print(f"stocks_history.csv 已追加 {n_hist} 行（全量累积）→ GitHub")
     except Exception as e:  # noqa: BLE001
         print(f"[warn] 母表追加失败：{e}")
 
