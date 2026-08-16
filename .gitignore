@@ -38,5 +38,6 @@ frontend/tsconfig.tsbuildinfo
 
 # ── 运行时数据 / 日志 / 本地记忆 ──────────────────────────────────
 .logs/
-backend/data/
+backend/data/*
+!backend/data/market-monitor/
 **/.workbuddy/
