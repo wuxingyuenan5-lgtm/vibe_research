@@ -1,28 +1,46 @@
 {
   "pool_name": "核心股票池",
   "version": "2026-08-14",
-  "count": 162,
+  "count": 163,
   "stocks": [
     {
       "instrument_id": "600519",
       "code": "600519",
       "exchange": "SSE",
       "name": "贵州茅台",
-      "industry": "白酒"
+      "industry": "白酒",
+      "price": 1341.99,
+      "change": -0.0098,
+      "turnover": 0.0024,
+      "pe_ttm": 20.6,
+      "pb": 6.68,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:工商银行",
       "code": "601398",
       "exchange": "SH",
       "name": "工商银行",
-      "industry": "银行"
+      "industry": "银行",
+      "price": 7.56,
+      "change": -0.0053,
+      "turnover": 0.001,
+      "pe_ttm": 7.26,
+      "pb": 0.69,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:中国平安",
       "code": "601318",
       "exchange": "SH",
       "name": "中国平安",
-      "industry": "保险"
+      "industry": "保险",
+      "price": 51.75,
+      "change": -0.0199,
+      "turnover": 0.006,
+      "pe_ttm": 7.06,
+      "pb": 0.95,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:理想汽车-W",
@@ -36,91 +54,169 @@
       "code": "600030",
       "exchange": "SH",
       "name": "中信证券",
-      "industry": "证券"
+      "industry": "证券",
+      "price": 27.31,
+      "change": -0.019,
+      "turnover": 0.0106,
+      "pe_ttm": 12.67,
+      "pb": 1.49,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:中国移动",
       "code": "600941",
       "exchange": "SH",
       "name": "中国移动",
-      "industry": "通信服务"
+      "industry": "通信服务",
+      "price": 97.71,
+      "change": 0.0166,
+      "turnover": 0.0153,
+      "pe_ttm": 16.08,
+      "pb": 1.49,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:兴发集团",
       "code": "600141",
       "exchange": "SH",
       "name": "兴发集团",
-      "industry": "农化制品"
+      "industry": "农化制品",
+      "price": 30.81,
+      "change": -0.0029,
+      "turnover": 0.0181,
+      "pe_ttm": 25.75,
+      "pb": 1.52,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:华友钴业",
       "code": "603799",
       "exchange": "SH",
       "name": "华友钴业",
-      "industry": "能源金属"
+      "industry": "能源金属",
+      "price": 42.35,
+      "change": 0.0043,
+      "turnover": 0.0286,
+      "pe_ttm": 10.9,
+      "pb": 1.62,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:新华保险",
       "code": "601336",
       "exchange": "SH",
       "name": "新华保险",
-      "industry": "保险"
+      "industry": "保险",
+      "price": 57.78,
+      "change": -0.0121,
+      "turnover": 0.0067,
+      "pe_ttm": 4.88,
+      "pb": 1.54,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:通威股份",
       "code": "600438",
       "exchange": "SH",
       "name": "通威股份",
-      "industry": "光伏设备"
+      "industry": "光伏设备",
+      "price": 12.8,
+      "change": -0.007,
+      "turnover": 0.0123,
+      "pe_ttm": -6.13,
+      "pb": 1.65,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:TCL科技",
       "code": "000100",
       "exchange": "SZ",
       "name": "TCL科技",
-      "industry": "光学光电子"
+      "industry": "光学光电子",
+      "price": 5.14,
+      "change": -0.0058,
+      "turnover": 0.0222,
+      "pe_ttm": 21.13,
+      "pb": 1.76,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:京东方Ａ",
       "code": "000725",
       "exchange": "SZ",
       "name": "京东方Ａ",
-      "industry": "光学光电子"
+      "industry": "光学光电子",
+      "price": 5.81,
+      "change": -0.0085,
+      "turnover": 0.0356,
+      "pe_ttm": 36.17,
+      "pb": 1.61,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:海尔智家",
       "code": "600690",
       "exchange": "SH",
       "name": "海尔智家",
-      "industry": "白色家电"
+      "industry": "白色家电",
+      "price": 21.76,
+      "change": -0.0014,
+      "turnover": 0.0042,
+      "pe_ttm": 10.9,
+      "pb": 1.63,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:恒力石化",
       "code": "600346",
       "exchange": "SH",
       "name": "恒力石化",
-      "industry": "石油加工贸易"
+      "industry": "石油加工贸易",
+      "price": 17.13,
+      "change": -0.0017,
+      "turnover": 0.0029,
+      "pe_ttm": 13.5,
+      "pb": 1.76,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:中国海油",
       "code": "600938",
       "exchange": "SH",
       "name": "中国海油",
-      "industry": "油气开采及服务"
+      "industry": "油气开采及服务",
+      "price": 32.67,
+      "change": 0.0012,
+      "turnover": 0.0121,
+      "pe_ttm": 12.46,
+      "pb": 1.91,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:圆通速递",
       "code": "600233",
       "exchange": "SH",
       "name": "圆通速递",
-      "industry": "物流"
+      "industry": "物流",
+      "price": 18.9,
+      "change": 0.0238,
+      "turnover": 0.0052,
+      "pe_ttm": 13.36,
+      "pb": 1.83,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:中国人寿",
       "code": "601628",
       "exchange": "SH",
       "name": "中国人寿",
-      "industry": "保险"
+      "industry": "保险",
+      "price": 36.84,
+      "change": -0.0166,
+      "turnover": 0.0012,
+      "pe_ttm": 7.19,
+      "pb": 1.79,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:阿里巴巴-W",
@@ -134,42 +230,78 @@
       "code": "601058",
       "exchange": "SH",
       "name": "赛轮轮胎",
-      "industry": "汽车零部件"
+      "industry": "汽车零部件",
+      "price": 13.55,
+      "change": 0.0127,
+      "turnover": 0.0078,
+      "pe_ttm": 12.58,
+      "pb": 2.04,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:东方电气",
       "code": "600875",
       "exchange": "SH",
       "name": "东方电气",
-      "industry": "其他电源设备"
+      "industry": "其他电源设备",
+      "price": 26.91,
+      "change": -0.0048,
+      "turnover": 0.0131,
+      "pe_ttm": 21.83,
+      "pb": 2.07,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:三一重工",
       "code": "600031",
       "exchange": "SH",
       "name": "三一重工",
-      "industry": "工程机械"
+      "industry": "工程机械",
+      "price": 18.75,
+      "change": 0.0016,
+      "turnover": 0.0056,
+      "pe_ttm": 20.48,
+      "pb": 1.94,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:万华化学",
       "code": "600309",
       "exchange": "SH",
       "name": "万华化学",
-      "industry": "化学制品"
+      "industry": "化学制品",
+      "price": 73.04,
+      "change": -0.001,
+      "turnover": 0.0062,
+      "pe_ttm": 17.37,
+      "pb": 2.13,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:大金重工",
       "code": "002487",
       "exchange": "SZ",
       "name": "大金重工",
-      "industry": "风电设备"
+      "industry": "风电设备",
+      "price": 41.85,
+      "change": -0.0165,
+      "turnover": 0.0241,
+      "pe_ttm": 23.7,
+      "pb": 3.58,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:中兴通讯",
       "code": "000063",
       "exchange": "SZ",
       "name": "中兴通讯",
-      "industry": "通信设备"
+      "industry": "通信设备",
+      "price": 35.05,
+      "change": -0.0009,
+      "turnover": 0.0278,
+      "pe_ttm": 37.47,
+      "pb": 2.24,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:小米集团-W",
@@ -183,70 +315,130 @@
       "code": "601225",
       "exchange": "SH",
       "name": "陕西煤业",
-      "industry": "煤炭开采加工"
+      "industry": "煤炭开采加工",
+      "price": 25.37,
+      "change": 0.0116,
+      "turnover": 0.0037,
+      "pe_ttm": 15.21,
+      "pb": 2.64,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:卫星化学",
       "code": "002648",
       "exchange": "SZ",
       "name": "卫星化学",
-      "industry": "化学制品"
+      "industry": "化学制品",
+      "price": 25.26,
+      "change": -0.0079,
+      "turnover": 0.0105,
+      "pe_ttm": 9.68,
+      "pb": 2.24,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:厦钨新能",
       "code": "688778",
       "exchange": "SH",
       "name": "厦钨新能",
-      "industry": "电池"
+      "industry": "电池",
+      "price": 48.01,
+      "change": 0.0021,
+      "turnover": 0.0086,
+      "pe_ttm": 25.8,
+      "pb": 2.55,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:比音勒芬",
       "code": "002832",
       "exchange": "SZ",
       "name": "比音勒芬",
-      "industry": "服装家纺"
+      "industry": "服装家纺",
+      "price": 26.08,
+      "change": -0.0023,
+      "turnover": 0.022,
+      "pe_ttm": 24.58,
+      "pb": 2.79,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:牧原股份",
       "code": "002714",
       "exchange": "SZ",
       "name": "牧原股份",
-      "industry": "养殖业"
+      "industry": "养殖业",
+      "price": 39.29,
+      "change": -0.0214,
+      "turnover": 0.0134,
+      "pe_ttm": 23.19,
+      "pb": 2.71,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:云铝股份",
       "code": "000807",
       "exchange": "SZ",
       "name": "云铝股份",
-      "industry": "工业金属"
+      "industry": "工业金属",
+      "price": 25.91,
+      "change": 0.0008,
+      "turnover": 0.017,
+      "pe_ttm": 10.35,
+      "pb": 2.62,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:湖南裕能",
       "code": "301358",
       "exchange": "SZ",
       "name": "湖南裕能",
-      "industry": "电池"
+      "industry": "电池",
+      "price": 68.78,
+      "change": 0.036,
+      "turnover": 0.0316,
+      "pe_ttm": 22.97,
+      "pb": 3.1,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:潍柴动力",
       "code": "000338",
       "exchange": "SZ",
       "name": "潍柴动力",
-      "industry": "汽车零部件"
+      "industry": "汽车零部件",
+      "price": 29.65,
+      "change": -0.015,
+      "turnover": 0.015,
+      "pe_ttm": 22.66,
+      "pb": 2.78,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:兖矿能源",
       "code": "600188",
       "exchange": "SH",
       "name": "兖矿能源",
-      "industry": "煤炭开采加工"
+      "industry": "煤炭开采加工",
+      "price": 22.19,
+      "change": 0.0321,
+      "turnover": 0.0103,
+      "pe_ttm": 21.88,
+      "pb": 3.04,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:美的集团",
       "code": "000333",
       "exchange": "SZ",
       "name": "美的集团",
-      "industry": "白色家电"
+      "industry": "白色家电",
+      "price": 83.03,
+      "change": -0.0138,
+      "turnover": 0.0033,
+      "pe_ttm": 14.33,
+      "pb": 3.11,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:安踏体育",
@@ -267,14 +459,26 @@
       "code": "600900",
       "exchange": "SH",
       "name": "长江电力",
-      "industry": "电力"
+      "industry": "电力",
+      "price": 28.1,
+      "change": -0.005,
+      "turnover": 0.003,
+      "pe_ttm": 19.05,
+      "pb": 3.3,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:亚钾国际",
       "code": "000893",
       "exchange": "SZ",
       "name": "亚钾国际",
-      "industry": "农化制品"
+      "industry": "农化制品",
+      "price": 45.35,
+      "change": -0.0111,
+      "turnover": 0.0087,
+      "pe_ttm": 23.02,
+      "pb": 3.04,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:药明生物",
@@ -288,14 +492,26 @@
       "code": "300450",
       "exchange": "SZ",
       "name": "先导智能",
-      "industry": "电池"
+      "industry": "电池",
+      "price": 34.78,
+      "change": 0.0043,
+      "turnover": 0.0167,
+      "pe_ttm": 36.3,
+      "pb": 3.34,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:宝丰能源",
       "code": "600989",
       "exchange": "SH",
       "name": "宝丰能源",
-      "industry": "化学原料"
+      "industry": "化学原料",
+      "price": 22.89,
+      "change": 0.0035,
+      "turnover": 0.0074,
+      "pe_ttm": 10.93,
+      "pb": 3.04,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:中芯国际",
@@ -309,7 +525,13 @@
       "code": "300059",
       "exchange": "SZ",
       "name": "东方财富",
-      "industry": "证券"
+      "industry": "证券",
+      "price": 19.47,
+      "change": -0.0157,
+      "turnover": 0.0184,
+      "pe_ttm": 23.5,
+      "pb": 3.21,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:腾讯控股",
@@ -323,168 +545,312 @@
       "code": "600330",
       "exchange": "SH",
       "name": "天通股份",
-      "industry": "电子化学品"
+      "industry": "电子化学品",
+      "price": 24.98,
+      "change": 0.0318,
+      "turnover": 0.1058,
+      "pe_ttm": -120.84,
+      "pb": 3.97,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:拓普集团",
       "code": "601689",
       "exchange": "SH",
       "name": "拓普集团",
-      "industry": "汽车零部件"
+      "industry": "汽车零部件",
+      "price": 49.51,
+      "change": -0.0036,
+      "turnover": 0.0095,
+      "pe_ttm": 31.11,
+      "pb": 3.62,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:乖宝宠物",
       "code": "301498",
       "exchange": "SZ",
       "name": "乖宝宠物",
-      "industry": "农产品加工"
+      "industry": "农产品加工",
+      "price": 41.08,
+      "change": -0.0345,
+      "turnover": 0.0366,
+      "pe_ttm": 27.77,
+      "pb": 3.54,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:立讯精密",
       "code": "002475",
       "exchange": "SZ",
       "name": "立讯精密",
-      "industry": "消费电子"
+      "industry": "消费电子",
+      "price": 56.58,
+      "change": 0.0093,
+      "turnover": 0.0098,
+      "pe_ttm": 25.43,
+      "pb": 5.01,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:九号公司-WD",
       "code": "689009",
       "exchange": "SH",
       "name": "九号公司-WD",
-      "industry": "汽车服务及其他"
+      "industry": "汽车服务及其他",
+      "price": 44.48,
+      "change": -0.0102,
+      "turnover": 0.0177,
+      "pe_ttm": 21.46,
+      "pb": 5.05,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:安克创新",
       "code": "300866",
       "exchange": "SZ",
       "name": "安克创新",
-      "industry": "消费电子"
+      "industry": "消费电子",
+      "price": 115.75,
+      "change": -0.0225,
+      "turnover": 0.0096,
+      "pe_ttm": 27.0,
+      "pb": 6.6,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:天赐材料",
       "code": "002709",
       "exchange": "SZ",
       "name": "天赐材料",
-      "industry": "电池"
+      "industry": "电池",
+      "price": 39.47,
+      "change": 0.017,
+      "turnover": 0.0423,
+      "pe_ttm": 28.07,
+      "pb": 4.36,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:西部矿业",
       "code": "601168",
       "exchange": "SH",
       "name": "西部矿业",
-      "industry": "工业金属"
+      "industry": "工业金属",
+      "price": 37.14,
+      "change": 0.0231,
+      "turnover": 0.0291,
+      "pe_ttm": 14.89,
+      "pb": 3.95,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:亨通光电",
       "code": "600487",
       "exchange": "SH",
       "name": "亨通光电",
-      "industry": "通信设备"
+      "industry": "通信设备",
+      "price": 62.98,
+      "change": 0.1001,
+      "turnover": 0.1297,
+      "pe_ttm": 48.11,
+      "pb": 4.89,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:宇通客车",
       "code": "600066",
       "exchange": "SH",
       "name": "宇通客车",
-      "industry": "汽车整车"
+      "industry": "汽车整车",
+      "price": 28.69,
+      "change": -0.0178,
+      "turnover": 0.0102,
+      "pe_ttm": 11.58,
+      "pb": 4.89,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:阳光电源",
       "code": "300274",
       "exchange": "SZ",
       "name": "阳光电源",
-      "industry": "光伏设备"
+      "industry": "光伏设备",
+      "price": 116.72,
+      "change": -0.0119,
+      "turnover": 0.0269,
+      "pe_ttm": 20.29,
+      "pb": 5.12,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:东鹏饮料",
       "code": "605499",
       "exchange": "SH",
       "name": "东鹏饮料",
-      "industry": "饮料制造"
+      "industry": "饮料制造",
+      "price": 122.93,
+      "change": -0.0241,
+      "turnover": 0.0118,
+      "pe_ttm": 18.39,
+      "pb": 4.63,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:大族激光",
       "code": "002008",
       "exchange": "SZ",
       "name": "大族激光",
-      "industry": "自动化设备"
+      "industry": "自动化设备",
+      "price": 99.0,
+      "change": 0.0449,
+      "turnover": 0.0446,
+      "pe_ttm": 51.28,
+      "pb": 4.75,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:紫金矿业",
       "code": "601899",
       "exchange": "SH",
       "name": "紫金矿业",
-      "industry": "贵金属"
+      "industry": "贵金属",
+      "price": 32.53,
+      "change": 0.0099,
+      "turnover": 0.0094,
+      "pe_ttm": 14.02,
+      "pb": 4.62,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:长电科技",
       "code": "600584",
       "exchange": "SH",
       "name": "长电科技",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 78.71,
+      "change": 0.0114,
+      "turnover": 0.064,
+      "pe_ttm": 85.25,
+      "pb": 4.93,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:宁德时代",
       "code": "300750",
       "exchange": "SZ",
       "name": "宁德时代",
-      "industry": "电池"
+      "industry": "电池",
+      "price": 393.93,
+      "change": -0.006,
+      "turnover": 0.0037,
+      "pe_ttm": 21.44,
+      "pb": 4.89,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:伟测科技",
       "code": "688372",
       "exchange": "SH",
       "name": "伟测科技",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 130.01,
+      "change": 0.0194,
+      "turnover": 0.0306,
+      "pe_ttm": 63.11,
+      "pb": 5.34,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:洛阳钼业",
       "code": "603993",
       "exchange": "SH",
       "name": "洛阳钼业",
-      "industry": "工业金属"
+      "industry": "工业金属",
+      "price": 18.44,
+      "change": 0.0016,
+      "turnover": 0.0091,
+      "pe_ttm": 16.33,
+      "pb": 4.77,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:厦门钨业",
       "code": "600549",
       "exchange": "SH",
       "name": "厦门钨业",
-      "industry": "小金属"
+      "industry": "小金属",
+      "price": 56.44,
+      "change": 0.0316,
+      "turnover": 0.0344,
+      "pe_ttm": 29.54,
+      "pb": 5.07,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:三花智控",
       "code": "002050",
       "exchange": "SZ",
       "name": "三花智控",
-      "industry": "白色家电"
+      "industry": "白色家电",
+      "price": 38.3,
+      "change": -0.006,
+      "turnover": 0.0118,
+      "pe_ttm": 39.43,
+      "pb": 5.12,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:中国巨石",
       "code": "600176",
       "exchange": "SH",
       "name": "中国巨石",
-      "industry": "建筑材料"
+      "industry": "建筑材料",
+      "price": 44.39,
+      "change": 0.0594,
+      "turnover": 0.0701,
+      "pe_ttm": 46.49,
+      "pb": 5.64,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:药明康德",
       "code": "603259",
       "exchange": "SH",
       "name": "药明康德",
-      "industry": "医疗服务"
+      "industry": "医疗服务",
+      "price": 159.24,
+      "change": -0.019,
+      "turnover": 0.0221,
+      "pe_ttm": 21.93,
+      "pb": 5.7,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:扬杰科技",
       "code": "300373",
       "exchange": "SZ",
       "name": "扬杰科技",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 96.38,
+      "change": 0.0087,
+      "turnover": 0.0166,
+      "pe_ttm": 38.21,
+      "pb": 5.43,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:风华高科",
       "code": "000636",
       "exchange": "SZ",
       "name": "风华高科",
-      "industry": "元件"
+      "industry": "元件",
+      "price": 62.73,
+      "change": 0.0114,
+      "turnover": 0.1269,
+      "pe_ttm": 236.18,
+      "pb": 5.87,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:优必选",
@@ -498,28 +864,52 @@
       "code": "600160",
       "exchange": "SH",
       "name": "巨化股份",
-      "industry": "化学制品"
+      "industry": "化学制品",
+      "price": 40.77,
+      "change": -0.0133,
+      "turnover": 0.0099,
+      "pe_ttm": 26.51,
+      "pb": 5.35,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:赤峰黄金",
       "code": "600988",
       "exchange": "SH",
       "name": "赤峰黄金",
-      "industry": "贵金属"
+      "industry": "贵金属",
+      "price": 39.78,
+      "change": 0.029,
+      "turnover": 0.0335,
+      "pe_ttm": 21.07,
+      "pb": 5.53,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:爱旭股份",
       "code": "600732",
       "exchange": "SH",
       "name": "爱旭股份",
-      "industry": "光伏设备"
+      "industry": "光伏设备",
+      "price": 11.84,
+      "change": -0.0255,
+      "turnover": 0.0132,
+      "pe_ttm": -12.77,
+      "pb": 5.3,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:大中矿业",
       "code": "001203",
       "exchange": "SZ",
       "name": "大中矿业",
-      "industry": "钢铁"
+      "industry": "钢铁",
+      "price": 27.77,
+      "change": -0.0004,
+      "turnover": 0.0121,
+      "pe_ttm": 65.25,
+      "pb": 5.91,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:地平线机器人-W",
@@ -540,56 +930,104 @@
       "code": "002156",
       "exchange": "SZ",
       "name": "通富微电",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 62.96,
+      "change": 0.0119,
+      "turnover": 0.0466,
+      "pe_ttm": 66.06,
+      "pb": 6.15,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:金盘科技",
       "code": "688676",
       "exchange": "SH",
       "name": "金盘科技",
-      "industry": "电网设备"
+      "industry": "电网设备",
+      "price": 70.22,
+      "change": -0.0227,
+      "turnover": 0.032,
+      "pe_ttm": 48.57,
+      "pb": 6.65,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:兴业银锡",
       "code": "000426",
       "exchange": "SZ",
       "name": "兴业银锡",
-      "industry": "贵金属"
+      "industry": "贵金属",
+      "price": 37.89,
+      "change": 0.0003,
+      "turnover": 0.0319,
+      "pe_ttm": 25.22,
+      "pb": 6.21,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:华锡有色",
       "code": "600301",
       "exchange": "SH",
       "name": "华锡有色",
-      "industry": "小金属"
+      "industry": "小金属",
+      "price": 50.45,
+      "change": 0.0344,
+      "turnover": 0.0466,
+      "pe_ttm": 38.49,
+      "pb": 6.74,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:杰瑞股份",
       "code": "002353",
       "exchange": "SZ",
       "name": "杰瑞股份",
-      "industry": "专用设备"
+      "industry": "专用设备",
+      "price": 150.99,
+      "change": 0.0443,
+      "turnover": 0.0403,
+      "pe_ttm": 58.66,
+      "pb": 6.64,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:应流股份",
       "code": "603308",
       "exchange": "SH",
       "name": "应流股份",
-      "industry": "通用设备"
+      "industry": "通用设备",
+      "price": 48.98,
+      "change": 0.012,
+      "turnover": 0.0162,
+      "pe_ttm": 88.28,
+      "pb": 6.68,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:天岳先进",
       "code": "688234",
       "exchange": "SH",
       "name": "天岳先进",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 111.15,
+      "change": -0.0079,
+      "turnover": 0.0244,
+      "pe_ttm": -194.22,
+      "pb": 7.57,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:胜宏科技",
       "code": "300476",
       "exchange": "SZ",
       "name": "胜宏科技",
-      "industry": "元件"
+      "industry": "元件",
+      "price": 269.33,
+      "change": -0.0073,
+      "turnover": 0.0397,
+      "pe_ttm": 56.56,
+      "pb": 16.9,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:建滔积层板",
@@ -603,7 +1041,13 @@
       "code": "300661",
       "exchange": "SZ",
       "name": "圣邦股份",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 123.0,
+      "change": 0.0362,
+      "turnover": 0.033,
+      "pe_ttm": 138.01,
+      "pb": 15.78,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:信达生物",
@@ -617,7 +1061,13 @@
       "code": "003031",
       "exchange": "SZ",
       "name": "中瓷电子",
-      "industry": "通信设备"
+      "industry": "通信设备",
+      "price": 130.08,
+      "change": 0.1,
+      "turnover": 0.0384,
+      "pe_ttm": 92.68,
+      "pb": 9.15,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:百济神州",
@@ -631,28 +1081,52 @@
       "code": "002851",
       "exchange": "SZ",
       "name": "麦格米特",
-      "industry": "其他电源设备"
+      "industry": "其他电源设备",
+      "price": 131.4,
+      "change": -0.0035,
+      "turnover": 0.0631,
+      "pe_ttm": 501.82,
+      "pb": 8.59,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:恒立液压",
       "code": "601100",
       "exchange": "SH",
       "name": "恒立液压",
-      "industry": "工程机械"
+      "industry": "工程机械",
+      "price": 106.28,
+      "change": 0.0025,
+      "turnover": 0.0033,
+      "pe_ttm": 51.47,
+      "pb": 8.32,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:帝尔激光",
       "code": "300776",
       "exchange": "SZ",
       "name": "帝尔激光",
-      "industry": "光伏设备"
+      "industry": "光伏设备",
+      "price": 121.45,
+      "change": 0.0443,
+      "turnover": 0.0407,
+      "pe_ttm": 66.65,
+      "pb": 9.06,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:中控技术",
       "code": "688777",
       "exchange": "SH",
       "name": "中控技术",
-      "industry": "自动化设备"
+      "industry": "自动化设备",
+      "price": 95.19,
+      "change": -0.012,
+      "turnover": 0.0234,
+      "pe_ttm": 190.15,
+      "pb": 7.67,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:泡泡玛特",
@@ -666,7 +1140,13 @@
       "code": "300395",
       "exchange": "SZ",
       "name": "菲利华",
-      "industry": "军工装备"
+      "industry": "军工装备",
+      "price": 93.4,
+      "change": 0.0098,
+      "turnover": 0.0378,
+      "pe_ttm": 101.91,
+      "pb": 9.68,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:古茗",
@@ -680,14 +1160,26 @@
       "code": "002484",
       "exchange": "SZ",
       "name": "江海股份",
-      "industry": "元件"
+      "industry": "元件",
+      "price": 69.79,
+      "change": 0.0477,
+      "turnover": 0.0784,
+      "pe_ttm": 86.71,
+      "pb": 9.56,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:三环集团",
       "code": "300408",
       "exchange": "SZ",
       "name": "三环集团",
-      "industry": "元件"
+      "industry": "元件",
+      "price": 129.09,
+      "change": 0.0054,
+      "turnover": 0.0281,
+      "pe_ttm": 89.6,
+      "pb": 11.97,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:康方生物",
@@ -701,28 +1193,52 @@
       "code": "603650",
       "exchange": "SH",
       "name": "彤程新材",
-      "industry": "橡胶制品"
+      "industry": "橡胶制品",
+      "price": 64.51,
+      "change": 0.0206,
+      "turnover": 0.0214,
+      "pe_ttm": 67.97,
+      "pb": 9.9,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:德业股份",
       "code": "605117",
       "exchange": "SH",
       "name": "德业股份",
-      "industry": "光伏设备"
+      "industry": "光伏设备",
+      "price": 90.31,
+      "change": -0.0044,
+      "turnover": 0.0071,
+      "pe_ttm": 31.48,
+      "pb": 11.58,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:影石创新",
       "code": "688775",
       "exchange": "SH",
       "name": "影石创新",
-      "industry": "消费电子"
+      "industry": "消费电子",
+      "price": 133.0,
+      "change": -0.0336,
+      "turnover": 0.0176,
+      "pe_ttm": 63.71,
+      "pb": 9.19,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:江丰电子",
       "code": "300666",
       "exchange": "SZ",
       "name": "江丰电子",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 255.9,
+      "change": 0.0194,
+      "turnover": 0.0542,
+      "pe_ttm": 127.93,
+      "pb": 10.11,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:华虹宏力",
@@ -736,224 +1252,416 @@
       "code": "688143",
       "exchange": "SH",
       "name": "长盈通",
-      "industry": "通信设备"
+      "industry": "通信设备",
+      "price": 140.0,
+      "change": 0.1488,
+      "turnover": 0.1671,
+      "pe_ttm": 836.57,
+      "pb": 13.37,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:芯碁微装",
       "code": "688630",
       "exchange": "SH",
       "name": "芯碁微装",
-      "industry": "专用设备"
+      "industry": "专用设备",
+      "price": 419.0,
+      "change": 0.0,
+      "turnover": 0.0271,
+      "pe_ttm": 177.18,
+      "pb": 26.38,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:光迅科技",
       "code": "002281",
       "exchange": "SZ",
       "name": "光迅科技",
-      "industry": "通信设备"
+      "industry": "通信设备",
+      "price": 191.52,
+      "change": 0.0361,
+      "turnover": 0.05,
+      "pe_ttm": 153.03,
+      "pb": 11.46,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:兆易创新",
       "code": "603986",
       "exchange": "SH",
       "name": "兆易创新",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 417.48,
+      "change": 0.0321,
+      "turnover": 0.0711,
+      "pe_ttm": 101.91,
+      "pb": 11.84,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:申菱环境",
       "code": "301018",
       "exchange": "SZ",
       "name": "申菱环境",
-      "industry": "通用设备"
+      "industry": "通用设备",
+      "price": 92.6,
+      "change": 0.0289,
+      "turnover": 0.0517,
+      "pe_ttm": 181.51,
+      "pb": 12.81,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:旭光电子",
       "code": "600353",
       "exchange": "SH",
       "name": "旭光电子",
-      "industry": "其他电子"
+      "industry": "其他电子",
+      "price": 31.03,
+      "change": 0.1,
+      "turnover": 0.0837,
+      "pe_ttm": 156.06,
+      "pb": 13.75,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:大族数控",
       "code": "301200",
       "exchange": "SZ",
       "name": "大族数控",
-      "industry": "自动化设备"
+      "industry": "自动化设备",
+      "price": 290.09,
+      "change": 0.0106,
+      "turnover": 0.005,
+      "pe_ttm": 137.67,
+      "pb": 12.88,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:德福科技",
       "code": "301511",
       "exchange": "SZ",
       "name": "德福科技",
-      "industry": "电池"
+      "industry": "电池",
+      "price": 95.02,
+      "change": 0.057,
+      "turnover": 0.0968,
+      "pe_ttm": 247.95,
+      "pb": 14.63,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:国城矿业",
       "code": "000688",
       "exchange": "SZ",
       "name": "国城矿业",
-      "industry": "小金属"
+      "industry": "小金属",
+      "price": 31.6,
+      "change": -0.0119,
+      "turnover": 0.0193,
+      "pe_ttm": 54.54,
+      "pb": 13.16,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:澜起科技",
       "code": "688008",
       "exchange": "SH",
       "name": "澜起科技",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 211.91,
+      "change": 0.008,
+      "turnover": 0.0274,
+      "pe_ttm": 101.13,
+      "pb": 12.83,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:杰普特",
       "code": "688025",
       "exchange": "SH",
       "name": "杰普特",
-      "industry": "自动化设备"
+      "industry": "自动化设备",
+      "price": 404.31,
+      "change": 0.0705,
+      "turnover": 0.0426,
+      "pe_ttm": 112.89,
+      "pb": 16.56,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:欧陆通",
       "code": "300870",
       "exchange": "SZ",
       "name": "欧陆通",
-      "industry": "其他电源设备"
+      "industry": "其他电源设备",
+      "price": 228.31,
+      "change": 0.03,
+      "turnover": 0.0414,
+      "pe_ttm": 191.6,
+      "pb": 13.53,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:中微公司",
       "code": "688012",
       "exchange": "SH",
       "name": "中微公司",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 374.85,
+      "change": 0.012,
+      "turnover": 0.0158,
+      "pe_ttm": 131.57,
+      "pb": 13.02,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:盛合晶微",
       "code": "688820",
       "exchange": "SH",
       "name": "盛合晶微",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 137.97,
+      "change": 0.0192,
+      "turnover": 0.0502,
+      "pe_ttm": 260.77,
+      "pb": 13.36,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:深南电路",
       "code": "002916",
       "exchange": "SZ",
       "name": "深南电路",
-      "industry": "元件"
+      "industry": "元件",
+      "price": 378.0,
+      "change": 0.0001,
+      "turnover": 0.01,
+      "pe_ttm": 70.84,
+      "pb": 15.65,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:中钨高新",
       "code": "000657",
       "exchange": "SZ",
       "name": "中钨高新",
-      "industry": "小金属"
+      "industry": "小金属",
+      "price": 68.29,
+      "change": 0.0238,
+      "turnover": 0.0546,
+      "pe_ttm": 79.84,
+      "pb": 15.32,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:沪电股份",
       "code": "002463",
       "exchange": "SZ",
       "name": "沪电股份",
-      "industry": "元件"
+      "industry": "元件",
+      "price": 121.27,
+      "change": 0.0051,
+      "turnover": 0.0183,
+      "pe_ttm": 54.25,
+      "pb": 14.74,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:中际旭创",
       "code": "300308",
       "exchange": "SZ",
       "name": "中际旭创",
-      "industry": "通信设备"
+      "industry": "通信设备",
+      "price": 943.0,
+      "change": 0.0238,
+      "turnover": 0.018,
+      "pe_ttm": 73.79,
+      "pb": 31.84,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:生益电子",
       "code": "688183",
       "exchange": "SH",
       "name": "生益电子",
-      "industry": "元件"
+      "industry": "元件",
+      "price": 115.99,
+      "change": 0.0559,
+      "turnover": 0.0199,
+      "pe_ttm": 47.31,
+      "pb": 14.92,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:铜冠铜箔",
       "code": "301217",
       "exchange": "SZ",
       "name": "铜冠铜箔",
-      "industry": "电池"
+      "industry": "电池",
+      "price": 123.05,
+      "change": 0.032,
+      "turnover": 0.0525,
+      "pe_ttm": 621.09,
+      "pb": 18.54,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:东山精密",
       "code": "002384",
       "exchange": "SZ",
       "name": "东山精密",
-      "industry": "元件"
+      "industry": "元件",
+      "price": 205.19,
+      "change": 0.0152,
+      "turnover": 0.0404,
+      "pe_ttm": 184.22,
+      "pb": 16.6,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:科翔股份",
       "code": "300903",
       "exchange": "SZ",
       "name": "科翔股份",
-      "industry": "元件"
+      "industry": "元件",
+      "price": 79.9,
+      "change": 0.0323,
+      "turnover": 0.0737,
+      "pe_ttm": -131.24,
+      "pb": 19.05,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:长光华芯",
       "code": "688048",
       "exchange": "SH",
       "name": "长光华芯",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 312.0,
+      "change": 0.0369,
+      "turnover": 0.0564,
+      "pe_ttm": 1629.95,
+      "pb": 18.25,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:茂莱光学",
       "code": "688502",
       "exchange": "SH",
       "name": "茂莱光学",
-      "industry": "光学光电子"
+      "industry": "光学光电子",
+      "price": 435.38,
+      "change": 0.0421,
+      "turnover": 0.0454,
+      "pe_ttm": 1237.17,
+      "pb": 19.51,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:生益科技",
       "code": "600183",
       "exchange": "SH",
       "name": "生益科技",
-      "industry": "元件"
+      "industry": "元件",
+      "price": 143.21,
+      "change": 0.0104,
+      "turnover": 0.0279,
+      "pe_ttm": 66.97,
+      "pb": 18.8,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:绿的谐波",
       "code": "688017",
       "exchange": "SH",
       "name": "绿的谐波",
-      "industry": "自动化设备"
+      "industry": "自动化设备",
+      "price": 349.93,
+      "change": 0.0114,
+      "turnover": 0.0399,
+      "pe_ttm": 469.11,
+      "pb": 18.17,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:瑞芯微",
       "code": "603893",
       "exchange": "SH",
       "name": "瑞芯微",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 203.99,
+      "change": -0.0152,
+      "turnover": 0.0294,
+      "pe_ttm": 74.43,
+      "pb": 19.95,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:联瑞新材",
       "code": "688300",
       "exchange": "SH",
       "name": "联瑞新材",
-      "industry": "非金属材料"
+      "industry": "非金属材料",
+      "price": 164.65,
+      "change": 0.015,
+      "turnover": 0.0525,
+      "pe_ttm": 131.21,
+      "pb": 22.94,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:长飞光纤",
       "code": "601869",
       "exchange": "SH",
       "name": "长飞光纤",
-      "industry": "通信设备"
+      "industry": "通信设备",
+      "price": 355.18,
+      "change": 0.0524,
+      "turnover": 0.036,
+      "pe_ttm": 254.12,
+      "pb": 20.66,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:英维克",
       "code": "002837",
       "exchange": "SZ",
       "name": "英维克",
-      "industry": "专用设备"
+      "industry": "专用设备",
+      "price": 57.09,
+      "change": 0.0296,
+      "turnover": 0.0323,
+      "pe_ttm": 150.76,
+      "pb": 22.08,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:芯源微",
       "code": "688037",
       "exchange": "SH",
       "name": "芯源微",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 336.8,
+      "change": 0.0207,
+      "turnover": 0.0179,
+      "pe_ttm": 963.16,
+      "pb": 24.28,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:长川科技",
       "code": "300604",
       "exchange": "SZ",
       "name": "长川科技",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 283.05,
+      "change": 0.0048,
+      "turnover": 0.031,
+      "pe_ttm": 116.17,
+      "pb": 22.5,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:科伦博泰生物",
@@ -967,161 +1675,299 @@
       "code": "300857",
       "exchange": "SZ",
       "name": "协创数据",
-      "industry": "计算机设备"
+      "industry": "计算机设备",
+      "price": 265.99,
+      "change": 0.039,
+      "turnover": 0.0609,
+      "pe_ttm": 50.16,
+      "pb": 21.38,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:长芯博创",
       "code": "300548",
       "exchange": "SZ",
       "name": "长芯博创",
-      "industry": "通信设备"
+      "industry": "通信设备",
+      "price": 194.67,
+      "change": 0.081,
+      "turnover": 0.062,
+      "pe_ttm": 152.95,
+      "pb": 28.27,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:博迁新材",
       "code": "605376",
       "exchange": "SH",
       "name": "博迁新材",
-      "industry": "能源金属"
+      "industry": "能源金属",
+      "price": 168.55,
+      "change": 0.0064,
+      "turnover": 0.0527,
+      "pe_ttm": 181.49,
+      "pb": 25.43,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:长鑫科技",
       "code": "688825",
       "exchange": "SH",
       "name": "长鑫科技",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 55.18,
+      "change": 0.0435,
+      "turnover": 0.0804,
+      "pe_ttm": 130.89,
+      "pb": 26.48,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:鼎泰高科",
       "code": "301377",
       "exchange": "SZ",
       "name": "鼎泰高科",
-      "industry": "通用设备"
+      "industry": "通用设备",
+      "price": 447.8,
+      "change": 0.0063,
+      "turnover": 0.0297,
+      "pe_ttm": 305.47,
+      "pb": 70.06,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:中船特气",
       "code": "688146",
       "exchange": "SH",
       "name": "中船特气",
-      "industry": "电子化学品"
+      "industry": "电子化学品",
+      "price": 300.96,
+      "change": 0.0185,
+      "turnover": 0.1005,
+      "pe_ttm": 309.03,
+      "pb": 26.52,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:海光信息",
       "code": "688041",
       "exchange": "SH",
       "name": "海光信息",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 280.99,
+      "change": -0.0175,
+      "turnover": 0.0082,
+      "pe_ttm": 207.87,
+      "pb": 25.74,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:新易盛",
       "code": "300502",
       "exchange": "SZ",
       "name": "新易盛",
-      "industry": "通信设备"
+      "industry": "通信设备",
+      "price": 448.08,
+      "change": 0.0423,
+      "turnover": 0.0309,
+      "pe_ttm": 58.17,
+      "pb": 32.18,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:光库科技",
       "code": "300620",
       "exchange": "SZ",
       "name": "光库科技",
-      "industry": "通信设备"
+      "industry": "通信设备",
+      "price": 321.91,
+      "change": 0.0247,
+      "turnover": 0.0481,
+      "pe_ttm": 380.95,
+      "pb": 37.22,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:仕佳光子",
       "code": "688313",
       "exchange": "SH",
       "name": "仕佳光子",
-      "industry": "通信设备"
+      "industry": "通信设备",
+      "price": 140.76,
+      "change": 0.0155,
+      "turnover": 0.0403,
+      "pe_ttm": 135.26,
+      "pb": 37.05,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:行云科技",
       "code": "300209",
       "exchange": "SZ",
       "name": "行云科技",
-      "industry": "互联网电商"
+      "industry": "互联网电商",
+      "price": 38.93,
+      "change": 0.1013,
+      "turnover": 0.2437,
+      "pe_ttm": -494.92,
+      "pb": 38.47,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:宏景科技",
       "code": "301396",
       "exchange": "SZ",
       "name": "宏景科技",
-      "industry": "IT服务"
+      "industry": "IT服务",
+      "price": 221.86,
+      "change": 0.0858,
+      "turnover": 0.2196,
+      "pe_ttm": 1360.28,
+      "pb": 39.49,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:芯原股份",
       "code": "688521",
       "exchange": "SH",
       "name": "芯原股份",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 207.28,
+      "change": 0.0059,
+      "turnover": 0.0237,
+      "pe_ttm": -168.15,
+      "pb": 34.64,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:云南锗业",
       "code": "002428",
       "exchange": "SZ",
       "name": "云南锗业",
-      "industry": "小金属"
+      "industry": "小金属",
+      "price": 101.59,
+      "change": 0.0138,
+      "turnover": 0.1196,
+      "pe_ttm": 3482.28,
+      "pb": 45.36,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:天孚通信",
       "code": "300394",
       "exchange": "SZ",
       "name": "天孚通信",
-      "industry": "通信设备"
+      "industry": "通信设备",
+      "price": 267.71,
+      "change": 0.041,
+      "turnover": 0.0482,
+      "pe_ttm": 134.46,
+      "pb": 53.42,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:杰华特",
       "code": "688141",
       "exchange": "SH",
       "name": "杰华特",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 143.0,
+      "change": 0.0533,
+      "turnover": 0.026,
+      "pe_ttm": -73.18,
+      "pb": 51.59,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:罗博特科",
       "code": "300757",
       "exchange": "SZ",
       "name": "罗博特科",
-      "industry": "自动化设备"
+      "industry": "自动化设备",
+      "price": 516.0,
+      "change": 0.0167,
+      "turnover": 0.0296,
+      "pe_ttm": -1093.54,
+      "pb": 53.2,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:宏和科技",
       "code": "603256",
       "exchange": "SH",
       "name": "宏和科技",
-      "industry": "电子化学品"
+      "industry": "电子化学品",
+      "price": 154.18,
+      "change": 0.0165,
+      "turnover": 0.0266,
+      "pe_ttm": 282.31,
+      "pb": 47.29,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:上纬新材",
       "code": "688585",
       "exchange": "SH",
       "name": "上纬新材",
-      "industry": "塑料制品"
+      "industry": "塑料制品",
+      "price": 167.33,
+      "change": -0.0012,
+      "turnover": 0.0086,
+      "pe_ttm": -434.46,
+      "pb": 57.33,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:寒武纪",
       "code": "688256",
       "exchange": "SH",
       "name": "寒武纪",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 1093.0,
+      "change": -0.0113,
+      "turnover": 0.0161,
+      "pe_ttm": 206.1,
+      "pb": 50.66,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:源杰科技",
       "code": "688498",
       "exchange": "SH",
       "name": "源杰科技",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 1519.0,
+      "change": 0.0122,
+      "turnover": 0.0266,
+      "pe_ttm": 531.16,
+      "pb": 76.73,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:盛科通信-U",
       "code": "688702",
       "exchange": "SH",
       "name": "盛科通信-U",
-      "industry": "半导体"
+      "industry": "半导体",
+      "price": 398.6,
+      "change": -0.006,
+      "turnover": 0.0366,
+      "pe_ttm": -1076.76,
+      "pb": 73.22,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:联讯仪器",
       "code": "688808",
       "exchange": "SH",
       "name": "联讯仪器",
-      "industry": "通用设备"
+      "industry": "通用设备",
+      "price": 2220.98,
+      "change": 0.0041,
+      "turnover": 0.0266,
+      "pe_ttm": 834.55,
+      "pb": 77.74,
+      "data_status": "live"
     },
     {
       "instrument_id": "legacy:智谱",
@@ -1135,8 +1981,21 @@
       "code": "600276",
       "exchange": "SSE",
       "name": "恒瑞医药",
-      "industry": "化学制药"
+      "industry": "化学制药",
+      "price": 52.62,
+      "change": -0.0212,
+      "turnover": 0.0137,
+      "pe_ttm": 43.01,
+      "pb": 5.6,
+      "data_status": "live"
+    },
+    {
+      "instrument_id": "601012",
+      "code": "601012",
+      "exchange": null,
+      "name": "隆基绿能",
+      "industry": ""
     }
   ],
-  "updated_at": "2026-08-16T13:16:04+08:00"
+  "updated_at": "2026-08-16T16:21:24+08:00"
 }
