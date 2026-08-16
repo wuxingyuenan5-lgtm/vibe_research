@@ -88,7 +88,7 @@ def tencent_quote(codes: list[str]) -> dict[str, dict]:
 
 
 # A股大盘指数（前缀规则与个股不同，固定带前缀代码）
-A_INDICES = ["sh000001", "sz399001", "sz399006", "sh000300"]
+A_INDICES = ["sh000001", "sz399001", "sz399006", "sh000300", "sh000016", "sh000688"]
 
 
 def index_quote() -> list[dict]:

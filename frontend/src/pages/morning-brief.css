@@ -23,7 +23,7 @@
 }
 .mb-root *, .mb-root *::before, .mb-root *::after { box-sizing: border-box; }
 
-.mb-root .page { max-width: 1220px; margin: 20px auto 52px; padding: 0 18px; }
+.mb-root .page { max-width: 100%; margin: 14px auto 48px; padding: 0 14px; }
 .mb-root .hero, .mb-root section { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
 .mb-root .hero { padding: 30px 34px 24px; }
 .mb-root .eyebrow { font-size: 12px; letter-spacing: 0.14em; font-weight: 750; color: var(--gold); }

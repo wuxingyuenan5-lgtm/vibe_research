@@ -435,7 +435,8 @@ export function StockPool() {
               <div className="leader-col">
                 {data.leaders.today.up.map((x) => (
                   <div className="leader-r" key={x.instrument_id}>
-                    <span className="leader-name">{x.name}</span>
+                    <button className="stock-link leader-name" title={x.name} onClick={() => setStockDataCode(x.code ?? null)}>{x.name}</button>
+                    <span className={`leader-ind${x.industry ? "" : " is-empty"}`} title={x.industry || "暂无行业"}>{x.industry || "—"}</span>
                     <b className={cls(x.change)}>{pct(x.change)}</b>
                   </div>
                 ))}
@@ -448,7 +449,8 @@ export function StockPool() {
               <div className="leader-col">
                 {data.leaders.today.down.map((x) => (
                   <div className="leader-r" key={x.instrument_id}>
-                    <span className="leader-name">{x.name}</span>
+                    <button className="stock-link leader-name" title={x.name} onClick={() => setStockDataCode(x.code ?? null)}>{x.name}</button>
+                    <span className={`leader-ind${x.industry ? "" : " is-empty"}`} title={x.industry || "暂无行业"}>{x.industry || "—"}</span>
                     <b className={cls(x.change)}>{pct(x.change)}</b>
                   </div>
                 ))}
@@ -471,7 +473,8 @@ export function StockPool() {
                 <div className="leader-col">
                   {g.list.map((x) => (
                     <div className="leader-r" key={x.instrument_id}>
-                      <span className="leader-name">{x.name}</span>
+                      <button className="stock-link leader-name" title={x.name} onClick={() => setStockDataCode(x.code ?? null)}>{x.name}</button>
+                      <span className={`leader-ind${x.industry ? "" : " is-empty"}`} title={x.industry || "暂无行业"}>{x.industry || "—"}</span>
                       <b className={cls(x[g.field])}>{pct(x[g.field])}</b>
                     </div>
                   ))}

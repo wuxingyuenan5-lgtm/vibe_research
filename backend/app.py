@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -639,14 +640,21 @@ def kline(code: str = Query(...), period: str = Query("day"), offset: int = Quer
     day/week/month 为前复权（fqkline）；60m 为 1 小时线（mkline，不复权）。
     返回 [{date,open,close,high,low,volume}]。"""
     code = code.strip().upper()
-    if len(code) == 6 and code.isdigit():
+    # 带前缀代码：指数（sh000001/sz399006）、港股指数（hkHSI/hkHSTECH）等直接透传
+    if re.match(r"^(SH|SZ)\d{6}$", code):
+        sym = code.lower()
+    elif re.match(r"^HK[A-Z0-9]+$", code):
+        sym = code.lower()
+    elif re.match(r"^US[A-Z0-9.\^]+$", code):
+        sym = "us" + code[2:]
+    elif len(code) == 6 and code.isdigit():
         sym = ("sh" if code.startswith(("6", "9")) else "sz") + code
     elif len(code) == 5 and code.isdigit():
         sym = "hk" + code
     elif code.isalpha():
         sym = "us" + code
     else:
-        raise HTTPException(400, "无法识别代码（A 股 6 位 / 港股 5 位 / 美股字母）")
+        raise HTTPException(400, "无法识别代码（A 股 6 位 / 港股 5 位 / 美股字母 / 指数 sh000001 等）")
     period = period.lower()
     if period not in ("day", "week", "month", "60m"):
         raise HTTPException(400, "period 仅支持 day|week|month|60m")

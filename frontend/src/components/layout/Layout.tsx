@@ -3,26 +3,19 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import {
   Activity, Radar, LayoutGrid, Wallet, Settings, Search, NotebookPen,
   Moon, Sun, LineChart, Cog, Cpu, Database, Cable, Rocket,
-  FlaskConical, FileText, Swords, Gauge, ListChecks, Newspaper,
+  FlaskConical, FileText, Swords, Gauge, ListChecks, Newspaper, LayoutDashboard,
   ChevronsLeft, ChevronsRight, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import { storageGet, storageSet } from "@/lib/storage";
 
-// 导航分组：盯盘 / 研究 / 我的 / 系统（板块快捷入口仍挂在「板块中心」下）
+// 导航分组：研究 / 我的 / 系统（a股监控板 + 统一交易晨报已并入「市场总览」）
 const NAV_GROUPS: { label: string; items: { to: string; icon: typeof Gauge; label: string }[] }[] = [
-  {
-    label: "盯盘",
-    items: [
-      { to: "/a-stock-monitor", icon: Gauge, label: "a股监控板" },
-      { to: "/morning-brief", icon: Newspaper, label: "统一交易晨报" },
-    ],
-  },
   {
     label: "研究",
     items: [
-      { to: "/daily-review", icon: Activity, label: "每日复盘" },
+      { to: "/market-overview", icon: LayoutDashboard, label: "市场总览" },
       { to: "/intel", icon: Radar, label: "资讯雷达" },
       { to: "/sectors", icon: LayoutGrid, label: "板块中心" },
     ],
@@ -76,7 +69,7 @@ export function Layout() {
       )}>
         {/* Brand */}
         <div className={cn("border-b border-border/50", collapsed ? "flex justify-center p-3" : "px-4 pb-3 pt-4")}>
-          <Link to="/daily-review" className={cn("flex items-center", collapsed ? "justify-center" : "gap-2.5")}>
+          <Link to="/market-overview" className={cn("flex items-center", collapsed ? "justify-center" : "gap-2.5")}>
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent shadow-glow">
               <LineChart className="h-[18px] w-[18px] text-white" strokeWidth={2.4} />
             </span>
@@ -209,7 +202,7 @@ export function Layout() {
 
       {/* Main */}
       <main className="flex-1 overflow-auto">
-        <div className="mx-auto max-w-7xl px-6 py-6">
+        <div className="mx-auto w-full max-w-[1700px] px-4 py-5">
           <Outlet />
         </div>
       </main>

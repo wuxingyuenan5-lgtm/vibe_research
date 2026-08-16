@@ -16,7 +16,7 @@ interface MarketRow {
 interface IndexRow { date: string; name: string; close: number | null; return: number | null; amount_100m: number | null }
 interface SwRow { 日期: string; 行业层级: string; 一级行业: string; 指数代码: string; 指数名称: string; 收盘价: number | null; 成交额: number | null; 日收益率: number | null; "20日年化波动率": number | null }
 interface HotRow { rank: number | null; stock_code: string; stock_name: string; close: number | null; return: number | null; amount_100m: number | null; sw_level1: string; sw_level2: string }
-interface ReportData {
+export interface ReportData {
   meta: { report_date: string; status: string; latest_market_date: string };
   market_history: MarketRow[];
   indices_history: IndexRow[];
@@ -50,6 +50,41 @@ function useReportData() {
   return { data, error, loading };
 }
 
+/* 市场涨跌结构 + 市场宽度 两张时间图（可独立嵌入任何页面） */
+export function buildTrendCharts(data: ReportData | null): ChartConfig[] {
+  if (!data) return [];
+  const mh = data.market_history;
+  return [
+    {
+      title: "市场涨跌结构", chartType: "market" as const,
+      dates: mh.map((r) => r.date), yLabel: "上涨/下跌家数（家）", rightLabel: "涨停/跌停家数（家）",
+      series: [
+        { name: "上涨家数", values: mh.map((r) => r.advance), type: "bar" as const, axis: "left" as const, color: UP, unit: "家" },
+        { name: "下跌家数", values: mh.map((r) => r.decline), type: "bar" as const, axis: "left" as const, color: DOWN, sign: -1 as const, unit: "家" },
+        { name: "涨停家数", values: mh.map((r) => r.limit_up), type: "line" as const, axis: "right" as const, color: UP, unit: "家" },
+        { name: "跌停家数", values: mh.map((r) => r.limit_down), type: "line" as const, axis: "right" as const, color: DOWN, sign: -1 as const, unit: "家" },
+      ],
+    },
+    {
+      title: "市场宽度", chartType: "series" as const,
+      dates: mh.map((r) => r.date), yLabel: "市场宽度（%）",
+      series: [{ name: "市场宽度", values: mh.map((r) => r.market_breadth), type: "line" as const, color: "#123d68", percent: true }],
+    },
+  ];
+}
+
+export function TrendCharts({ data, initialRange = "all" }: { data: ReportData | null; initialRange?: "all" | "recent" }) {
+  const charts = useMemo(() => buildTrendCharts(data), [data]);
+  if (!data || charts.length === 0) return null;
+  return (
+    // .asm-root 包裹：astock-monitor.css 的图表样式都在该作用域下
+    <div className="asm-root space-y-4">
+      <TimeChart cfg={charts[0]} initialRange={initialRange} />
+      <TimeChart cfg={charts[1]} initialRange={initialRange} />
+    </div>
+  );
+}
+
 /* ---------- 手绘 SVG 时间图（复刻上游 drawSvg + mountTimeChart） ---------- */
 interface Series {
   name: string; values: (number | null)[]; type: "bar" | "line" | "area";
@@ -59,10 +94,13 @@ interface ChartConfig {
   title: string; dates: string[]; series: Series[]; yLabel: string; rightLabel?: string; chartType?: "market" | "series";
 }
 
-function TimeChart({ cfg }: { cfg: ChartConfig }) {
+function TimeChart({ cfg, initialRange = "all" }: { cfg: ChartConfig; initialRange?: "all" | "recent" }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
-  const [range, setRange] = useState<[number, number]>([0, Math.max(0, cfg.dates.length - 1)]);
+  const last = Math.max(0, cfg.dates.length - 1);
+  const [range, setRange] = useState<[number, number]>(
+    initialRange === "recent" ? [Math.max(0, last - 59), last] : [0, last]
+  );
   const [hidden, setHidden] = useState<Set<number>>(new Set());
   const W = 1200, H = 360, ml = 72, mr = cfg.rightLabel ? 94 : 40, mt = 22, mb = 48;
   const x0 = ml, x1 = W - mr, y0 = mt, y1 = H - mb;
@@ -218,33 +256,11 @@ function TimeChart({ cfg }: { cfg: ChartConfig }) {
 }
 
 /* ---------- 页面 ---------- */
-export function AStockMonitor() {
+export function AStockMonitor({ embed = false }: { embed?: boolean } = {}) {
   const { data, error, loading } = useReportData();
   const [swQuery, setSwQuery] = useState("");
   const [swLevel, setSwLevel] = useState(""); // 全部层级 / 一级行业 / 二级行业
   const [swSort, setSwSort] = useState<{ key: "成交额" | "日收益率" | "20日年化波动率" | null; state: "original" | "desc" | "asc" }>({ key: null, state: "original" });
-
-  const charts = useMemo(() => {
-    if (!data) return [] as ChartConfig[];
-    const mh = data.market_history;
-    return [
-      {
-        title: "市场涨跌结构", chartType: "market" as const,
-        dates: mh.map((r) => r.date), yLabel: "上涨/下跌家数（家）", rightLabel: "涨停/跌停家数（家）",
-        series: [
-          { name: "上涨家数", values: mh.map((r) => r.advance), type: "bar" as const, axis: "left" as const, color: UP, unit: "家" },
-          { name: "下跌家数", values: mh.map((r) => r.decline), type: "bar" as const, axis: "left" as const, color: DOWN, sign: -1 as const, unit: "家" },
-          { name: "涨停家数", values: mh.map((r) => r.limit_up), type: "line" as const, axis: "right" as const, color: UP, unit: "家" },
-          { name: "跌停家数", values: mh.map((r) => r.limit_down), type: "line" as const, axis: "right" as const, color: DOWN, sign: -1 as const, unit: "家" },
-        ],
-      },
-      {
-        title: "市场宽度", chartType: "series" as const,
-        dates: mh.map((r) => r.date), yLabel: "市场宽度（%）",
-        series: [{ name: "市场宽度", values: mh.map((r) => r.market_breadth), type: "line" as const, color: "#123d68", percent: true }],
-      },
-    ];
-  }, [data]);
 
   const crowdChart = useMemo(() => {
     if (!data) return null as ChartConfig | null;
@@ -356,97 +372,21 @@ export function AStockMonitor() {
   return (
     <div className="asm-root">
       <div className="page">
-        {/* Hero */}
-        <header className="hero">
-          <div className="hero-top">
-            <div>
-              <h1>A股每日市场监控</h1>
-              <div className="meta">报告日期 {data.meta.report_date} ｜ 申万行业最新有效日 {moduleLatest.sw_industry ?? "—"} ｜ 单文件离线报告</div>
-            </div>
-            <div className={`status ${data.meta.status === "PASS" ? "pass" : "warn"}`}>数据状态 {data.meta.status}</div>
-          </div>
-        </header>
-
-        {/* 6 KPI */}
-        <div className="kpis">
-          {INDEX_NAMES.map((n) => {
-            const ret = latestIndices[n]?.return;
-            return (
-              <div className="kpi" key={n}>
-                <div className="kpi-label">{n}</div>
-                <div className={`kpi-value ${upDownCls(ret)}`}>{signedPct(ret)}</div>
+        {!embed && (
+          <header className="hero">
+            <div className="hero-top">
+              <div>
+                <h1>A股每日市场监控</h1>
+                <div className="meta">报告日期 {data.meta.report_date} ｜ 申万行业最新有效日 {moduleLatest.sw_industry ?? "—"} ｜ 单文件离线报告</div>
               </div>
-            );
-          })}
-          <div className="kpi">
-            <div className="kpi-label">全A成交额</div>
-            <div className="kpi-value neutral">{latest ? `${num0(latest.total_amount_100m)} 亿` : "—"}</div>
-          </div>
-          <div className="kpi">
-            <div className="kpi-label">百亿成交股</div>
-            <div className="kpi-value neutral">{data.hot_stocks_latest.length} 只</div>
-          </div>
-          <div className="kpi">
-            <div className="kpi-label">市场宽度</div>
-            <div className={`kpi-value ${upDownCls(latest?.market_breadth)}`}>{latest?.market_breadth == null ? "—" : `${(latest.market_breadth * 100).toFixed(1)}%`}</div>
-          </div>
-        </div>
-
-        {/* 00 涨跌结构 */}
-        <section className="section">
-          <div className="section-title">00｜市场总览 · 市场涨跌结构</div>
-          <div className="card">
-            <div className="subnote">默认全历史；双滚轴可筛选时间。上涨/下跌左轴，涨停/跌停右轴。</div>
-            <TimeChart cfg={charts[0]} />
-          </div>
-        </section>
-
-        {/* 00 市场宽度 */}
-        <section className="section">
-          <div className="section-title">00｜市场总览 · 市场宽度</div>
-          <div className="card">
-            <TimeChart cfg={charts[1]} />
-          </div>
-        </section>
-
-        {/* 00 指数与成交 */}
-        <section className="section">
-          <div className="section-title">00｜市场总览 · 最近交易日指数与成交</div>
-          <div className="card">
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>日期</th>
-                    {INDEX_NAMES.map((n) => (<th key={n}>{n}</th>))}
-                    {INDEX_NAMES.map((n) => (<th key={n + "-amt"}>成交额</th>))}
-                    <th>全A成交额</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {indexRecent.map((row) => (
-                    <tr key={row.date}>
-                      <td>{row.date}</td>
-                      {INDEX_NAMES.map((n) => {
-                        const ret = row.rows[n]?.return;
-                        return <td key={n}><span className={upDownCls(ret)}>{signedPct(ret)}</span></td>;
-                      })}
-                      {INDEX_NAMES.map((n) => {
-                        const amt = row.rows[n]?.amount_100m;
-                        return <td key={n + "-amt"}>{amt != null ? num2(amt) : "—"}</td>;
-                      })}
-                      <td>{row.marketAmount != null ? num2(row.marketAmount) : "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className={`status ${data.meta.status === "PASS" ? "pass" : "warn"}`}>数据状态 {data.meta.status}</div>
             </div>
-          </div>
-        </section>
+          </header>
+        )}
 
         {/* 01 申万行业 */}
         <section className="section">
-          <div className="section-title">01｜申万行业</div>
+          <div className="section-title">申万行业</div>
           <div className="card">
             <div className="toolbar">
               <input id="swSearch" type="search" placeholder="搜索行业/指数代码…" value={swQuery} onChange={(e) => setSwQuery(e.target.value)} />
@@ -455,33 +395,30 @@ export function AStockMonitor() {
                 <option value="一级行业">一级行业</option>
                 <option value="二级行业">二级行业</option>
               </select>
-              <span className="hint">成交额 / 日收益率 / 20日年化波动率：原始→降序→升序→原始</span>
             </div>
             <div className="table-wrap sw-table">
-              <table>
+              <table className="w-full table-fixed">
                 <thead>
                   <tr>
-                    <th>层级</th>
-                    <th>一级行业</th>
-                    <th>指数代码</th>
-                    <th>指数名称</th>
-                    <th>收盘</th>
-                    <th className="sortable" onClick={() => cycleSort("成交额")}>成交额<span className="sort-ind">{sortInd("成交额")}</span></th>
-                    <th className="sortable" onClick={() => cycleSort("日收益率")}>日收益率<span className="sort-ind">{sortInd("日收益率")}</span></th>
-                    <th className="sortable" onClick={() => cycleSort("20日年化波动率")}>20日年化波动率<span className="sort-ind">{sortInd("20日年化波动率")}</span></th>
+                    <th className="w-28">行业名称</th>
+                    <th className="w-24">行业代码</th>
+                    <th className="w-24">一级行业</th>
+                    <th className="text-right w-24">收盘</th>
+                    <th className="sortable w-20 text-right" onClick={() => cycleSort("成交额")}>成交额<span className="sort-ind">{sortInd("成交额")}</span></th>
+                    <th className="sortable w-20 text-right" onClick={() => cycleSort("日收益率")}>日收益率<span className="sort-ind">{sortInd("日收益率")}</span></th>
+                    <th className="sortable w-28 text-right" onClick={() => cycleSort("20日年化波动率")}>20日年化波动率<span className="sort-ind">{sortInd("20日年化波动率")}</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   {swRows.map((r) => (
                     <tr key={r.指数代码}>
-                      <td>{r.行业层级}</td>
-                      <td>{r.一级行业}</td>
-                      <td className="code">{r.指数代码}</td>
                       <td>{r.指数名称}</td>
-                      <td>{r.收盘价 == null ? "—" : r.收盘价.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td>{r.成交额 == null ? "—" : r.成交额.toFixed(2)}</td>
-                      <td><span className={upDownCls(r.日收益率)}>{signedPct(r.日收益率)}</span></td>
-                      <td>{r["20日年化波动率"] == null ? "—" : pct2(r["20日年化波动率"])}</td>
+                      <td className="code w-24">{r.指数代码}</td>
+                      <td>{r.一级行业}</td>
+                      <td className="text-right">{r.收盘价 == null ? "—" : r.收盘价.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className="text-right">{r.成交额 == null ? "—" : r.成交额.toFixed(2)}</td>
+                      <td className="text-right"><span className={upDownCls(r.日收益率)}>{signedPct(r.日收益率)}</span></td>
+                      <td className="text-right">{r["20日年化波动率"] == null ? "—" : pct2(r["20日年化波动率"])}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -490,63 +427,11 @@ export function AStockMonitor() {
           </div>
         </section>
 
-        {/* 04 百亿成交 */}
-        <section className="section">
-          <div className="section-title">04｜百亿成交</div>
-          <div className="card">
-            <h3>最近{data.hot_stock_matrix.dates.length}个有记录交易日｜最新日期在左</h3>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>行业</th>
-                    {data.hot_stock_matrix.dates.map((d) => <th key={d}>{d.slice(5)}</th>)}
-                    <th>历史累计</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.hot_stock_matrix.rows.map((row) => (
-                    <tr key={row.industry}>
-                      <td>{row.industry}</td>
-                      {row.counts.map((c, i) => (
-                        <td key={i}>{c || ""}</td>
-                      ))}
-                      <td>{row.history_total}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <h3>{data.meta.report_date} 成交额超过100亿元个股｜完整明细 {data.hot_stocks_latest.length} 只</h3>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>排名</th><th>代码</th><th>名称</th><th>收盘价</th><th>涨跌幅</th><th>成交额(亿元)</th><th>申万一级</th><th>申万二级</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.hot_stocks_latest.map((s) => (
-                    <tr key={s.stock_code}>
-                      <td>{s.rank ?? "—"}</td>
-                      <td><span className="code">{s.stock_code}</span></td>
-                      <td>{s.stock_name}</td>
-                      <td>{s.close == null ? "—" : s.close.toFixed(2)}</td>
-                      <td><span className={upDownCls(s.return)}>{signedPct(s.return)}</span></td>
-                      <td>{s.amount_100m == null ? "—" : s.amount_100m.toFixed(2)}</td>
-                      <td>{s.sw_level1}</td>
-                      <td>{s.sw_level2}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+        {/* 04 百亿成交（已迁移到市场总览·情绪卡的弹窗，本页删除避免重复） */}
 
         {/* 05 四行业拥挤度 */}
         <section className="section">
-          <div className="section-title">05｜申万四行业资金拥挤度</div>
+          <div className="section-title">四行业资金拥挤度</div>
           <div className="card">
             <div className="subnote">{crowdLatest ? `最新官方有效日：${crowdLatest.date}` : "暂无拥挤度数据"}</div>
             {commChart && <TimeChart cfg={commChart} />}
@@ -556,7 +441,7 @@ export function AStockMonitor() {
 
         {/* 06 创新药 */}
         <section className="section">
-          <div className="section-title">06｜创新药交易拥挤度</div>
+          <div className="section-title">创新药交易拥挤度</div>
           <div className="card">
             <div className="subnote">成交额占全A使用面积图；换手率仅使用供应商直接板块换手率。</div>
             <div className="table-wrap">
@@ -584,7 +469,7 @@ export function AStockMonitor() {
 
         {/* 99 数据质量 */}
         <section className="section">
-          <div className="section-title">99｜数据质量</div>
+          <div className="section-title">数据质量</div>
           <div className="card">
             <div className="table-wrap">
               <table>
