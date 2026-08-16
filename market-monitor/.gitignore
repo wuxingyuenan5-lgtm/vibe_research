@@ -1,7 +1,6 @@
 __pycache__/
 *.pyc
 .venv/
-output/
 data/cache/*.csv.bak
 *.log
 .DS_Store
