@@ -16,7 +16,9 @@ import akshare as ak
 import pandas as pd
 
 DATA_DIR = Path("data")
-KEEP_HISTORY_ROWS = 260
+# 保留窗口需 >= 全量刷新(history_rows=260)+增量冗余，否则 tail() 会截断 live 已有历史
+# （曾因 260 < live 每指数 ~270 行，截掉最老交易日导致 canonical 校验 historical_key_deleted 拦截）
+KEEP_HISTORY_ROWS = 1000
 VOL_WINDOW = 20
 ANNUALIZATION_DAYS = 252
 MIN_COVERAGE = 0.90
