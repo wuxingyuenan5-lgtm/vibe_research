@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
@@ -12,10 +13,57 @@ import requests
 
 from .common import append_history, ensure_dir, retry
 
+# 本机 WorkBuddy/系统注入的 HTTP(S)_PROXY 常指向不可达的本地转发代理（如 127.0.0.1:1082），
+# 会让 requests/akshare 的外网请求全部 ProxyError。采集改为直连可用源（腾讯/同花顺/申万）。
+for _k in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY", "all_proxy"):
+    os.environ.pop(_k, None)
+
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
 EM_KLINE_URL = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
 EM_UT = "fa5fd1943c7b386f172d6893dbfba10b"
 INNOVATION_EM_SECID = "90.BK1106"
+TENCENT_QUOTE_URL = "https://qt.gtimg.cn/q={code}"
+
+
+def _fetch_tencent_index(secid: str) -> dict[str, float | None] | None:
+    """腾讯 qt.gtimg.cn 实时指数回退源（东财 push2his 历史K线被网络阻断时使用）。
+
+    东财 secid（1.000016 / 0.399001）→ 腾讯代码（sh000016 / sz399001）。
+    返回 close/return/amount_100m；任何异常返回 None。
+    """
+    if secid.startswith("1."):
+        tx_code = "sh" + secid[2:]
+    elif secid.startswith("0."):
+        tx_code = "sz" + secid[2:]
+    else:
+        return None
+    try:
+        resp = requests.get(
+            TENCENT_QUOTE_URL.format(code=tx_code),
+            headers={"User-Agent": UA},
+            timeout=(4, 6),
+        )
+        resp.encoding = "gbk"
+        parts = resp.text.split("~")
+        if len(parts) < 36 or not parts[3]:
+            return None
+        close = float(parts[3])
+        ret = float(parts[32]) / 100.0 if parts[32] else None
+        amount_yuan = None
+        if len(parts) > 35 and "/" in parts[35]:
+            seg = parts[35].split("/")
+            if len(seg) > 2:
+                try:
+                    amount_yuan = float(seg[2])
+                except ValueError:
+                    amount_yuan = None
+        return {
+            "close": close,
+            "return": ret,
+            "amount_100m": amount_yuan / 1e8 if amount_yuan is not None else None,
+        }
+    except Exception:
+        return None
 
 
 def _pick(frame: pd.DataFrame, *names: str) -> str:
@@ -118,17 +166,34 @@ def _fetch_em_klines(secid: str, beg: str, end: str, lmt: int = 1000) -> list[li
 
 def fetch_eastmoney_index(target_date: str, secid: str, name: str) -> dict[str, object]:
     compact = target_date.replace("-", "")
-    values = _fetch_em_klines(secid, compact, compact, lmt=10)[-1]
-    return {
-        "date": values[0],
-        "name": name,
-        "code": secid,
-        "close": float(values[2]),
-        "return": float(values[8]) / 100,
-        "amount_100m": float(values[6]) / 1e8,
-        "source": "东方财富历史K线直连",
-        "status": "ok",
-    }
+    try:
+        values = _fetch_em_klines(secid, compact, compact, lmt=10)[-1]
+        return {
+            "date": values[0],
+            "name": name,
+            "code": secid,
+            "close": float(values[2]),
+            "return": float(values[8]) / 100,
+            "amount_100m": float(values[6]) / 1e8,
+            "source": "东方财富历史K线直连",
+            "status": "ok",
+        }
+    except Exception:
+        pass
+    # 东财 push2his 被网络阻断（ProxyError/RemoteDisconnected）时回退腾讯实时行情。
+    tx = _fetch_tencent_index(secid)
+    if tx is not None and tx.get("close") is not None:
+        return {
+            "date": target_date,
+            "name": name,
+            "code": secid,
+            "close": tx["close"],
+            "return": tx.get("return"),
+            "amount_100m": tx.get("amount_100m"),
+            "source": "腾讯 qt.gtimg.cn 实时回退",
+            "status": "ok",
+        }
+    raise RuntimeError(f"东财历史K线与腾讯实时均不可达: {secid}")
 
 
 def fetch_indices(target_date: str, definitions: list[dict[str, str]]) -> list[dict[str, object]]:
