@@ -42,7 +42,15 @@ def refresh_sw_cache(target_date: str, cache_path: Path = CACHE_PATH, history_pa
         code_col = next((c for c in ("指数代码", "代码", "symbol") if c in combined.columns), None)
         date_col = next((c for c in ("发布日期", "日期", "date") if c in combined.columns), None)
         if code_col and date_col:
-            combined = combined.drop_duplicates(subset=[code_col, date_col], keep="last")
+            # 用字符串拼接键去重：old 来自 CSV（str），frame 来自 akshare（datetime.date/int），
+            # 混合类型主键比较判不等、去重会失效（duplicate_key:sw_crowding 根因）。
+            # astype(str) 强制统一类型，保证同键一定判等；keep="last" 保留新抓取行。
+            combined["__sw_key"] = (
+                combined[code_col].astype(str) + "|" + combined[date_col].astype(str)
+            )
+            combined = combined.drop_duplicates(subset=["__sw_key"], keep="last").drop(columns="__sw_key")
+            # 日期列统一为字符串写入，保持历史文件格式一致
+            combined[date_col] = pd.to_datetime(combined[date_col], errors="coerce").dt.strftime("%Y-%m-%d")
         else:
             combined = combined.drop_duplicates(keep="last")
     else:
