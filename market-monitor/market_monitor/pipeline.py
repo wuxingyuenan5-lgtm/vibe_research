@@ -13,7 +13,6 @@ from .collectors import (
     fetch_innovation_current_em,
     fetch_innovation_current_ths,
     fetch_sw_analysis,
-    fetch_sw_crowding_realtime,
     infer_limit_counts,
     update_innovation_history,
     update_innovation_history_ths,
@@ -240,13 +239,10 @@ def run(
     timings["indices_s"] = round(time.perf_counter() - t0, 3)
 
     t0 = time.perf_counter()
-    # 拥挤度优先用申万实时源（当日可得），失败回退 akshare 日度分析（滞后 1-2 交易日）
-    sw_raw = fetch_sw_crowding_realtime(target_date)
-    if sw_raw.empty:
-        sw_raw = fetch_sw_analysis(target_date)
+    # 拥挤度跟随生产流程母表（akshare 申万日度分析，T+1/T+2 发布）；不用实时源
+    sw_raw = fetch_sw_analysis(target_date)
     timings["sw_analysis_s"] = round(time.perf_counter() - t0, 3)
-    if not sw_raw.empty:
-        sw_raw.to_csv(paths.output_dir / "sw_analysis_daily_second.csv", index=False, encoding="utf-8-sig")
+    sw_raw.to_csv(paths.output_dir / "sw_analysis_daily_second.csv", index=False, encoding="utf-8-sig")
     sw_targets = _normalize_sw_targets(sw_raw, config["sw_crowding_codes"], target_date, total_amount)
     sw_date = _sw_latest_date(sw_raw)
 
