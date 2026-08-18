@@ -95,7 +95,7 @@ def _latest_index_map(report):
 
 
 def _recent_indices(report):
-    names = ["上证50", "Choice微盘", "中证全指"]
+    names = ["上证50", "中证2000", "中证全指"]
     by_date = {}
     for item in report.get("indices_history", []):
         if item.get("name") in names:
@@ -110,7 +110,7 @@ def _recent_indices(report):
             row += [f'<span class="{_cls(item.get("return"))}">{_pct(item.get("return"))}</span>', _fmt(item.get("amount_100m"))]
         row.append(_fmt(market.get(d, {}).get("total_amount_100m")))
         rows.append(row)
-    return _table(["日期","上证50","成交额","Choice微盘","成交额","中证全指","成交额","全A成交额"], rows)
+    return _table(["日期","上证50","成交额","中证2000","成交额","中证全指","成交额","全A成交额"], rows)
 
 
 def _sw_industry(report):
@@ -240,7 +240,7 @@ def render_html(report: dict) -> str:
     status_class = "pass" if status == "PASS" else "warn" if status == "WARN" else "fail"
     kpis = [
         ("上证50",_pct(indices.get("上证50",{}).get("return")),_cls(indices.get("上证50",{}).get("return"))),
-        ("Choice微盘",_pct(indices.get("Choice微盘",{}).get("return")),_cls(indices.get("Choice微盘",{}).get("return"))),
+        ("中证2000",_pct(indices.get("中证2000",{}).get("return")),_cls(indices.get("中证2000",{}).get("return"))),
         ("中证全指",_pct(indices.get("中证全指",{}).get("return")),_cls(indices.get("中证全指",{}).get("return"))),
         ("全A成交额",_fmt(latest.get("total_amount_100m"),0)+" 亿","neutral"),
         ("百亿成交股",str(latest.get("hot_count") if latest.get("hot_count") is not None else "—")+" 只","neutral"),

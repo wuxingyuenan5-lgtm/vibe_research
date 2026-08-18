@@ -7,7 +7,7 @@ from typing import Iterable
 from .collectors import fetch_eastmoney_index, _fetch_em_klines
 
 
-INDEX_NAMES = ("上证50", "Choice微盘", "中证全指")
+INDEX_NAMES = ("上证50", "中证2000", "中证全指")
 INDEX_FIELDS = ("date", "name", "code", "close", "return", "amount_100m", "source", "status")
 INDEX_REQUIRED_FIELDS = ("return", "amount_100m")
 INDEX_HISTORY_WINDOW = 5

@@ -29,7 +29,7 @@ export interface ReportData {
 }
 
 const CROWD_TARGETS = ["通信设备", "计算机设备", "元件", "半导体"] as const;
-const INDEX_NAMES = ["上证50", "Choice微盘", "中证全指"] as const;
+const INDEX_NAMES = ["上证50", "中证2000", "中证全指"] as const;
 const UP = "#f2503f", DOWN = "#2fbf71";
 const signedPct = (v: number | null | undefined) => (v == null ? "—" : `${v > 0 ? "+" : ""}${(v * 100).toFixed(2)}%`);
 const num2 = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
@@ -267,7 +267,7 @@ export function AStockMonitor({ embed = false }: { embed?: boolean } = {}) {
     const dates = data.sw_crowding_history.map((r) => r.date);
     const colors = ["#2563eb", "#f97316", "#7c3aed", "#0891b2"];
     return {
-      title: "四行业 | 成交额占全A 与 换手率", chartType: "series" as const, dates,
+      title: "四行业 | 成交额占全A与换手率", chartType: "series" as const, dates,
       yLabel: "成交额占全A（%）", rightLabel: "换手率（%）",
       series: [
         ...CROWD_TARGETS.map((name, i) => ({ name: `${name}·成交占比`, type: "area" as const, axis: "left" as const, color: colors[i], percent: true, opacity: 0.4, values: data.sw_crowding_history.map((r) => r.targets[name]?.amount_share_of_a ?? null) })),
@@ -281,7 +281,7 @@ export function AStockMonitor({ embed = false }: { embed?: boolean } = {}) {
     if (!data) return null as ChartConfig | null;
     const dates = data.sw_crowding_history.map((r) => r.date);
     return {
-      title: "通信设备 | 成交额占全A 与 换手率", chartType: "series" as const, dates,
+      title: "通信设备 | 成交额占全A与换手率", chartType: "series" as const, dates,
       yLabel: "成交额占全A（%）", rightLabel: "换手率（%）",
       series: [
         { name: "通信设备成交额占全A", type: "area" as const, axis: "left" as const, color: "#2563eb", percent: true, opacity: 0.5, values: data.sw_crowding_history.map((r) => r.targets["通信设备"]?.amount_share_of_a ?? null) },
@@ -308,7 +308,7 @@ export function AStockMonitor({ embed = false }: { embed?: boolean } = {}) {
     if (!data) return null as ChartConfig | null;
     const dates = data.innovation_history.map((r) => r.date);
     return {
-      title: "创新药 | 成交额占全A 与 换手率", chartType: "series" as const, dates,
+      title: "创新药 | 成交额占全A与换手率", chartType: "series" as const, dates,
       yLabel: "成交额占全A（%）", rightLabel: "换手率（%）",
       series: [
         { name: "创新药成交额占全A", type: "area" as const, axis: "left" as const, color: "#2563eb", percent: true, opacity: 0.4, values: data.innovation_history.map((r) => r.amount_share_of_a ?? null) },

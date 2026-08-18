@@ -133,6 +133,29 @@ def infer_limit_counts(frame: pd.DataFrame) -> tuple[int, int]:
     return up, down
 
 
+def _em_curl_json(url: str, params: dict[str, str]) -> dict:
+    """东财接口用 curl 子进程直连（--noproxy）。
+
+    东财风控会按 TLS 指纹拒绝 python requests/urllib3（RemoteDisconnected），
+    但系统 curl 可用；同时绕过 WorkBuddy 注入的失效代理。
+    """
+    import json as _json
+    import subprocess
+
+    qs = "&".join(f"{k}={str(v)}" for k, v in params.items())
+    cmd = [
+        "curl", "-s", "-m", "12", f"{url}?{qs}",
+        "-H", "Referer: https://quote.eastmoney.com/",
+        "-H", f"User-Agent: {UA}",
+        "-H", "Accept: */*",
+        "--noproxy", "*",
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+    if proc.returncode != 0 or not proc.stdout.strip():
+        raise RuntimeError(f"curl Eastmoney failed: {proc.stderr[:120]}")
+    return _json.loads(proc.stdout)
+
+
 def _fetch_em_klines(secid: str, beg: str, end: str, lmt: int = 1000) -> list[list[str]]:
     params = {
         "secid": secid,
@@ -147,14 +170,7 @@ def _fetch_em_klines(secid: str, beg: str, end: str, lmt: int = 1000) -> list[li
     }
 
     def request() -> list[list[str]]:
-        response = requests.get(
-            EM_KLINE_URL,
-            params=params,
-            headers={"User-Agent": UA, "Referer": "https://quote.eastmoney.com/"},
-            timeout=(4, 8),
-        )
-        response.raise_for_status()
-        payload = response.json()
+        payload = _em_curl_json(EM_KLINE_URL, params)
         raw_rows = (payload.get("data") or {}).get("klines") or []
         if not raw_rows:
             raise RuntimeError(f"empty Eastmoney kline: {secid}")
@@ -167,7 +183,10 @@ def _fetch_em_klines(secid: str, beg: str, end: str, lmt: int = 1000) -> list[li
 def fetch_eastmoney_index(target_date: str, secid: str, name: str) -> dict[str, object]:
     compact = target_date.replace("-", "")
     try:
-        values = _fetch_em_klines(secid, compact, compact, lmt=10)[-1]
+        # 用 beg=0 全历史模式取最近 10 个交易日最后一行（兼容中证指数 2. 前缀，如中证2000 932000）
+        values = _fetch_em_klines(secid, "0", "20500101", lmt=10)[-1]
+        if values[0].replace("-", "") != compact:
+            raise RuntimeError(f"target date {target_date} not in Eastmoney kline: {values[0]}")
         return {
             "date": values[0],
             "name": name,
