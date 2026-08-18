@@ -35,7 +35,16 @@ def refresh_sw_cache(target_date: str, cache_path: Path = CACHE_PATH, history_pa
 
     if history_path.exists():
         old = pd.read_csv(history_path, encoding="utf-8-sig")
-        combined = pd.concat([old, frame], ignore_index=True, sort=False).drop_duplicates(keep="last")
+        combined = pd.concat([old, frame], ignore_index=True, sort=False)
+        # 按主键 (代码, 日期) 去重而非整行去重：同一键新旧口径数值不同时
+        # 整行比较不相等会被漏掉，导致 canonical 校验报 duplicate_key。
+        # keep="last" 保证新抓取（frame）覆盖旧行。
+        code_col = next((c for c in ("指数代码", "代码", "symbol") if c in combined.columns), None)
+        date_col = next((c for c in ("发布日期", "日期", "date") if c in combined.columns), None)
+        if code_col and date_col:
+            combined = combined.drop_duplicates(subset=[code_col, date_col], keep="last")
+        else:
+            combined = combined.drop_duplicates(keep="last")
     else:
         combined = frame.copy()
     date_col = next((c for c in ("发布日期", "日期", "date") if c in combined.columns), None)
