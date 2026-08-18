@@ -83,11 +83,28 @@ def git_push() -> None:
         return
     msg = f"data: 每日市场监控数据同步 {datetime.now(ZoneInfo('Asia/Shanghai')).strftime('%Y-%m-%d')}"
     subprocess.run(["git", "commit", "-m", msg], cwd=PROJECT, capture_output=True, text=True)
-    r = subprocess.run(["git", "push", "backup", "main"], cwd=PROJECT, capture_output=True, text=True)
-    if r.returncode == 0:
-        print(f"  ok: 已推送 backup/main（{msg}）", flush=True)
-    else:
-        print(f"  ⚠ push 失败: {r.stderr[-300:]}", file=sys.stderr)
+    # 背景：步骤1 daily_refresh 会先用 GitHub Contents API 提交"股票池快照"（data/stock-pool/），
+    # 把远程 backup/main 推进一个 commit；本地 git push（backend/data/market-monitor/）因此可能
+    # non-fast-forward。两边文件不重叠，自动 fetch+merge 后重试即可，无需人工介入。
+    for attempt in range(3):
+        r = subprocess.run(["git", "push", "backup", "main"], cwd=PROJECT, capture_output=True, text=True)
+        if r.returncode == 0:
+            print(f"  ok: 已推送 backup/main（{msg}）", flush=True)
+            return
+        if attempt >= 2:
+            break
+        print(f"  ~ push 被拒（第 {attempt + 1}/3 次），fetch+merge 远端 backup/main 后重试 ...", flush=True)
+        subprocess.run(["git", "fetch", "backup"], cwd=PROJECT, capture_output=True, text=True)
+        m = subprocess.run(
+            ["git", "merge", "backup/main", "--no-edit", "-m", "merge: 同步远端 backup/main（push 重试）"],
+            cwd=PROJECT,
+            capture_output=True,
+            text=True,
+        )
+        if m.returncode != 0:
+            print(f"  ⚠ merge 冲突，已保留本地改动待人工处理: {m.stderr[-200:]}", file=sys.stderr)
+            return
+    print(f"  ⚠ push 失败(3 次重试后): {r.stderr[-300:]}", file=sys.stderr)
 
 
 def main() -> None:
