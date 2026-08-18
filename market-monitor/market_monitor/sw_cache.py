@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .collectors import fetch_sw_analysis
+from .collectors import fetch_sw_analysis, fetch_sw_crowding_realtime
 from .common import ensure_dir
 
 CACHE_PATH = Path("data/cache/sw_analysis_daily_second.csv")
@@ -24,9 +24,12 @@ def load_sw_cache(target_date: str, path: Path = CACHE_PATH) -> pd.DataFrame:
 
 
 def refresh_sw_cache(target_date: str, cache_path: Path = CACHE_PATH, history_path: Path = HISTORY_PATH) -> pd.DataFrame:
-    frame = fetch_sw_analysis(target_date)
+    # 优先申万实时源（当日可得），失败回退 akshare 日度分析（滞后 1-2 交易日）
+    frame = fetch_sw_crowding_realtime(target_date)
     if frame.empty:
-        raise RuntimeError("申万日度分析接口未返回有效数据；保留旧缓存")
+        frame = fetch_sw_analysis(target_date)
+    if frame.empty:
+        raise RuntimeError("申万日度分析/实时接口均未返回有效数据；保留旧缓存")
     ensure_dir(cache_path.parent)
     ensure_dir(history_path.parent)
     frame.to_csv(cache_path, index=False, encoding="utf-8-sig")

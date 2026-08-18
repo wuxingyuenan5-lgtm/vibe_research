@@ -258,6 +258,36 @@ def fetch_sw_analysis(target_date: str) -> pd.DataFrame:
         return pd.DataFrame()
 
 
+def fetch_sw_crowding_realtime(target_date: str) -> pd.DataFrame:
+    """申万二级行业当日拥挤度（实时源，替代滞后的 akshare 日度分析接口）。
+
+    用 ak.index_realtime_sw（东财申万实时行情）取各二级行业当日最新价/成交额，
+    构造与 sw_analysis_daily_second 对齐的 14 列（发布日期=target_date、成交额单位亿元）。
+    成交额占比由 _normalize_sw_targets 按 amount/全A成交额 推导，不在此列填值。
+    """
+    try:
+        raw = retry(lambda: ak.index_realtime_sw(symbol="二级行业"), attempts=2, delay=1.0)
+    except Exception:
+        return pd.DataFrame()
+    if raw is None or raw.empty or not {"指数代码", "指数名称", "最新价", "成交额"}.issubset(raw.columns):
+        return pd.DataFrame()
+    out = raw.copy()
+    out["指数代码"] = out["指数代码"].astype(str).str.replace(r"\.0$", "", regex=True)
+    out["发布日期"] = target_date
+    out["收盘指数"] = pd.to_numeric(out["最新价"], errors="coerce")
+    out["成交量"] = pd.to_numeric(out["成交量"], errors="coerce") if "成交量" in out.columns else float("nan")
+    out["涨跌幅"] = (pd.to_numeric(out["最新价"], errors="coerce") / pd.to_numeric(out["昨收盘"], errors="coerce") - 1) * 100
+    amount_yi = pd.to_numeric(out["成交额"], errors="coerce") / 100.0  # 百万元 -> 亿元
+    total_yi = float(amount_yi.sum())
+    # 源表无「成交额」列，只有「成交额占比」（%）= 行业成交额 / 全二级行业成交额合计
+    out["成交额占比"] = amount_yi / total_yi * 100 if total_yi > 0 else float("nan")
+    for col in ("换手率", "市盈率", "市净率", "均价", "流通市值", "平均流通市值", "股息率"):
+        if col not in out.columns:
+            out[col] = float("nan")
+    cols = ["指数代码", "指数名称", "发布日期", "收盘指数", "成交量", "涨跌幅", "换手率", "市盈率", "市净率", "均价", "成交额占比", "流通市值", "平均流通市值", "股息率"]
+    return out[cols]
+
+
 def _innovation_em_frame(beg: str, end: str) -> pd.DataFrame:
     records: list[dict[str, object]] = []
     for values in _fetch_em_klines(INNOVATION_EM_SECID, beg, end, lmt=1000):
