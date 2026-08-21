@@ -14,7 +14,7 @@ from market_monitor.history_preflight import append_index_history
 from market_monitor.canonical_promotion import prepare_stage, promote_candidate
 from market_monitor.canonical_store import normalize_candidate
 from market_monitor.canonical_validation import validate_candidate
-from market_monitor.sw_cache import refresh_sw_cache
+from market_monitor.sw_cache import refresh_sw_cache, backfill_sw_crowding_live
 from build_report_data import append_hot_stock_history
 from update_sw_industry_fast import update as update_sw_industry_fast
 from update_sw_industry import update as update_sw_industry_full
@@ -57,6 +57,17 @@ def refresh_stage_sources(
             history_path=data_dir / "history/sw_analysis_daily_second.csv",
         )
         result["sw_crowding"] = "ok"
+        # T+1 母表源到位前，用实时源补当日拥挤度估算行（量/额自算 + 估值沿用昨日）。
+        # 失败不影响主流程：backfill 返回 None 时保留 T+1 数据。
+        backfill_rows = backfill_sw_crowding_live(
+            target_date,
+            history_path=data_dir / "history/sw_analysis_daily_second.csv",
+        )
+        if backfill_rows is not None and not backfill_rows.empty:
+            result["sw_crowding"] = "ok_live"
+            result["sw_crowding_live_rows"] = int(len(backfill_rows))
+        else:
+            result["warnings"].append("sw_crowding_live_backfill_unavailable")
     except Exception as exc:
         result["sw_crowding"] = "fallback_previous_canonical"
         result["warnings"].append(f"sw_crowding_refresh_failed:{exc}")
