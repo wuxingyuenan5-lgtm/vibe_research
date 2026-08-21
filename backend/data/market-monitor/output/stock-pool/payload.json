@@ -1,7 +1,7 @@
 {
   "meta": {
     "report_date": "2026-08-21",
-    "generated_at": "2026-08-21T17:29:31+08:00",
+    "generated_at": "2026-08-21T17:35:18+08:00",
     "version": "0.1.0",
     "percent_contract": "decimal_ratio",
     "pool": "核心股票池"
@@ -3231,18 +3231,18 @@
     {
       "code": "801180",
       "name": "房地产(申万)",
-      "price": 1867.32,
-      "change": -0.019635,
-      "change_5d": -0.048979,
-      "change_20d": 0.045157,
-      "change_60d": -0.10637,
-      "ytd": -0.150094,
+      "price": 1887.4,
+      "change": 0.010753,
+      "change_5d": -0.017112,
+      "change_20d": 0.05366,
+      "change_60d": -0.073855,
+      "ytd": -0.140955,
       "amount_yi": 133.77066422,
       "turnover": 0.0145,
       "pe_ttm": -4.8,
       "pb": 28.16,
       "mcap_yi": 9551.68553369,
-      "data_status": "stale",
+      "data_status": "ok",
       "source": "我的自选-行情报价（行业指数）(1).xlsx"
     },
     {
@@ -5909,18 +5909,18 @@
     {
       "code": "801180",
       "name": "房地产(申万)",
-      "price": 1867.32,
-      "change": -0.019635,
-      "change_5d": -0.048979,
-      "change_20d": 0.045157,
-      "change_60d": -0.10637,
-      "ytd": -0.150094,
+      "price": 1887.4,
+      "change": 0.010753,
+      "change_5d": -0.017112,
+      "change_20d": 0.05366,
+      "change_60d": -0.073855,
+      "ytd": -0.140955,
       "amount_yi": 133.77066422,
       "turnover": 0.0145,
       "pe_ttm": -4.8,
       "pb": 28.16,
       "mcap_yi": 9551.68553369,
-      "data_status": "stale",
+      "data_status": "ok",
       "source": "我的自选-行情报价（行业指数）(1).xlsx"
     },
     {
