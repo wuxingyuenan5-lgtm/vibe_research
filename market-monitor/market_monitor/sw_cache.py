@@ -111,6 +111,17 @@ def backfill_sw_crowding_live(target_date: str, history_path: Path = HISTORY_PAT
         return None
     last_date = pd.to_datetime(old["发布日期"], errors="coerce").max().strftime("%Y-%m-%d")
     skeleton = old[old["发布日期"] == last_date].copy()
+    # 源分批发布（T+1 部分行业、T+2 补全）：最新日可能只有 72 行而历史完整 131 行。
+    # 骨架回退到最近"完整"日期并合并最新日独有指数，保证当日估算行覆盖全行业集合。
+    full_rows = old["发布日期"].value_counts().max()
+    if len(skeleton) < full_rows * 0.9:
+        merged = skeleton
+        for d in sorted(old["发布日期"].unique(), reverse=True):
+            cand = old[old["发布日期"] == d]
+            if len(cand) >= full_rows * 0.9:
+                merged = pd.concat([cand, merged]).drop_duplicates("指数代码", keep="last")
+                break
+        skeleton = merged
     if skeleton.empty:
         return None
 
