@@ -188,6 +188,9 @@ export { GlassCard };
 /* ---------- 百亿成交·行业分布（行业 × 日期计数 + 历史累计） ---------- */
 export function HotStockMatrixTable({ matrix }: { matrix: { dates: string[]; rows: { industry: string; counts: number[]; history_total: number }[] } | null }) {
   if (!matrix || matrix.rows.length === 0) return <p className="text-xs text-muted-foreground/60">暂无百亿成交数据</p>;
+  // 当天总数：每个日期列按所有行业行求和，作为首行"合计"（与市场情绪卡"百亿成交股"同源校验）。
+  const dailyTotals = matrix.dates.map((_, i) => matrix.rows.reduce((sum, row) => sum + (row.counts[i] || 0), 0));
+  const historyTotalSum = matrix.rows.reduce((sum, row) => sum + (row.history_total || 0), 0);
   return (
     <div className="overflow-x-auto">
       <table className="data-table">
@@ -201,6 +204,13 @@ export function HotStockMatrixTable({ matrix }: { matrix: { dates: string[]; row
           </tr>
         </thead>
         <tbody>
+          <tr className="border-b border-border/30 bg-primary/5">
+            <td className="px-2 py-2 font-semibold">合计</td>
+            {dailyTotals.map((t, i) => (
+              <td key={i} className="px-2 py-2 text-center font-mono text-xs font-semibold">{t || ""}</td>
+            ))}
+            <td className="px-2 py-2 text-right font-mono font-semibold">{historyTotalSum}</td>
+          </tr>
           {matrix.rows.map((row) => (
             <tr key={row.industry} className="border-b border-border/30">
               <td className="px-2 py-2 font-medium">{row.industry}</td>

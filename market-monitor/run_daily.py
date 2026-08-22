@@ -15,6 +15,7 @@ from market_monitor.canonical_promotion import prepare_stage, promote_candidate
 from market_monitor.canonical_store import normalize_candidate
 from market_monitor.canonical_validation import validate_candidate
 from market_monitor.sw_cache import refresh_sw_cache, backfill_sw_crowding_live
+from market_monitor.innovation_cache import backfill_innovation_live
 from build_report_data import append_hot_stock_history
 from update_sw_industry_fast import update as update_sw_industry_fast
 from update_sw_industry import update as update_sw_industry_full
@@ -40,6 +41,7 @@ def refresh_stage_sources(
     crowding_refresh_fn: Callable = refresh_sw_cache,
     fast_industry_refresh_fn: Callable = update_sw_industry_fast,
     full_industry_refresh_fn: Callable = update_sw_industry_full,
+    innovation_live_backfill_fn: Callable = backfill_innovation_live,
 ) -> dict[str, object]:
     """Refresh mutable Shenwan sources only inside the Canonical candidate root.
 
@@ -87,6 +89,22 @@ def refresh_stage_sources(
     except Exception as exc:
         result["sw_industry"] = "fallback_previous_canonical"
         result["warnings"].append(f"sw_industry_refresh_failed:{exc}")
+
+    # 创新药 T+1 EM K 线不可达（同 sw_crowding 的兜底策略，但额度更窄：不伪填换手率）。
+    # 失败不影响主流程：backfill 返回 None 时保留历史最新有效日数据，由 validator WARN 暴露。
+    try:
+        innovation_rows = innovation_live_backfill_fn(
+            target_date,
+            history_path=data_dir / "history/innovation_drug_eastmoney.csv",
+        )
+        if innovation_rows is not None and not innovation_rows.empty:
+            result["innovation_live"] = "ok_live"
+            result["innovation_live_rows"] = int(len(innovation_rows))
+        else:
+            result["innovation_live"] = "fallback_previous_canonical"
+    except Exception as exc:
+        result["innovation_live"] = "fallback_previous_canonical"
+        result["warnings"].append(f"innovation_live_backfill_failed:{exc}")
 
     return result
 
@@ -165,6 +183,7 @@ def main() -> None:
         f"completed date={args.target_date} payload_status={payload_validation['status']} "
         f"canonical_status={canonical_validation['status']} identical_duplicates_removed={removed} "
         f"sw_crowding={source_refresh['sw_crowding']} sw_industry={source_refresh['sw_industry']} "
+        f"innovation_live={source_refresh.get('innovation_live', 'n/a')} "
         f"output={output_dir}"
     )
 

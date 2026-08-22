@@ -14,8 +14,13 @@ from .sw_cache import load_sw_cache
 
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
-EM_INDEX_QUOTE_URL = "https://push2.eastmoney.com/api/qt/stock/get"
-EM_CONCEPT_QUOTE_URL = "https://91.push2.eastmoney.com/api/qt/stock/get"
+# 东财行情节点选型（2026-08-22 实测，本机网络下）：
+#   push2 / 91.push2 / 82.push2 / push2his（即时行情节点）→ HTTP 000 被风控拒绝；
+#   push2delay（延迟行情节点，daily_refresh 股票池快照同款）→ HTTP 200 稳定可用。
+# 延迟节点是 15 分钟延迟行情，生产在收盘后 15:20 跑 → 当日数据已定型，无延迟问题。
+# 指数与板块实时一律走 push2delay；历史 K 线（push2his）被拒时由同花顺历史 backfill 兜底。
+EM_INDEX_QUOTE_URL = "https://push2delay.eastmoney.com/api/qt/stock/get"
+EM_CONCEPT_QUOTE_URL = "https://push2delay.eastmoney.com/api/qt/stock/get"
 EM_UT = "bd1d9ddb04089700cf9c27f6f7426281"
 INNOVATION_SECID = "90.BK1106"
 

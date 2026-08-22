@@ -16,7 +16,7 @@ export interface AssetRow {
   value: string;
   change: string;
   cls: string;       // up / down / flat
-  source: "实时" | "晨报";
+  source: "实时" | "待接入";
   meaning?: string;
   code?: string;     // K 线代码（带前缀 sh000001 / hkHSI 等）
   kMarket?: "A" | "HK" | "US";
@@ -25,7 +25,7 @@ export interface AssetRow {
 // 晨报资产 → K 线代码（实时行由 MarketOverview 直接带 code）
 // - A/H 股票指数：腾讯源（裸 code，如 sh000001）
 // - 海外/商品/汇率/国债：Yahoo v8 chart（code 加 "y:" 前缀；后端识别后走 yahoo）
-// - 中证商品期货指数 / 中国10Y国债活跃券 / 锂：yahoo 无数据，保持 null
+// - 中国10Y国债活跃券 / 锂：yahoo 无数据，保持 null
 export const BRIEF_CODE_MAP: Record<string, { code: string; market: "A" | "HK" | "US" } | null> = {
   "上证综指": { code: "sh000001", market: "A" },
   "沪深300": { code: "sh000300", market: "A" },
@@ -50,8 +50,6 @@ export const BRIEF_CODE_MAP: Record<string, { code: string; market: "A" | "HK" |
   // 新浪期货主力连续（国内品种）
   "锂": { code: "s:LC0", market: "A" },                       // 碳酸锂主力连续（新浪期货）
   "中国10Y国债活跃券": { code: "s:T0", market: "A" },         // 国债期货 T 主力（现货收益率无公开 K 线源，用期货替代）
-  // 无公开 K 线源
-  "中证商品期货价格指数": null,
 };
 
 const MARKET_BADGE: Record<string, string> = {
@@ -65,7 +63,7 @@ const MARKET_ORDER: Record<string, number> = { 国内: 0, 海外: 1, 香港: 1, 
 
 // 数据源 market 字段错位（如黄金/Brent/WTI 被标"海外"），按资产名重映射到正确类别
 const MARKET_FIX: Record<string, string> = {
-  "现货黄金": "商品", "Brent原油": "商品", "WTI原油": "商品", "中证商品期货价格指数": "商品",
+  "现货黄金": "商品", "Brent原油": "商品", "WTI原油": "商品",
   "美国10Y国债": "海外", "DXY（美元指数）": "海外",  // 货币指标并入海外大类，跟美债一档
   "上证综指": "国内",  // 与 realtime"上证指数"归一
 };
@@ -75,7 +73,7 @@ const ASSET_ORDER: Record<string, Record<string, number>> = {
   国内: { "上证指数": 0, "深证成指": 1, "上证50": 2, "沪深300": 3, "创业板指": 4, "科创50": 5, "中证1000": 6, "中国10Y国债活跃券": 7, "USD/CNY": 8 },
   海外: { "标普500": 0, "纳斯达克": 1, "道琼斯": 2, "美国10Y国债": 3, "DXY（美元指数）": 4 },
   香港: { "恒生指数": 0, "恒生科技": 1 },
-  商品: { "中证商品期货价格指数": 0, "现货黄金": 1, "白银": 2, "铜": 3, "锂": 4, "Brent原油": 5, "WTI原油": 6 },
+  商品: { "现货黄金": 0, "白银": 1, "铜": 2, "锂": 3, "Brent原油": 4, "WTI原油": 5 },
 };
 
 export function AssetOverviewTable({ rows }: { rows: AssetRow[] }) {

@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-INDEX_NAMES = ("上证50", "Choice微盘", "中证全指")
+INDEX_NAMES = ("上证50", "中证2000", "中证全指")
 INDEX_REQUIRED_FIELDS = ("return", "amount_100m")
 INDEX_HISTORY_WINDOW = 5
 MARKET_CORE_FILE = "market_core.csv"

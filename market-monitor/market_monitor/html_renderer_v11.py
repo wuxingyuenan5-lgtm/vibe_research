@@ -136,13 +136,24 @@ def _sw_industry(report):
 
 def _hot_matrix(report):
     matrix = report.get("hot_stock_matrix", {})
+    # newest_first=True：build_hot_stock_matrix 已经按"最新在左"反序 + 最近 10 个交易日，
+    # 这里保留 sort+slice 以兼容 validator（hot_matrix_more_than_ten_dates / not_newest_first）。
     dates = sorted([str(x) for x in matrix.get("dates", [])], reverse=True)[:10]
-    source_dates = [str(x) for x in matrix.get("dates", [])]
     rows = []
+    industry_counts_by_date: dict[str, list[int]] = {d: [] for d in dates}
+    history_total_sum = 0
     for r in matrix.get("rows", []):
-        mapping = dict(zip(source_dates, r.get("counts", [])))
-        rows.append([escape(str(r.get("industry") or ""))] + [str(int(mapping.get(d) or 0)) for d in dates] + [str(int(r.get("history_total") or 0))])
-    return _table(["行业"] + [d[5:] for d in dates] + ["历史累计"], rows)
+        mapping = dict(zip(dates, r.get("counts", [])))
+        per_date = [int(mapping.get(d) or 0) for d in dates]
+        history_total = int(r.get("history_total") or 0)
+        rows.append([escape(str(r.get("industry") or ""))] + [str(value) for value in per_date] + [str(history_total)])
+        for d, value in zip(dates, per_date):
+            industry_counts_by_date[d].append(value)
+        history_total_sum += history_total
+    # 当天总数：每个日期列按所有行业行求和，并作为首行插入（与"百亿成交股" KPI 同源校验）。
+    daily_totals = [sum(industry_counts_by_date[d]) for d in dates]
+    total_row = ["合计"] + [str(value) for value in daily_totals] + [str(history_total_sum)]
+    return _table(["行业"] + [d[5:] for d in dates] + ["历史累计"], [total_row] + rows)
 
 
 def _hot_detail(report):
