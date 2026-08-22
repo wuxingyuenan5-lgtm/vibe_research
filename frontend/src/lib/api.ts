@@ -110,6 +110,44 @@ export interface Announcement {
   date: string; title: string; type: string; url: string;
 }
 
+// 自选股半年报追踪报告（东财公告 + 同花顺F10 + 同花顺盈利预测一致预期，均网页公开数据）
+export interface HalfYearRow {
+  code: string;
+  name?: string;
+  ann_date: string;        // 公告日期 YYYY-MM-DD
+  ann_title: string;
+  ann_url: string;
+  period: string | null;   // e.g. "2026-06-30"
+  net_profit_yi: number | null;   // 实际 H1 净利（亿元）
+  net_profit_raw: string | null;  // 原文 "13.21亿"
+  yoy_pct: number | null;         // 净利同比（百分比数字；+1504.2 表示 +1504.2%）
+  yoy_raw: string | null;
+  eps: string | null;
+  roe: string | null;
+  consensus_mean: number | null;  // 2026 全年一致预期净利润（亿元，同花顺盈利预测均值）
+  consensus_n: number | null;     // 覆盖机构数
+  consensus_year: number | null;
+  completion_pct: number | null;  // 完成度 = 实际H1净利 / 全年一致预期（%）
+  _note: string | null;    // 数据缺失/失败原因
+}
+export interface HalfYearReport {
+  window_days: number;
+  scanned: number;
+  published: number;       // 窗口内发出半年报的公司数
+  covered: number;         // 拿到财务数据的数
+  scan_complete: boolean;  // 公告分页是否完整覆盖了所选时间窗
+  requested_codes: number;
+  scanned_batches: number;
+  announcement_requests: number;
+  announcement_rows: number;
+  fetched_at: string;
+  groups: {
+    big_beat: HalfYearRow[];   // 大幅超预期：完成度 ≥ 70%
+    meet: HalfYearRow[];       // 符合预期：有完成度但 < 70%（含亏损预期公司）
+    pending: HalfYearRow[];    // 预期待验证：无一致预期 / 数据缺失
+  };
+}
+
 export interface Financials {
   period: string | null;
   revenue: string | null; revenue_yoy: string | null;
@@ -251,6 +289,8 @@ export const api = {
   percentile: (code: string) => get<ValPercentile>(`/valuation/percentile?code=${code}`),
   financials: (code: string) => get<Financials>(`/financials?code=${code}`),
   announcements: (code: string) => get<Announcement[]>(`/announcements?code=${code}`),
+  halfYearReport: (codes: string[], days = 1, names: Record<string, string> = {}) =>
+    request<HalfYearReport>("/half-year-report", "POST", { codes, days, names }),
   quote: (codes: string) => get<Record<string, Quote>>(`/quote?codes=${codes}`),
   reports: (code: string) => get<Report[]>(`/reports?code=${code}`),
   news: (code: string) => get<NewsItem[]>(`/news?code=${code}`),

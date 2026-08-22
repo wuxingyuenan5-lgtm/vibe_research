@@ -12,8 +12,10 @@ import argparse
 import math
 from pathlib import Path
 
-import akshare as ak
 import pandas as pd
+import requests
+
+from market_monitor.common import retry
 
 DATA_DIR = Path("data")
 # 保留窗口需 >= 全量刷新(history_rows=260)+增量冗余，否则 tail() 会截断 live 已有历史
@@ -22,6 +24,9 @@ KEEP_HISTORY_ROWS = 1000
 VOL_WINDOW = 20
 ANNUALIZATION_DAYS = 252
 MIN_COVERAGE = 0.90
+SWS_CURRENT_URL = "https://www.swsresearch.com/institute-sw/api/index_publish/current/"
+SWS_CURRENT_REFERER = "https://www.swsresearch.com/institute_sw/allIndex/releasedIndex"
+UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114 Safari/537.36"
 
 EXPORT_COLUMNS = {
     "date": "日期",
@@ -64,7 +69,41 @@ def load_existing(history_file: Path) -> pd.DataFrame:
 
 
 def fetch_bulk(symbol: str) -> pd.DataFrame:
-    raw = ak.index_realtime_sw(symbol=symbol)
+    session = requests.Session()
+    session.trust_env = False
+    headers = {"User-Agent": UA, "Referer": SWS_CURRENT_REFERER}
+
+    def page(page_number: int) -> tuple[int, list[dict]]:
+        response = session.get(
+            SWS_CURRENT_URL,
+            params={"page": page_number, "page_size": 50, "indextype": symbol},
+            headers=headers,
+            timeout=(4, 15),
+            verify=False,
+        )
+        response.raise_for_status()
+        data = response.json().get("data") or {}
+        return int(data.get("count") or 0), list(data.get("results") or [])
+
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    total, rows = retry(lambda: page(1), attempts=3, delay=1.0)
+    for page_number in range(2, math.ceil(total / 50) + 1):
+        _, page_rows = retry(lambda page_number=page_number: page(page_number), attempts=3, delay=1.0)
+        rows.extend(page_rows)
+    if len(rows) != total:
+        raise RuntimeError(f"SWS realtime pagination incomplete ({symbol}): {len(rows)}/{total}")
+    raw = pd.DataFrame(rows).rename(columns={
+        "swindexcode": "指数代码",
+        "swindexname": "指数名称",
+        "l3": "昨收盘",
+        "l4": "今开盘",
+        "l5": "成交额",
+        "l6": "最高价",
+        "l7": "最低价",
+        "l8": "最新价",
+        "l11": "成交量",
+    })
     required = {"指数代码", "指数名称", "昨收盘", "最新价", "成交额"}
     if raw is None or raw.empty or not required.issubset(raw.columns):
         raise RuntimeError(f"index_realtime_sw({symbol}) invalid: {list(raw.columns)}")
@@ -92,7 +131,12 @@ def calculate_metrics(data: pd.DataFrame) -> pd.DataFrame:
     return data.groupby("index_code", group_keys=False).tail(KEEP_HISTORY_ROWS)
 
 
-def write_outputs(data: pd.DataFrame, history_file: Path, latest_file: Path) -> None:
+def write_outputs(
+    data: pd.DataFrame,
+    target_date: str,
+    history_file: Path,
+    latest_file: Path,
+) -> None:
     history_file.parent.mkdir(parents=True, exist_ok=True)
     latest_file.parent.mkdir(parents=True, exist_ok=True)
     columns = [
@@ -105,13 +149,12 @@ def write_outputs(data: pd.DataFrame, history_file: Path, latest_file: Path) -> 
     exported["日期"] = pd.to_datetime(exported["日期"]).dt.strftime("%Y-%m-%d")
     exported.to_csv(history_file, index=False, encoding="utf-8-sig", float_format="%.8f")
 
-    latest = (
-        data.sort_values("date")
-        .groupby("index_code", as_index=False, group_keys=False)
-        .tail(1)[columns]
-        .sort_values(["level", "level1_name", "index_name"])
-        .rename(columns=EXPORT_COLUMNS)
-    )
+    # latest 只能包含目标交易日真实返回的活跃指数；不再拿历史旧行补齐数量。
+    latest = data[
+        pd.to_datetime(data["date"], errors="coerce").dt.strftime("%Y-%m-%d") == target_date
+    ][columns].sort_values(["level", "level1_name", "index_name"]).rename(columns=EXPORT_COLUMNS)
+    if len(latest) < 150:
+        raise RuntimeError(f"Shenwan latest active universe too small: {len(latest)}")
     latest["日期"] = pd.to_datetime(latest["日期"]).dt.strftime("%Y-%m-%d")
     latest.to_csv(latest_file, index=False, encoding="utf-8-sig", float_format="%.8f")
 
@@ -152,7 +195,7 @@ def update(target_date: str, data_dir: Path = DATA_DIR) -> dict[str, object]:
         "index_name", "close", "amount",
     ]]
     data = calculate_metrics(pd.concat([base, fresh], ignore_index=True))
-    write_outputs(data, history_file, latest_file)
+    write_outputs(data, target_date, history_file, latest_file)
 
     target_rows = int((pd.to_datetime(data["date"]).dt.strftime("%Y-%m-%d") == target_date).sum())
     result = {

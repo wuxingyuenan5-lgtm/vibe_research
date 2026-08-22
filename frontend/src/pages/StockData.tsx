@@ -132,24 +132,24 @@ export function StockData({ embed = false }: { embed?: boolean }) {
 
     // A 股：竞态守卫（快速换代码时只让最新一次回填）+ 资金面/筹码独立回填、不阻塞主数据
     const ok = <T,>(set: (v: T) => void) => (v: T) => { if (rid === runIdRef.current) set(v); };
-    api.margin(c).then(ok(setMargin)).catch(() => {});
-    api.blockTrade(c).then(ok(setBlockT)).catch(() => {});
-    api.holders(c).then(ok(setHolders)).catch(() => {});
-    api.dividend(c).then(ok(setDividend)).catch(() => {});
-    api.fundFlow(c).then(ok(setFundFlow)).catch(() => {});
-    api.dragonTiger(c).then(ok(setDt)).catch(() => {});
-    api.lockup(c).then(ok(setLockup)).catch(() => {});
-    api.blocks(c).then(ok(setBlocks)).catch(() => {});
-    api.hotConcepts(c).then(ok(setHotCon)).catch(() => {});
-    api.investorQa(c).then(ok(setQa)).catch(() => {});
+    api.margin(c).then(ok(setMargin)).catch((e) => console.warn("[stock-data] margin 失败:", e));
+    api.blockTrade(c).then(ok(setBlockT)).catch((e) => console.warn("[stock-data] blockTrade 失败:", e));
+    api.holders(c).then(ok(setHolders)).catch((e) => console.warn("[stock-data] holders 失败:", e));
+    api.dividend(c).then(ok(setDividend)).catch((e) => console.warn("[stock-data] dividend 失败:", e));
+    api.fundFlow(c).then(ok(setFundFlow)).catch((e) => console.warn("[stock-data] fundFlow 失败:", e));
+    api.dragonTiger(c).then(ok(setDt)).catch((e) => console.warn("[stock-data] dragonTiger 失败:", e));
+    api.lockup(c).then(ok(setLockup)).catch((e) => console.warn("[stock-data] lockup 失败:", e));
+    api.blocks(c).then(ok(setBlocks)).catch((e) => console.warn("[stock-data] blocks 失败:", e));
+    api.hotConcepts(c).then(ok(setHotCon)).catch((e) => console.warn("[stock-data] hotConcepts 失败:", e));
+    api.investorQa(c).then(ok(setQa)).catch((e) => console.warn("[stock-data] investorQa 失败:", e));
     try {
       // 行情+估值+研报+历史分位+财务+公告（新闻单独降级）
       const [v, r, p, f, a] = await Promise.all([
         api.valuation(c),
-        api.reports(c).catch(() => []),
-        api.percentile(c).catch(() => null),
-        api.financials(c).catch(() => null),
-        api.announcements(c).catch(() => []),
+        api.reports(c).catch((e) => { console.warn("[stock-data] reports 失败:", e); return [] as Report[]; }),
+        api.percentile(c).catch((e) => { console.warn("[stock-data] percentile 失败:", e); return null; }),
+        api.financials(c).catch((e) => { console.warn("[stock-data] financials 失败:", e); return null; }),
+        api.announcements(c).catch((e) => { console.warn("[stock-data] announcements 失败:", e); return [] as Announcement[]; }),
       ]);
       if (rid !== runIdRef.current) return;
       setVal(v);

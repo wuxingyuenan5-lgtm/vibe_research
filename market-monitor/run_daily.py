@@ -14,8 +14,8 @@ from market_monitor.history_preflight import append_index_history
 from market_monitor.canonical_promotion import prepare_stage, promote_candidate
 from market_monitor.canonical_store import normalize_candidate
 from market_monitor.canonical_validation import validate_candidate
-from market_monitor.sw_cache import refresh_sw_cache, backfill_sw_crowding_live
-from market_monitor.innovation_cache import backfill_innovation_live
+from market_monitor.sw_cache import refresh_sw_cache
+from market_monitor.collectors import update_limit_pool_history
 from build_report_data import append_hot_stock_history
 from update_sw_industry_fast import update as update_sw_industry_fast
 from update_sw_industry import update as update_sw_industry_full
@@ -31,6 +31,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", default="config/market_monitor.json")
     parser.add_argument("--refresh-mapping", action="store_true")
     parser.add_argument("--full-refresh-sw-industry", action="store_true")
+    parser.add_argument("--force-hot-snapshot", action="store_true", help="非周五也归档百亿成交明细")
     return parser.parse_args()
 
 
@@ -41,7 +42,6 @@ def refresh_stage_sources(
     crowding_refresh_fn: Callable = refresh_sw_cache,
     fast_industry_refresh_fn: Callable = update_sw_industry_fast,
     full_industry_refresh_fn: Callable = update_sw_industry_full,
-    innovation_live_backfill_fn: Callable = backfill_innovation_live,
 ) -> dict[str, object]:
     """Refresh mutable Shenwan sources only inside the Canonical candidate root.
 
@@ -59,17 +59,6 @@ def refresh_stage_sources(
             history_path=data_dir / "history/sw_analysis_daily_second.csv",
         )
         result["sw_crowding"] = "ok"
-        # T+1 母表源到位前，用实时源补当日拥挤度估算行（量/额自算 + 估值沿用昨日）。
-        # 失败不影响主流程：backfill 返回 None 时保留 T+1 数据。
-        backfill_rows = backfill_sw_crowding_live(
-            target_date,
-            history_path=data_dir / "history/sw_analysis_daily_second.csv",
-        )
-        if backfill_rows is not None and not backfill_rows.empty:
-            result["sw_crowding"] = "ok_live"
-            result["sw_crowding_live_rows"] = int(len(backfill_rows))
-        else:
-            result["warnings"].append("sw_crowding_live_backfill_unavailable")
     except Exception as exc:
         result["sw_crowding"] = "fallback_previous_canonical"
         result["warnings"].append(f"sw_crowding_refresh_failed:{exc}")
@@ -89,22 +78,6 @@ def refresh_stage_sources(
     except Exception as exc:
         result["sw_industry"] = "fallback_previous_canonical"
         result["warnings"].append(f"sw_industry_refresh_failed:{exc}")
-
-    # 创新药 T+1 EM K 线不可达（同 sw_crowding 的兜底策略，但额度更窄：不伪填换手率）。
-    # 失败不影响主流程：backfill 返回 None 时保留历史最新有效日数据，由 validator WARN 暴露。
-    try:
-        innovation_rows = innovation_live_backfill_fn(
-            target_date,
-            history_path=data_dir / "history/innovation_drug_eastmoney.csv",
-        )
-        if innovation_rows is not None and not innovation_rows.empty:
-            result["innovation_live"] = "ok_live"
-            result["innovation_live_rows"] = int(len(innovation_rows))
-        else:
-            result["innovation_live"] = "fallback_previous_canonical"
-    except Exception as exc:
-        result["innovation_live"] = "fallback_previous_canonical"
-        result["warnings"].append(f"innovation_live_backfill_failed:{exc}")
 
     return result
 
@@ -150,10 +123,17 @@ def main() -> None:
         stage_root / "data/history/indices_history.csv",
         list((payload.get("indices") or {}).values()),
     )
-    append_hot_stock_history(
-        stage_root / "data/history/hot_stocks.csv",
+    hot_snapshot_due = datetime.strptime(args.target_date, "%Y-%m-%d").weekday() == 4
+    if hot_snapshot_due or args.force_hot_snapshot:
+        append_hot_stock_history(
+            stage_root / "data/history/hot_stocks.csv",
+            args.target_date,
+            payload.get("hot_stocks") or [],
+        )
+    update_limit_pool_history(
+        stage_root / "data/history/limit_pool.csv",
         args.target_date,
-        payload.get("hot_stocks") or [],
+        payload.get("limit_pool") or [],
     )
 
     output_dir = repo_root / "output" / args.target_date
@@ -183,7 +163,7 @@ def main() -> None:
         f"completed date={args.target_date} payload_status={payload_validation['status']} "
         f"canonical_status={canonical_validation['status']} identical_duplicates_removed={removed} "
         f"sw_crowding={source_refresh['sw_crowding']} sw_industry={source_refresh['sw_industry']} "
-        f"innovation_live={source_refresh.get('innovation_live', 'n/a')} "
+        "innovation=direct_eastmoney_only "
         f"output={output_dir}"
     )
 

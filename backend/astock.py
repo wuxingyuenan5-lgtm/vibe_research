@@ -11,6 +11,20 @@ from pathlib import Path
 
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 
+# 全局默认：绕开系统代理直连所有外网 requests（包括 akshare / 同花顺 / 东财 / chat LLM 等）。
+# 解决 launchd 拉起进程继承 HTTP(S)_PROXY=127.0.0.1:<端口> 但代理进程已挂 → Connection refused。
+# 需要走代理时：显式 session.proxies = {...}（覆盖默认）；或设 VR_HTTP_PROXY=1 关闭本 patch。
+try:
+    import requests as _req  # 轻依赖，随后端一起装
+    _orig_session_init = _req.Session.__init__
+    def _session_init(self, *a, **kw):
+        _orig_session_init(self, *a, **kw)
+        if os.getenv("VR_HTTP_PROXY", "0") != "1":
+            self.trust_env = False  # 默认不读环境代理
+    _req.Session.__init__ = _session_init
+except ImportError:
+    pass
+
 # 直连 opener：国内财经站（qt.gtimg.cn / push2.eastmoney.com 等）若走系统代理常被 Clash CONNECT 掐掉，
 # 这里用一个空 ProxyHandler 强制直连。注意只影响 urllib.request 数据层调用，不影响 requests 库 / AI 层代理。
 _no_proxy_opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -87,8 +101,8 @@ def tencent_quote(codes: list[str]) -> dict[str, dict]:
     return _parse_gtimg(_fetch_gtimg(prefixed))
 
 
-# A股大盘指数（前缀规则与个股不同，固定带前缀代码）
-A_INDICES = ["sh000001", "sz399001", "sz399006", "sh000300", "sh000016", "sh000688"]
+# A股大盘指数（前缀规则与个股不同，固定带前缀代码）；含中证1000（页面实时展示需要）
+A_INDICES = ["sh000001", "sz399001", "sz399006", "sh000300", "sh000016", "sh000688", "sh000852"]
 
 
 def index_quote() -> list[dict]:
@@ -186,24 +200,68 @@ def _akshare():
         raise DependencyMissing("akshare 未安装：pip install akshare") from e
 
 
+def _ak_call(func, *args, tries: int = 3, delay: float = 1.2, **kwargs):
+    """akshare 调用统一重试：上游（东财/同花顺/乐咕）间歇失败（No tables found /
+    RemoteDisconnected / 连接被掐）→ 指数退避重试，都失败抛最后一次异常。"""
+    last = None
+    for i in range(tries):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:  # noqa: BLE001 —— akshare 上游错误五花八门，统一重试
+            last = e
+            if i < tries - 1:
+                time.sleep(delay * (i + 1))
+    if last is not None:
+        raise last
+    return None
+
+
 def profit_forecast(code: str) -> list[dict]:
     """机构一致预期 EPS（同花顺）。"""
     ak = _akshare()
-    df = ak.stock_profit_forecast_ths(symbol=code, indicator="预测年报每股收益")
+    df = _ak_call(ak.stock_profit_forecast_ths, symbol=code, indicator="预测年报每股收益")
     return df.to_dict("records") if df is not None and not df.empty else []
+
+
+def consensus_forecast(code: str, year: int | None = None) -> dict:
+    """机构一致预期净利润（同花顺盈利预测，网页公开数据，非付费 API）。
+
+    单位：亿元（同花顺预测年报净利润 均值/最小/最大 均为亿元）。
+    返回 {year, n_inst, mean, min, max, raw}；接口失败或无数据时返回 {}。
+    """
+    if year is None:
+        year = datetime.now().year
+    ak = _akshare()
+    df = _ak_call(ak.stock_profit_forecast_ths, symbol=code, indicator="预测年报净利润")
+    if df is None or df.empty:
+        return {}
+    row = next((r for r in df.to_dict("records") if str(r.get("年度")) == str(year)), None)
+    if not row:
+        return {}
+    try:
+        return {
+            "year": int(row["年度"]),
+            "n_inst": int(row.get("预测机构数") or 0),
+            "mean": float(row["均值"]),
+            "min": float(row.get("最小值") or 0) or None,
+            "max": float(row.get("最大值") or 0) or None,
+            "raw": row,
+        }
+    except (TypeError, ValueError):
+        return {}
 
 
 def stock_news(code: str, limit: int = 20) -> list[dict]:
     """个股新闻（东财）。"""
     ak = _akshare()
-    df = ak.stock_news_em(symbol=code)
+    df = _ak_call(ak.stock_news_em, symbol=code)
     return df.head(limit).to_dict("records") if df is not None and not df.empty else []
 
 
 def individual_info(code: str) -> dict:
     """个股基本面（东财）：行业 / 总股本 / 上市时间等。"""
     ak = _akshare()
-    df = ak.stock_individual_info_em(symbol=code)
+    df = _ak_call(ak.stock_individual_info_em, symbol=code)
     if df is None or df.empty:
         return {}
     return {str(row["item"]): row["value"] for _, row in df.iterrows()}
@@ -213,8 +271,74 @@ def disclosure(code: str) -> list[dict]:
     """巨潮公告全文列表（akshare cninfo，本环境不稳，保留作备用）。"""
     ak = _akshare()
     market = "沪市" if code.startswith("6") else ("北交所" if code.startswith("8") else "深市")
-    df = ak.stock_zh_a_disclosure_report_cninfo(symbol=code, market=market)
+    df = _ak_call(ak.stock_zh_a_disclosure_report_cninfo, symbol=code, market=market)
     return df.head(30).to_dict("records") if df is not None and not df.empty else []
+
+
+def sina_spot(codes: list[str]) -> dict[str, dict]:
+    """新浪实时行情（国内期货主力连续 nf_ / 国际商品原油 hf_）：现价 vs 昨收。
+    兼容三种字段布局：
+    - nf_ 商品期货（44 字段）：[0]名称 [2]现价 [3]昨收（如 nf_AG0/CU0/LC0）
+    - nf_ 国债期货（50 字段）：[0]现价 [1]昨收（如 nf_T0）
+    - hf_ 国际（15 字段）：[0]现价 [1]或[7]昨收 [6]时间 [12]日期 [13]名称（如 hf_CL/OIL/XAU）
+    返回 {code: {name, price, prev_close, change_pct, time}}。"""
+    url = "https://hq.sinajs.cn/list=" + ",".join(codes)
+    req = urllib.request.Request(url, headers={"User-Agent": UA, "Referer": "https://finance.sina.com.cn"})
+    raw = _no_proxy_opener.open(req, timeout=10).read().decode("gbk", "ignore")
+    out: dict[str, dict] = {}
+    for line in raw.split(";"):
+        m = re.search(r'hq_str_(\w+)="(.*)"', line)
+        if not m:
+            continue
+        sym, f = m.group(1), m.group(2).split(",")
+        try:
+            if sym.startswith("nf_"):
+                # 44 字段商品期货：[0]=名称 [2]=现价 [3]=昨收；50 字段国债期货：[0]=现价 [1]=昨收
+                if len(f) >= 44 and f[0] and not re.fullmatch(r"\d+(\.\d+)?", f[0]):
+                    price, prev = float(f[2]), float(f[3]) if f[3] else 0.0
+                    name = f[0]
+                else:
+                    price = float(f[0])
+                    prev = float(f[1]) if len(f) > 1 and f[1] else 0.0
+                    name = sym
+            else:
+                price = float(f[0])
+                prev = float(f[1]) if len(f) > 1 and f[1] else (float(f[7]) if len(f) > 7 and f[7] else 0.0)
+                name = f[13] if len(f) > 13 else sym
+        except (ValueError, IndexError):
+            continue
+        if not price:
+            continue
+        out[sym] = {
+            "name": name,
+            "price": price,
+            "prev_close": prev,
+            "change_pct": (price - prev) / prev if prev else 0.0,
+            "time": f"{f[12]} {f[6]}" if len(f) > 12 and f[6] else "",
+        }
+    return out
+
+
+def gold_spot() -> dict:
+    """伦敦金现货（XAU/USD，美元/盎司）实时价：新浪 hf_XAU。返回 {price, prev_close, change_pct, time, name}。"""
+    url = "https://hq.sinajs.cn/list=hf_XAU"
+    req = urllib.request.Request(url, headers={"User-Agent": UA, "Referer": "https://finance.sina.com.cn"})
+    raw = _no_proxy_opener.open(req, timeout=10).read().decode("gbk", "ignore")
+    m = re.search(r'"(.*)"', raw)
+    if not m:
+        return {}
+    f = m.group(1).split(",")
+    if len(f) < 6 or not f[0]:
+        return {}
+    price = float(f[0])
+    prev = float(f[1]) if f[1] else price
+    return {
+        "price": price,
+        "prev_close": prev,
+        "change_pct": (price - prev) / prev if prev else 0.0,
+        "time": f"{f[12]} {f[6]}" if len(f) > 12 else "",
+        "name": f[-1] if f else "现货黄金",
+    }
 
 
 def announcements(code: str, limit: int = 15) -> list[dict]:
@@ -239,6 +363,118 @@ def announcements(code: str, limit: int = 15) -> list[dict]:
             "url": f"https://data.eastmoney.com/notices/detail/{code}/{art}.html" if art else "",
         })
     return out
+
+
+def announcements_batch(
+    codes: list[str],
+    since_date,
+    *,
+    batch_size: int = 50,
+    page_size: int = 100,
+    max_pages: int = 50,
+) -> tuple[list[dict], dict]:
+    """批量扫描自选股公告，并返回可审计的扫描统计。
+
+    东财公告接口支持逗号分隔的股票列表。按 50 只一组分页，比逐股请求快很多；
+    任一批次失败或在达到时间边界前触及分页上限都会直接报错，避免把漏抓伪装成
+    “没有半年报”。
+    """
+    import requests
+
+    valid_codes = list(dict.fromkeys(
+        str(code).strip() for code in codes if re.fullmatch(r"\d{6}", str(code).strip())
+    ))
+    session = requests.Session()
+    session.trust_env = False
+    session.headers.update({"User-Agent": UA})
+    output: list[dict] = []
+    request_count = 0
+    scanned_batches = 0
+
+    for offset in range(0, len(valid_codes), max(1, batch_size)):
+        batch = valid_codes[offset:offset + max(1, batch_size)]
+        batch_set = set(batch)
+        scanned_batches += 1
+        reached_boundary = False
+        for page in range(1, max_pages + 1):
+            params = {
+                "sr": -1,
+                "page_size": page_size,
+                "page_index": page,
+                "ann_type": "A",
+                "client_source": "web",
+                "stock_list": ",".join(batch),
+                "f_node": 0,
+                "s_node": 0,
+            }
+
+            def _request_page():
+                response = session.get(
+                    "https://np-anotice-stock.eastmoney.com/api/security/ann",
+                    params=params,
+                    timeout=(4, 20),
+                )
+                response.raise_for_status()
+                payload = response.json()
+                if payload.get("success") is False:
+                    raise RuntimeError(f"Eastmoney announcement API error: {payload.get('error')}")
+                return payload.get("data") or {}
+
+            data = _ak_call(_request_page, tries=3, delay=0.8)
+            request_count += 1
+            rows = data.get("list") or []
+            if not rows:
+                reached_boundary = True
+                break
+
+            page_dates = []
+            for item in rows:
+                raw_date = (item.get("notice_date") or "")[:10]
+                try:
+                    item_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
+                    page_dates.append(item_date)
+                except (TypeError, ValueError):
+                    continue
+                if item_date < since_date:
+                    continue
+                columns = [
+                    col.get("column_name") for col in (item.get("columns") or [])
+                    if col.get("column_name")
+                ]
+                art_code = item.get("art_code", "")
+                for code_info in item.get("codes") or []:
+                    code = str(code_info.get("stock_code") or "")
+                    if code not in batch_set:
+                        continue
+                    output.append({
+                        "code": code,
+                        "date": raw_date,
+                        "title": item.get("title", ""),
+                        "type": columns[0] if columns else "",
+                        "url": (
+                            f"https://data.eastmoney.com/notices/detail/{code}/{art_code}.html"
+                            if art_code else ""
+                        ),
+                    })
+
+            total_hits = int(data.get("total_hits") or 0)
+            if (page_dates and min(page_dates) < since_date) or page * page_size >= total_hits:
+                reached_boundary = True
+                break
+
+        if not reached_boundary:
+            raise RuntimeError(
+                f"公告批量扫描达到分页上限仍未覆盖时间窗: batch={offset // batch_size + 1}"
+            )
+
+    output.sort(key=lambda row: (row["date"], row["code"]), reverse=True)
+    return output, {
+        "scan_complete": True,
+        "requested_codes": len(valid_codes),
+        "scanned_batches": scanned_batches,
+        "announcement_requests": request_count,
+        "announcement_rows": len(output),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -293,7 +529,7 @@ def financials(code: str) -> dict:
     注：mootdx finance() 的营收/净利数值不可靠(实测放大数倍)，故财务摘要走此源。
     """
     ak = _akshare()
-    df = ak.stock_financial_abstract_ths(symbol=code, indicator="按报告期")
+    df = _ak_call(ak.stock_financial_abstract_ths, symbol=code, indicator="按报告期")
     if df is None or df.empty:
         return {}
     row = df.iloc[-1].to_dict()  # 最新报告期（按报告期升序，取末行）
@@ -309,6 +545,213 @@ def financials(code: str) -> dict:
         "eps": g("基本每股收益"), "bvps": g("每股净资产"),
         "roe": g("净资产收益率"), "gross_margin": g("销售毛利率"), "net_margin": g("销售净利率"),
         "op_cf_ps": g("每股经营现金流"),
+    }
+
+
+def half_year_report(codes: list[str], window_days: int = 1, max_workers: int = 8) -> dict:
+    """关注股池中近 window_days 内发布半年报的公司（H1 实际净利 + 一致预期 + 完成度），按完成度分组。
+
+    数据源（全部为网页公开数据，无付费 API）：
+        公告列表：东方财富公告接口批量分页扫描
+        实际净利：akshare stock_financial_abstract_ths financials()（慢、有 30 分钟缓存）
+        一致预期：akshare stock_profit_forecast_ths 预测年报净利润 consensus_forecast()
+                  （同花顺盈利预测，网页公开数据；无 gangtise / kimi_search 依赖）
+
+    完成度 = 实际 H1 净利 / 2026 全年一致预期净利润均值。
+    分组（贴合示例报告的"三段式"）：
+        big_beat 大幅超预期：完成度 ≥ 70%
+        meet     符合预期  ：有完成度但 < 70%（含亏损预期公司，如猪周期底部的牧原）
+        pending  预期待验证：无一致预期 / 财务摘要缺失（同花顺无覆盖或接口失败）
+
+    入参：
+        codes:       6 位 A 股代码列表（来自自选股池）
+        window_days: 时间窗天数，默认 1（近 24h）；常用 1 / 7 / 30
+        max_workers: 并发拉数据的线程数（akshare 单次 ~1-2s）
+
+    返回：
+        {
+          "window_days": 1, "scanned": N, "published": N, "covered": N,
+          "fetched_at": ISO 时间戳,
+          "groups": {
+            "big_beat": [{code, name, period, net_profit_yi, yoy_pct,
+                          consensus_mean, consensus_n, completion_pct, ann_date, ann_title, ann_url, ...}],
+            "meet":     [...],
+            "pending":  [...],   # 无一致预期/数据缺失，_note 标注原因
+          },
+        }
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    def _is_half_year_title(title: str) -> bool:
+        # 只接受报告正文/摘要。旧逻辑仅检查“半年度报告”子串，会把业绩说明会、
+        # 业绩快报、披露提示性公告误判成正式半年报。
+        short = str(title or "").split(":", 1)[-1].strip()
+        return bool(re.search(
+            r"(?:20\d{2}年)?(?:半年度报告|中期报告)(?:摘要)?(?:[（(].*?[）)])?$",
+            short,
+        ))
+
+    def _parse_yi(v) -> float | None:
+        """net_profit 文本 → 数值（亿元）。形态：'13.21亿' / '1380万' / '7200000000' / '-60.84亿'"""
+        if v in (None, "", False, "false"): return None
+        s = str(v).replace(",", "").strip()
+        neg = s.startswith("-")
+        s = s.lstrip("-")
+        try:
+            if s.endswith("亿"):   n = float(s[:-1])
+            elif s.endswith("万"): n = float(s[:-1]) / 1e4
+            else:                 n = float(s) / 1e8
+            return -n if neg else n
+        except ValueError:
+            return None
+
+    def _parse_pct(v) -> float | None:
+        """'净利同比' 文本 → 百分比数字。形态：'+1504.2%' / '-156.4%' / '67.2%'"""
+        if v in (None, "", False, "false"): return None
+        try:
+            return float(str(v).replace("%", "").replace("+", "").replace(",", "").strip())
+        except ValueError:
+            return None
+
+    # ---- 1) 批量分页扫公告：覆盖性可审计，失败不再静默跳过 ----
+    unique_codes = list(dict.fromkeys(codes))
+    deadline = (datetime.now() - timedelta(days=window_days)).date()
+    announcements_all, scan_audit = announcements_batch(unique_codes, deadline)
+    hit_map: dict[str, dict] = {}
+    for announcement in announcements_all:
+        if not _is_half_year_title(announcement.get("title", "")):
+            continue
+        code = announcement["code"]
+        candidate = {
+            "code": code,
+            "ann_date": announcement["date"],
+            "ann_type": announcement.get("type", ""),
+            "ann_title": announcement["title"],
+            "ann_url": announcement.get("url", ""),
+        }
+        previous = hit_map.get(code)
+        if previous is None:
+            hit_map[code] = candidate
+            continue
+        # 同日同时发布摘要和正文时优先正文；跨日保留最新公告。
+        if candidate["ann_date"] > previous["ann_date"] or (
+            candidate["ann_date"] == previous["ann_date"]
+            and "摘要" in previous["ann_title"] and "摘要" not in candidate["ann_title"]
+        ):
+            hit_map[code] = candidate
+    hits = sorted(hit_map.values(), key=lambda row: (row["ann_date"], row["code"]), reverse=True)
+
+    # ---- 2) 对命中的代码拉 financials + 一致预期：并发 + 每只超时 ----
+    def _fetch_one(code: str) -> tuple[str, dict | None, str | None]:
+        try:
+            f = financials(code)
+        except Exception as e:
+            return code, None, f"akshare: {str(e)[:80]}"
+        period = str(f.get("period") or "")
+        if "-06-30" not in period:
+            return code, None, f"非半年报期 ({period})"
+        net_profit_yi = _parse_yi(f.get("net_profit"))
+        yoy_pct = _parse_pct(f.get("net_profit_yoy"))
+        # 一致预期（同花顺盈利预测，网页公开数据；失败不影响主数据，仅归 pending）
+        cons: dict = {}
+        try:
+            cons = consensus_forecast(code)
+        except Exception:
+            cons = {}
+        data = {
+            "period": period,
+            "net_profit_yi": net_profit_yi,
+            "net_profit_raw": f.get("net_profit"),
+            "yoy_pct": yoy_pct,
+            "yoy_raw": f.get("net_profit_yoy"),
+            "eps": f.get("eps"),
+            "roe": f.get("roe"),
+            "consensus_mean": cons.get("mean") if cons else None,
+            "consensus_n": cons.get("n_inst") if cons else None,
+            "consensus_year": cons.get("year") if cons else None,
+        }
+        # 完成度：仅当实际净利与预期同向且预期>0 时有意义
+        cm = data["consensus_mean"]
+        if cm is not None and cm > 0 and net_profit_yi is not None and net_profit_yi >= 0:
+            data["completion_pct"] = round(net_profit_yi / cm * 100, 1)
+        else:
+            data["completion_pct"] = None
+        return code, data, None
+
+    fin_map: dict[str, dict] = {}
+    fin_err: dict[str, str] = {}
+    if hits:
+        with ThreadPoolExecutor(max_workers=max(1, min(max_workers, 16))) as ex:
+            futs = {ex.submit(_fetch_one, h["code"]): h["code"] for h in hits}
+            for fut in as_completed(futs, timeout=300):
+                code, data, err = fut.result()
+                if data is not None:
+                    fin_map[code] = data
+                else:
+                    fin_err[code] = err or "数据缺失"
+
+    # ---- 3) 拼装 + 分组（完成度三段：大幅超预期 / 符合预期 / 预期待验证）----
+    groups: dict[str, list] = {"big_beat": [], "meet": [], "pending": []}
+    covered = 0
+    for h in hits:
+        code = h["code"]
+        fin = fin_map.get(code)
+        row = {
+            "code": code,
+            "ann_date": h["ann_date"],
+            "ann_title": h["ann_title"],
+            "ann_url": h["ann_url"],
+            "period": fin["period"] if fin else None,
+            "net_profit_yi": fin["net_profit_yi"] if fin else None,
+            "net_profit_raw": fin["net_profit_raw"] if fin else None,
+            "yoy_pct": fin["yoy_pct"] if fin else None,
+            "yoy_raw": fin["yoy_raw"] if fin else None,
+            "eps": fin["eps"] if fin else None,
+            "roe": fin["roe"] if fin else None,
+            "consensus_mean": fin["consensus_mean"] if fin else None,
+            "consensus_n": fin["consensus_n"] if fin else None,
+            "consensus_year": fin["consensus_year"] if fin else None,
+            "completion_pct": fin["completion_pct"] if fin else None,
+            "_note": None if fin else (fin_err.get(code) or "数据缺失"),
+        }
+        if not fin:
+            # 财务摘要缺失（akshare 失败 / 非 H1 报告期）→ 预期待验证
+            groups["pending"].append(row)
+            continue
+        covered += 1
+        cp = row["completion_pct"]
+        if cp is None:
+            # 有财务但无一致预期（或无意义的预期）→ 预期待验证，注明原因
+            if row["consensus_mean"] is None:
+                row["_note"] = "一致预期暂缺（同花顺未覆盖），待验证"
+            elif row["consensus_mean"] < 0:
+                row["_note"] = "2026 年一致预期为亏损，完成度不适用"
+                groups["meet"].append(row)
+                continue
+            else:
+                row["_note"] = "完成度口径不适用（净利为负）"
+            groups["pending"].append(row)
+            continue
+        if cp >= 70:
+            groups["big_beat"].append(row)
+        else:
+            if cp < 40:
+                row["_note"] = f"完成度 {cp:.1f}%，低于季节性中枢（H1 通常占全年 40-70%）"
+            groups["meet"].append(row)
+
+    # 排序：大幅超预期按完成度降序；符合预期按完成度降序；待验证按同比绝对值降序
+    groups["big_beat"].sort(key=lambda x: -(x["completion_pct"] or 0))
+    groups["meet"].sort(key=lambda x: -(x["completion_pct"] or 0))
+    groups["pending"].sort(key=lambda x: -(abs(x["yoy_pct"] or 0)))
+
+    return {
+        "window_days": window_days,
+        "scanned": len(unique_codes),
+        "published": len(hits),
+        "covered": covered,
+        **scan_audit,
+        "fetched_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+        "groups": groups,
     }
 
 
@@ -332,7 +775,7 @@ def valuation_percentile(code: str, period: str = "近五年") -> dict:
     metrics = {}
     for key, ind in (("pe_ttm", "市盈率(TTM)"), ("pb", "市净率")):
         try:
-            df = ak.stock_zh_valuation_baidu(symbol=code, indicator=ind, period=period)
+            df = _ak_call(ak.stock_zh_valuation_baidu, symbol=code, indicator=ind, period=period)
             raw = df.iloc[:, 1].dropna().astype(float).tolist()
             if not raw:
                 continue

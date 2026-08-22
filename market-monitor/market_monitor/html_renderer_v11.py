@@ -246,6 +246,8 @@ def render_html(report: dict) -> str:
     target = str(meta.get("report_date") or "")
     market = report.get("market_history", [])
     latest = market[-1] if market else {}
+    hot_latest = report.get("hot_stocks_latest", [])
+    hot_date = str((hot_latest[0] if hot_latest else {}).get("date") or "—")
     indices = _latest_index_map(report)
     status = str(meta.get("status") or "UNKNOWN")
     status_class = "pass" if status == "PASS" else "warn" if status == "WARN" else "fail"
@@ -254,7 +256,7 @@ def render_html(report: dict) -> str:
         ("中证2000",_pct(indices.get("中证2000",{}).get("return")),_cls(indices.get("中证2000",{}).get("return"))),
         ("中证全指",_pct(indices.get("中证全指",{}).get("return")),_cls(indices.get("中证全指",{}).get("return"))),
         ("全A成交额",_fmt(latest.get("total_amount_100m"),0)+" 亿","neutral"),
-        ("百亿成交股",str(latest.get("hot_count") if latest.get("hot_count") is not None else "—")+" 只","neutral"),
+        ("百亿成交股（周度）",str(len(hot_latest))+" 只","neutral"),
         ("市场宽度",_pct(latest.get("market_breadth"),1),_cls(latest.get("market_breadth"))),
     ]
     kpi_html = "".join(f'<div class="kpi"><div class="kpi-label">{label}</div><div class="kpi-value {css}">{value}</div></div>' for label,value,css in kpis)
@@ -266,7 +268,7 @@ def render_html(report: dict) -> str:
 <section class="section"><div class="section-title">00｜市场总览 · 市场宽度</div><div class="card">{breadth}</div></section>
 <section class="section"><div class="section-title">00｜市场总览 · 最近交易日指数与成交</div><div class="card">{_recent_indices(report)}</div></section>
 <section class="section"><div class="section-title">01｜申万行业</div><div class="card">{_sw_industry(report)}</div></section>
-<section class="section"><div class="section-title">04｜百亿成交</div><div class="card"><h3>最近10个有记录交易日｜最新日期在左</h3>{_hot_matrix(report)}<h3>{escape(target)} 成交额超过100亿元个股｜完整明细 {len(report.get("hot_stocks_latest",[]))} 只</h3>{_hot_detail(report)}</div></section>
+<section class="section"><div class="section-title">04｜百亿成交</div><div class="card"><h3>最近10个周度归档日｜最新日期在左</h3>{_hot_matrix(report)}<h3>{escape(hot_date)} 成交额超过100亿元个股｜完整明细 {len(hot_latest)} 只</h3>{_hot_detail(report)}</div></section>
 <section class="section"><div class="section-title">05｜申万四行业资金拥挤度</div><div class="card">{_crowding(report)}</div></section>
 <section class="section"><div class="section-title">06｜创新药交易拥挤度</div><div class="card"><div class="subnote">成交额占全A使用面积图；换手率仅使用供应商直接板块换手率。</div>{_innovation(report)}</div></section>
 <section class="section"><div class="section-title">99｜数据质量</div><div class="card">{_quality(report)}</div></section></div><script>{RUNTIME_JS}</script></body></html>'''

@@ -14,11 +14,13 @@ import chat as chat_layer
 import cli_runtime
 import debate as debate_layer
 import gstock
-import market_monitor.report_builder as market_monitor_builder
+import macro_brief as macro_brief_mod
+import market_monitor.published as market_monitor_published
 import market_monitor.stock_pool as stock_pool_builder
 import newsradar
 import portfolio as pf
 import market
+from dataservice import TTL, get as _ds_get
 import myreports as mr
 import reflection as reflect_layer
 import market_monitor.morning_brief as morning_brief
@@ -69,6 +71,13 @@ def _validate(code: str) -> str:
 @app.get("/api/health")
 def health():
     return {"ok": True, "service": "vibe-research-api", "version": "0.2.2"}
+
+
+@app.get("/api/health/providers")
+def health_providers():
+    """数据源健康状态（tencent / eastmoney / akshare 等，含 ok / 耗时 / 是否降级）。"""
+    from dataservice import provider_health
+    return {"data": provider_health()}
 
 
 class LLMConfig(BaseModel):
@@ -309,21 +318,48 @@ def radar_refresh():
 
 @app.get("/api/market-monitor")
 def market_monitor():
-    """A股每日市场监控（Canonical → report_data 合同）。只读已生成快照，无快照则现场构建。"""
+    """只读 GitHub 已验证发布包；远端异常时保留最后一次成功版本。"""
+    project_root = Path(__file__).resolve().parent.parent
+    repository, ref, path = market_monitor_published.repository_config()
     try:
-        root = Path(__file__).resolve().parent / "data" / "market-monitor"
-        latest = json.loads((root / "data" / "latest_bundle_pointer.json").read_text("utf-8")) if (root / "data" / "latest_bundle_pointer.json").exists() else {}
-        target_date = latest.get("date") or "2026-08-14"
-        snapshot = root / "output" / target_date / "report_data.json"
-        if snapshot.exists():
-            report = json.loads(snapshot.read_text("utf-8"))
-        else:
-            report = market_monitor_builder.build_report_data(target_date, root)
-            snapshot.parent.mkdir(parents=True, exist_ok=True)
-            snapshot.write_text(json.dumps(report, ensure_ascii=False), "utf-8")
-        return {"data": report}
-    except Exception as e:  # noqa: BLE001
-        raise HTTPException(502, f"市场监控异常：{e}") from e
+        configured_ttl = float(os.environ.get("VR_MARKET_DATA_TTL", "180"))
+    except ValueError:
+        configured_ttl = 180.0
+    cache_ttl = max(30.0, min(configured_ttl, 900.0))
+    remote_error: Exception | None = None
+    source = "github"
+    try:
+        bundle = _ds_get(
+            f"market-monitor:published:{repository}:{ref}:{path}",
+            cache_ttl,
+            market_monitor_published.fetch_remote_bundle,
+            valid=lambda value: bool(value and value.get("status") == "published"),
+            provider="github-market-data",
+        )
+    except Exception as exc:  # GitHub 短暂不可用时只降级读取，不现场生产。
+        remote_error = exc
+        bundle = market_monitor_published.last_good()
+        source = "memory-last-good"
+        if bundle is None:
+            bundle = market_monitor_published.load_bundled_fallback(project_root)
+            source = "bundled-last-good"
+    if bundle is None:
+        detail = str(remote_error or "没有可用的已验证发布包")[:180]
+        raise HTTPException(502, f"市场监控暂无已验证数据：{detail}")
+
+    publication = {
+        "status": bundle.get("status"),
+        "data_date": bundle.get("data_date"),
+        "published_at": bundle.get("published_at"),
+        "producer": bundle.get("producer"),
+        "run_id": bundle.get("run_id"),
+        "validation": bundle.get("validation") or {},
+        "source": source,
+        "using_fallback": source != "github",
+    }
+    if remote_error is not None:
+        publication["remote_error"] = str(remote_error)[:180]
+    return {"data": bundle["report"], "publication": publication}
 
 
 @app.get("/api/stock-pool")
@@ -420,17 +456,25 @@ async def stock_pool_focus_save(request: Request):
 
 
 @app.get("/api/morning-brief")
-def morning_brief_payload(date: str = "2026-08-14"):
-    """统一交易晨报 payload（冻结研究成品；Dashboard 只消费展示）。"""
+def morning_brief_payload(date: str | None = None):
+    """统一交易晨报 payload（冻结研究成品；Dashboard 只消费展示）。默认取最近可用日期。"""
+    dates = morning_brief.list_dates()
+    date = date or (dates[-1] if dates else None)
+    if not date:
+        raise HTTPException(404, "暂无晨报 payload")
     payload = morning_brief.load_payload(date)
     if payload is None:
         raise HTTPException(404, f"未找到 {date} 的晨报 payload")
-    return {"data": payload, "dates": morning_brief.list_dates()}
+    return {"data": payload, "dates": dates}
 
 
 @app.get("/api/morning-brief/download")
-def morning_brief_download(date: str = "2026-08-14", kind: str = "html"):
-    """下载晨报 HTML / PDF 产物（与 payload 同源）。"""
+def morning_brief_download(date: str | None = None, kind: str = "html"):
+    """下载晨报 HTML / PDF 产物（与 payload 同源）。默认取最近可用日期。"""
+    dates = morning_brief.list_dates()
+    date = date or (dates[-1] if dates else None)
+    if not date:
+        raise HTTPException(404, "暂无晨报产物")
     path = morning_brief.resolve_artifact(date, kind)
     if path is None:
         raise HTTPException(404, f"未找到 {date} 的 {kind} 产物")
@@ -446,6 +490,46 @@ def market_overview():
         return {"data": market.get_overview()}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"市场总览异常：{e}") from e
+
+
+@app.get("/api/market/overview-v2")
+def market_overview_v2():
+    """市场总览聚合端点：并发取实时层全部数据，单源失败只置空并标记降级，不拖垮整页。
+
+    返回字段（对旧 /api/market/overview 只增不改，兼容 sentiment/sectors/updated）：
+      indices / global_indices / sentiment / sectors / emotion / turnover_top / updated / providers
+    前端市场总览页由 5 个实时请求合并为这 1 个，快照层（晨报/市场监控）仍独立。
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    from datetime import datetime
+
+    from dataservice import provider_health
+
+    def _safe(fn, fallback):
+        try:
+            return fn()
+        except Exception as e:  # noqa: BLE001
+            print(f"[overview-v2] 子数据源失败: {e}")
+            return fallback
+
+    tasks = {
+        "indices": (market.get_a_indices, []),
+        "global_indices": (market.get_global_indices, []),
+        "sentiment": (market.get_sentiment, None),
+        "sectors": (market.get_sectors, []),
+        "emotion": (market.get_short_term_emotion, None),
+        "turnover_top": (market.get_turnover_top, None),
+    }
+
+    result: dict = {}
+    with ThreadPoolExecutor(max_workers=len(tasks)) as ex:
+        futures = {k: ex.submit(_safe, fn, fb) for k, (fn, fb) in tasks.items()}
+        for k, fut in futures.items():
+            result[k] = fut.result()
+
+    result["updated"] = datetime.now(market.BEIJING).strftime("%Y-%m-%d %H:%M")
+    result["providers"] = provider_health()
+    return {"data": result}
 
 
 @app.get("/api/market/emotion")
@@ -495,21 +579,23 @@ def global_stock(symbol: str = Query(..., min_length=1, max_length=16)):
 
 @app.get("/api/indices")
 def indices():
-    """A股大盘指数实时行情（上证/深证成指/创业板指/沪深300）。仅标准库。"""
+    """A股大盘指数实时行情（上证/深证成指/创业板指/沪深300）。仅标准库，短 TTL 缓存。"""
     try:
-        return {"data": astock.index_quote()}
+        return {"data": market.get_a_indices()}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"指数行情异常：{e}") from e
 
 
 @app.get("/api/quote")
 def quote(codes: str = Query(..., description="逗号分隔的 6 位代码")):
-    """实时行情：现价/涨跌/PE/PB/市值/换手/涨跌停。仅标准库，永远可用。"""
-    lst = [c.strip() for c in codes.split(",") if c.strip()]
+    """实时行情：现价/涨跌/PE/PB/市值/换手/涨跌停。仅标准库，永远可用。短 TTL 缓存 + 请求合并。"""
+    # 排序去重：让 "600519,000858" 与 "000858,600519" 命中同一缓存，且多标签页/轮询共享
+    lst = sorted({c.strip() for c in codes.split(",") if c.strip()})
     if not lst or any(not c.isdigit() or len(c) != 6 for c in lst):
         raise HTTPException(400, "codes 必须是逗号分隔的 6 位数字")
     try:
-        return {"data": astock.tencent_quote(lst)}
+        data = _ds_get("quote:" + ",".join(lst), TTL["live"], lambda: astock.tencent_quote(lst), valid=bool, provider="tencent")
+        return {"data": data}
     except Exception as e:  # noqa: BLE001 — 边界统一兜底
         raise HTTPException(502, f"行情源异常：{e}") from e
 
@@ -535,6 +621,44 @@ def valuation_percentile(code: str = Query(...)):
         raise HTTPException(502, f"估值分位异常：{e}") from e
 
 
+_SPOT_CACHE: dict = {}
+
+
+@app.get("/api/sina-spot")
+def sina_spot(codes: str = Query(...)):
+    """新浪实时行情（nf_ 国内期货主力连续 / hf_ 国际商品原油）：现价/昨收/涨跌。缓存 20 秒。"""
+    lst = [c.strip() for c in codes.split(",") if c.strip()]
+    if not lst:
+        raise HTTPException(400, "codes 为空")
+    key = ",".join(lst)
+    hit = _SPOT_CACHE.get(key)
+    if hit and _time.time() - hit[0] < 20:
+        return {"data": hit[1]}
+    try:
+        data = astock.sina_spot(lst)
+        _SPOT_CACHE[key] = (_time.time(), data)
+        return {"data": data}
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"新浪实时行情异常：{e}") from e
+
+
+_GOLD_CACHE: dict = {}
+
+
+@app.get("/api/gold-spot")
+def gold_spot():
+    """伦敦金现货（XAU/USD）实时价：新浪 hf_XAU，代理给前端。缓存 30 秒。"""
+    hit = _GOLD_CACHE.get("xau")
+    if hit and _time.time() - hit[0] < 30:
+        return {"data": hit[1]}
+    try:
+        data = astock.gold_spot()
+        _GOLD_CACHE["xau"] = (_time.time(), data)
+        return {"data": data}
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"黄金现货源异常：{e}") from e
+
+
 _ANN_CACHE: dict = {}
 
 
@@ -551,6 +675,55 @@ def announcements(code: str = Query(...)):
         return {"data": data}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"公告源异常：{e}") from e
+
+
+class HalfYearReportReq(BaseModel):
+    codes: list[str] = []
+    days: int = 1
+    names: dict[str, str] = {}
+
+
+_EMPTY_HYR = {
+    "window_days": 0, "scanned": 0, "published": 0, "covered": 0,
+    "scan_complete": True, "requested_codes": 0, "scanned_batches": 0,
+    "announcement_requests": 0, "announcement_rows": 0, "fetched_at": "",
+    "groups": {"big_beat": [], "meet": [], "pending": []},
+}
+
+_HYR_CACHE: dict = {}
+
+
+@app.post("/api/half-year-report")
+def half_year_report(req: HalfYearReportReq):
+    """自选股池中近 N 天内发布半年报的公司聚合报告。
+
+    东财公告批量分页筛半年报 + 同花顺 F10 财务摘要取实际净利和同比，
+    再读取同花顺盈利预测计算半年完成度。
+
+    请求体：{ codes: ["600519", ...], days: 1, names?: {code: 中文名} }
+    缓存：30 分钟（key = (frozenset(codes), days)，同一批股票复用结果）
+    """
+    codes = [c for c in (req.codes or []) if re.fullmatch(r"\d{6}", c)]
+    days = max(1, min(int(req.days or 1), 30))
+    if not codes:
+        return {"data": {**_EMPTY_HYR, "window_days": days, "fetched_at": _time.strftime("%Y-%m-%dT%H:%M:%S")}}
+
+    key = (frozenset(codes), days)
+    hit = _HYR_CACHE.get(key)
+    if hit and _time.time() - hit[0] < 1800:
+        return {"data": hit[1]}
+
+    try:
+        rep = astock.half_year_report(codes, window_days=days)
+        # 把 names 合并进结果（前端传过来的自选股名称）
+        nmap = req.names or {}
+        for g in rep["groups"].values():
+            for row in g:
+                row["name"] = nmap.get(row["code"], "")
+        _HYR_CACHE[key] = (_time.time(), rep)
+        return {"data": rep}
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"半年报聚合异常：{e}") from e
 
 
 _FIN_CACHE: dict = {}
@@ -608,6 +781,18 @@ def news(code: str = Query(...), limit: int = Query(20, ge=1, le=50)):
         raise HTTPException(501, str(e)) from e
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"新闻源异常：{e}") from e
+
+
+@app.get("/api/macro-brief")
+def macro_brief(force: bool = Query(False)):
+    """宏观速览 + 重大要闻（自动采集：akshare 中国宏观 + 财联社/东财当天要闻）。
+
+    AI 当日复盘数据源，替代静态快照。30 分钟缓存。
+    """
+    try:
+        return {"data": macro_brief_mod.get_macro_brief(force=force)}
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"宏观速览采集异常：{e}") from e
 
 
 @app.get("/api/info")
@@ -791,6 +976,10 @@ def _kline_yahoo(symbol: str, period: str, offset: int):
             "source": "yahoo",
             "currency": meta.get("currency"),
             "unit": unit,
+            # 兜底实时值：Yahoo 部分品种（如 DX-Y.NYB 美元指数）日 K 偶发只有 1 根 bar，
+            # 用 meta 实时价/昨收补，前端在 bars<2 时优先用 latest 而非回退晨报快照
+            "latest": meta.get("regularMarketPrice"),
+            "prev_close": meta.get("chartPreviousClose"),
         }
     except HTTPException:
         raise

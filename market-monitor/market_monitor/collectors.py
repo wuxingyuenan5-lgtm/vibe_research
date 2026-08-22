@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import os
+import math
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
-from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +23,10 @@ EM_KLINE_URL = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
 EM_UT = "fa5fd1943c7b386f172d6893dbfba10b"
 INNOVATION_EM_SECID = "90.BK1106"
 TENCENT_QUOTE_URL = "https://qt.gtimg.cn/q={code}"
+EM_LIMIT_POOL_URL = "https://push2ex.eastmoney.com/{endpoint}"
+EM_LIMIT_POOL_UT = "7eea3edcaed734bea9cbfc24409ed989"
+SWS_ANALYSIS_URL = "https://www.swsresearch.com/institute-sw/api/index_analysis/index_analysis_report/"
+SWS_ANALYSIS_REFERER = "https://www.swsresearch.com/institute_sw/allIndex/analysisIndex"
 
 
 def _fetch_tencent_index(secid: str) -> dict[str, float | None] | None:
@@ -112,25 +116,82 @@ def fetch_a_share_spot() -> pd.DataFrame:
     return _normalize_a_share_spot(raw, "AKShare stock_zh_a_spot / 新浪")
 
 
-def _limit_rate(code: str) -> Decimal:
-    if code.startswith(("4", "8", "9")):
-        return Decimal("0.30")
-    if code.startswith(("300", "301", "688", "689")):
-        return Decimal("0.20")
-    return Decimal("0.10")
+def fetch_limit_pools(target_date: str) -> tuple[int, int, list[dict[str, object]]]:
+    """读取东方财富官方涨停池/跌停池，并返回数量与可归档明细。"""
+    compact = target_date.replace("-", "")
+    definitions = (
+        ("limit_up", "getTopicZTPool", "fbt:asc"),
+        ("limit_down", "getTopicDTPool", "fund:asc"),
+    )
+    details: list[dict[str, object]] = []
+    counts: dict[str, int] = {}
+
+    for direction, endpoint, sort in definitions:
+        params = {
+            "ut": EM_LIMIT_POOL_UT,
+            "dpt": "wz.ztzt",
+            "Pageindex": "0",
+            "pagesize": "10000",
+            "sort": sort,
+            "date": compact,
+        }
+
+        def request() -> dict:
+            session = requests.Session()
+            session.trust_env = False
+            response = session.get(
+                EM_LIMIT_POOL_URL.format(endpoint=endpoint),
+                params=params,
+                headers={"User-Agent": UA, "Referer": "https://quote.eastmoney.com/"},
+                timeout=(4, 12),
+            )
+            response.raise_for_status()
+            data = response.json().get("data") or {}
+            if str(data.get("qdate") or "") != compact:
+                raise RuntimeError(f"Eastmoney {direction} pool date mismatch: {data.get('qdate')}")
+            return data
+
+        data = retry(request, attempts=3, delay=1.0)
+        pool = data.get("pool") or []
+        count = int(data.get("tc") or 0)
+        if count != len(pool):
+            raise RuntimeError(f"Eastmoney {direction} pool incomplete: tc={count}, rows={len(pool)}")
+        counts[direction] = count
+        for row in pool:
+            price = _as_number(row.get("p"))
+            pct = _as_number(row.get("zdp"))
+            amount = _as_number(row.get("amount"))
+            turnover = _as_number(row.get("hs"))
+            details.append({
+                "date": target_date,
+                "direction": direction,
+                "stock_code": str(row.get("c") or "").zfill(6),
+                "stock_name": str(row.get("n") or ""),
+                "close": price / 1000 if price is not None else None,
+                "return": pct / 100 if pct is not None else None,
+                "amount_100m": amount / 1e8 if amount is not None else None,
+                "turnover": turnover / 100 if turnover is not None else None,
+                "industry": str(row.get("hybk") or ""),
+                "source": "东方财富涨跌停池直接接口",
+            })
+    return counts["limit_up"], counts["limit_down"], details
 
 
-def infer_limit_counts(frame: pd.DataFrame) -> tuple[int, int]:
-    up = down = 0
-    for row in frame.itertuples(index=False):
-        prev = Decimal(str(row.prev_close)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        close = Decimal(str(row.close)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        rate = _limit_rate(str(row.stock_code))
-        upper = (prev * (1 + rate)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        lower = (prev * (1 - rate)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        up += int(close == upper)
-        down += int(close == lower)
-    return up, down
+def update_limit_pool_history(path: Path, target_date: str, rows: list[dict[str, object]]) -> pd.DataFrame:
+    ensure_dir(path.parent)
+    fresh = pd.DataFrame(rows)
+    existing = pd.read_csv(path, encoding="utf-8-sig") if path.exists() else pd.DataFrame()
+    if not existing.empty:
+        existing = existing[existing["date"].astype(str) != target_date]
+    combined = pd.concat([existing, fresh], ignore_index=True, sort=False)
+    if not combined.empty:
+        combined["stock_code"] = combined["stock_code"].astype(str).str.zfill(6)
+        combined = combined.drop_duplicates(["date", "direction", "stock_code"], keep="last")
+        combined = combined.sort_values(
+            ["date", "direction", "amount_100m"], ascending=[True, True, False]
+        )
+    combined.to_csv(path, index=False, encoding="utf-8-sig", float_format="%.10f")
+    return combined
 
 
 def _em_curl_json(url: str, params: dict[str, str]) -> dict:
@@ -243,19 +304,70 @@ def fetch_indices(target_date: str, definitions: list[dict[str, str]]) -> list[d
 
 
 def fetch_sw_analysis(target_date: str) -> pd.DataFrame:
-    """Optional Shenwan module. Its failure never blocks the core market payload."""
+    """申万官网日度分析直连；补齐 AKShare 缺少 Referer/超时导致的 508 问题。"""
     target = datetime.strptime(target_date, "%Y-%m-%d")
     start = (target - timedelta(days=10)).strftime("%Y%m%d")
     end = target.strftime("%Y%m%d")
-    try:
-        frame = retry(
-            lambda: ak.index_analysis_daily_sw(symbol="二级行业", start_date=start, end_date=end),
-            attempts=2,
-            delay=2.0,
-        ).copy()
-        return pd.DataFrame() if frame is None else frame
-    except Exception:
-        return pd.DataFrame()
+    start_iso = f"{start[:4]}-{start[4:6]}-{start[6:]}"
+    end_iso = f"{end[:4]}-{end[4:6]}-{end[6:]}"
+    base = {
+        "page_size": "50",
+        "index_type": "二级行业",
+        "start_date": start_iso,
+        "end_date": end_iso,
+        "type": "DAY",
+        "swindexcode": "all",
+    }
+
+    def request_page(page: int) -> tuple[int, list[dict]]:
+        session = requests.Session()
+        session.trust_env = False
+        response = session.get(
+            SWS_ANALYSIS_URL,
+            params={**base, "page": str(page)},
+            headers={"User-Agent": UA, "Referer": SWS_ANALYSIS_REFERER},
+            timeout=(4, 15),
+            verify=False,  # 申万证书链在部分 Python/GitHub 环境不完整；仅公开只读数据。
+        )
+        response.raise_for_status()
+        data = response.json().get("data") or {}
+        return int(data.get("count") or 0), list(data.get("results") or [])
+
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    total, first = retry(lambda: request_page(1), attempts=3, delay=1.0)
+    rows = list(first)
+    for page in range(2, math.ceil(total / 50) + 1):
+        _, page_rows = retry(lambda page=page: request_page(page), attempts=3, delay=1.0)
+        rows.extend(page_rows)
+    if len(rows) != total:
+        raise RuntimeError(f"SWS analysis pagination incomplete: {len(rows)}/{total}")
+    frame = pd.DataFrame(rows).rename(columns={
+        "swindexcode": "指数代码",
+        "swindexname": "指数名称",
+        "bargaindate": "发布日期",
+        "closeindex": "收盘指数",
+        "bargainamount": "成交量",
+        "markup": "涨跌幅",
+        "turnoverrate": "换手率",
+        "pe": "市盈率",
+        "pb": "市净率",
+        "meanprice": "均价",
+        "bargainsumrate": "成交额占比",
+        "negotiablessharesum1": "流通市值",
+        "negotiablessharesum2": "平均流通市值",
+        "dp": "股息率",
+    })
+    if frame.empty:
+        return frame
+    frame["发布日期"] = pd.to_datetime(frame["发布日期"], errors="coerce").dt.strftime("%Y-%m-%d")
+    numeric = [
+        "收盘指数", "成交量", "涨跌幅", "换手率", "市盈率", "市净率", "均价",
+        "成交额占比", "流通市值", "平均流通市值", "股息率",
+    ]
+    for column in numeric:
+        frame[column] = pd.to_numeric(frame[column], errors="coerce")
+    return frame.sort_values(["发布日期", "指数代码"]).reset_index(drop=True)
 
 
 def _innovation_em_frame(beg: str, end: str) -> pd.DataFrame:
@@ -292,29 +404,6 @@ def fetch_innovation_current_em(target_date: str) -> dict[str, object] | None:
     }
 
 
-def fetch_innovation_current_ths(target_date: str) -> dict[str, object] | None:
-    try:
-        frame = retry(lambda: ak.stock_board_concept_info_ths(symbol="创新药"), attempts=2, delay=1.0)
-    except Exception:
-        return None
-    if frame is None or frame.empty or not {"项目", "值"}.issubset(frame.columns):
-        return None
-    values = {str(row["项目"]).strip(): row["值"] for _, row in frame.iterrows()}
-    amount_raw = values.get("成交额(亿)")
-    return_raw = values.get("板块涨幅")
-    amount = _as_number(str(amount_raw).replace("亿", "")) if amount_raw is not None else None
-    ret = _as_number(str(return_raw).replace("%", "")) if return_raw is not None else None
-    if amount is None and ret is None:
-        return None
-    return {
-        "date": target_date,
-        "amount_100m": amount,
-        "turnover": None,
-        "return": ret / 100 if ret is not None else None,
-        "source": "同花顺 stock_board_concept_info_ths",
-    }
-
-
 def update_innovation_history(target_date: str, history_path: Path, history_start: str) -> pd.DataFrame:
     """Eastmoney BK1106 history with hard HTTP timeouts and direct turnover."""
     ensure_dir(history_path.parent)
@@ -342,44 +431,36 @@ def update_innovation_history(target_date: str, history_path: Path, history_star
     return combined
 
 
-def update_innovation_history_ths(target_date: str, history_path: Path, history_start: str) -> pd.DataFrame:
-    """Separate THS fallback history; never mixed into the Eastmoney cache."""
-    ensure_dir(history_path.parent)
-    existing = pd.DataFrame()
-    if history_path.exists():
-        existing = pd.read_csv(history_path, encoding="utf-8-sig")
-        existing["日期"] = pd.to_datetime(existing["日期"], errors="coerce")
-        last_date = existing["日期"].max()
-        start = (last_date - pd.Timedelta(days=7)).strftime("%Y%m%d")
-    else:
-        start = history_start.replace("-", "")
-    try:
-        fresh = retry(
-            lambda: ak.stock_board_concept_index_ths(
-                symbol="创新药",
-                start_date=start,
-                end_date=target_date.replace("-", ""),
-            ),
-            attempts=2,
-            delay=1.0,
-        ).copy()
-    except Exception:
-        return existing
-    if fresh.empty or not {"日期", "收盘价", "成交量", "成交额"}.issubset(fresh.columns):
-        return existing
-    fresh["日期"] = pd.to_datetime(fresh["日期"], errors="coerce")
-    for column in ("收盘价", "成交量", "成交额"):
-        fresh[column] = pd.to_numeric(fresh[column], errors="coerce")
-    fresh["日收益率"] = fresh["收盘价"].pct_change(fill_method=None)
-    fresh["换手率"] = None
-    fresh["数据源"] = "同花顺概念指数历史"
-    fresh = fresh.dropna(subset=["日期", "收盘价", "成交量", "成交额"]).sort_values("日期")
-    combined = pd.concat([existing, fresh], ignore_index=True, sort=False) if not existing.empty else fresh
+def upsert_innovation_direct_quote(history_path: Path, quote: dict[str, object]) -> pd.DataFrame:
+    """把东财 BK1106 直接报价写入历史；同日旧估算值会被直接值覆盖。"""
+    required = ("date", "close", "volume", "amount_100m", "turnover", "return", "source")
+    missing = [field for field in required if quote.get(field) is None]
+    if missing:
+        raise RuntimeError(f"innovation direct quote missing fields: {missing}")
+    if "东方财富创新药BK1106" not in str(quote.get("source") or ""):
+        raise RuntimeError("innovation quote is not direct Eastmoney BK1106 data")
+
+    existing = pd.read_csv(history_path, encoding="utf-8-sig") if history_path.exists() else pd.DataFrame()
+    if not existing.empty:
+        existing = existing[existing["日期"].astype(str).str[:10] != str(quote["date"])]
+    fresh = pd.DataFrame([{
+        "日期": quote["date"],
+        "收盘价": quote["close"],
+        "成交量": quote["volume"],
+        "成交额": float(quote["amount_100m"]) * 1e8,
+        "日收益率": quote["return"],
+        "换手率": quote["turnover"],
+        "数据源": quote["source"],
+        "20日成交量活跃度代理": None,
+    }])
+    combined = pd.concat([existing, fresh], ignore_index=True, sort=False)
     combined["日期"] = pd.to_datetime(combined["日期"], errors="coerce")
     combined = combined.dropna(subset=["日期"]).drop_duplicates("日期", keep="last").sort_values("日期")
-    combined["20日成交量活跃度代理"] = combined["成交量"] / combined["成交量"].rolling(20, min_periods=1).mean()
+    volume = pd.to_numeric(combined.get("成交量"), errors="coerce")
+    combined["20日成交量活跃度代理"] = volume / volume.rolling(20, min_periods=1).mean()
     exported = combined.copy()
     exported["日期"] = exported["日期"].dt.strftime("%Y-%m-%d")
+    ensure_dir(history_path.parent)
     exported.to_csv(history_path, index=False, encoding="utf-8-sig", float_format="%.10f")
     return combined
 

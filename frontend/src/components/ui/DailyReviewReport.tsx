@@ -17,6 +17,10 @@ export interface ReviewPayload {
     priority_card?: { label?: string; title?: string; note?: string };
     priorities?: { head: string; text: string }[];
   };
+  assets_review?: {
+    kicker?: string;
+    items?: { asset?: string; move?: string; meaning?: string }[];
+  };
   china_market?: {
     title?: string; kicker?: string; priority?: string; warning?: string;
     switch?: { label?: string; metric?: string; cls?: string; note?: string }[];
@@ -37,6 +41,7 @@ const upDown = (cls?: string) =>
 export function DailyReviewReport({ p }: { p: ReviewPayload }) {
   const m = p.report_meta;
   const s = p.summary;
+  const ar = p.assets_review;
   const cm = p.china_market;
   const ml = p.mainlines;
   const tv = p.today_validation;
@@ -98,6 +103,23 @@ export function DailyReviewReport({ p }: { p: ReviewPayload }) {
                   <div className="priority" key={i}><b>{p2.head}</b>{p2.text}</div>
                 ))}
               </div>
+            </div>
+          </section>
+        )}
+
+        {ar && ar.items && ar.items.length > 0 && (
+          <section>
+            <div className="section-head"><h2>大类资产走势与主流解释</h2>{ar.kicker && <span className="kicker">{ar.kicker}</span>}</div>
+            <div className="space-y-3">
+              {ar.items.map((a, i) => (
+                <div key={i} className="border-l-2 border-primary/40 pl-4 py-0.5">
+                  <div className="flex items-baseline gap-3 flex-wrap">
+                    <h3 className="!mb-0">{a.asset}</h3>
+                    <span className="font-mono text-[15px] font-semibold text-foreground">{a.move}</span>
+                  </div>
+                  {a.meaning && <div className="mt-0.5 text-sm leading-relaxed text-foreground/90">{a.meaning}</div>}
+                </div>
+              ))}
             </div>
           </section>
         )}
@@ -168,7 +190,7 @@ export function DailyReviewReport({ p }: { p: ReviewPayload }) {
                     {(item.paras || []).map((pp, j) => <p key={j}>{pp}</p>)}
                   </div>
                   <div className="evidence">
-                    {item.evidence && (<><b>分歧与反方证据</b>{item.evidence}<br /><br /></>)}
+                    {item.evidence && (<><b>证据与分歧</b>{item.evidence}<br /><br /></>)}
                     {item.validation && (<><b>明日继续验证</b>{item.validation}</>)}
                   </div>
                 </div>

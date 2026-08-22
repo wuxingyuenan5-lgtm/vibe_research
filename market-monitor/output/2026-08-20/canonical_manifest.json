@@ -1,0 +1,193 @@
+{
+  "schema_version": "2.0",
+  "target_date": "2026-08-20",
+  "validation_status": "PASS",
+  "failures": [],
+  "warnings": [],
+  "normalization": {
+    "market_core": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 152,
+      "after_rows": 152
+    },
+    "indices_history": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 27,
+      "after_rows": 27
+    },
+    "hot_stocks": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 282,
+      "after_rows": 282
+    },
+    "innovation": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 152,
+      "after_rows": 152
+    },
+    "sw_crowding": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 19912,
+      "after_rows": 19912
+    },
+    "sw_industry_history": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 42117,
+      "after_rows": 42117
+    }
+  },
+  "tables": {
+    "market_core": {
+      "before": {
+        "row_count": 151,
+        "unique_key_count": 151,
+        "latest_date": "2026-08-19",
+        "duplicate_key_count": 0,
+        "sha256": "6b8c630482a73648ce39a39995fb984c943d89285025be59a89837c8e7c3b479"
+      },
+      "after": {
+        "row_count": 152,
+        "unique_key_count": 152,
+        "latest_date": "2026-08-20",
+        "duplicate_key_count": 0,
+        "sha256": "1fd4c8edf563c54dbd75288e628e5c7beb16540ce925806218acfa03b6ee6608"
+      },
+      "modified_historical_dates": [],
+      "target_date_changed_keys": 1,
+      "normalization": {
+        "removed_identical_rows": 0,
+        "conflicting_duplicate_keys": [],
+        "before_rows": 152,
+        "after_rows": 152
+      }
+    },
+    "indices_history": {
+      "before": {
+        "row_count": 24,
+        "unique_key_count": 24,
+        "latest_date": "2026-08-19",
+        "duplicate_key_count": 0,
+        "sha256": "cdda1508572510af39d387e1654aa05935f8c848744123cafbff9a0a89f90975"
+      },
+      "after": {
+        "row_count": 27,
+        "unique_key_count": 27,
+        "latest_date": "2026-08-20",
+        "duplicate_key_count": 0,
+        "sha256": "cf4c3f26f06bd0d0d7aec7d171734c9734eab04f621325cfbc12fe84f0175c39"
+      },
+      "modified_historical_dates": [],
+      "target_date_changed_keys": 3,
+      "normalization": {
+        "removed_identical_rows": 0,
+        "conflicting_duplicate_keys": [],
+        "before_rows": 27,
+        "after_rows": 27
+      }
+    },
+    "hot_stocks": {
+      "before": {
+        "row_count": 270,
+        "unique_key_count": 270,
+        "latest_date": "2026-08-19",
+        "duplicate_key_count": 0,
+        "sha256": "3d492446bfd8e2c2e86fd5296d3384bb57b17ca0c90a56c7305a8df150b282d5"
+      },
+      "after": {
+        "row_count": 282,
+        "unique_key_count": 282,
+        "latest_date": "2026-08-20",
+        "duplicate_key_count": 0,
+        "sha256": "c6e2501a00c3b167ccc3d7b53c4ba1e5a70bac6ff5bd458e2dc77f564b93fa21"
+      },
+      "modified_historical_dates": [],
+      "target_date_changed_keys": 12,
+      "normalization": {
+        "removed_identical_rows": 0,
+        "conflicting_duplicate_keys": [],
+        "before_rows": 282,
+        "after_rows": 282
+      }
+    },
+    "innovation": {
+      "before": {
+        "row_count": 152,
+        "unique_key_count": 152,
+        "latest_date": "2026-08-19",
+        "duplicate_key_count": 0,
+        "sha256": "57fe0c4b478844ae1d1d6c6ad875f998094a69af096a43886e27dd9e71c0a19f"
+      },
+      "after": {
+        "row_count": 152,
+        "unique_key_count": 152,
+        "latest_date": "2026-08-19",
+        "duplicate_key_count": 0,
+        "sha256": "57fe0c4b478844ae1d1d6c6ad875f998094a69af096a43886e27dd9e71c0a19f"
+      },
+      "modified_historical_dates": [],
+      "target_date_changed_keys": 0,
+      "normalization": {
+        "removed_identical_rows": 0,
+        "conflicting_duplicate_keys": [],
+        "before_rows": 152,
+        "after_rows": 152
+      }
+    },
+    "sw_crowding": {
+      "before": {
+        "row_count": 19781,
+        "unique_key_count": 19781,
+        "latest_date": "2026-08-18",
+        "duplicate_key_count": 0,
+        "sha256": "bfe9a61178be3ef1338f91f0b3c59bf70d1dd39934eb4ce13e7c8b88147808b7"
+      },
+      "after": {
+        "row_count": 19912,
+        "unique_key_count": 19912,
+        "latest_date": "2026-08-19",
+        "duplicate_key_count": 0,
+        "sha256": "d1dab66ad03741ded18f23231f496213c01222f01333ae1331f7d44db8456181"
+      },
+      "modified_historical_dates": [
+        "2026-08-19"
+      ],
+      "target_date_changed_keys": 0,
+      "normalization": {
+        "removed_identical_rows": 0,
+        "conflicting_duplicate_keys": [],
+        "before_rows": 19912,
+        "after_rows": 19912
+      }
+    },
+    "sw_industry_history": {
+      "before": {
+        "row_count": 41962,
+        "unique_key_count": 41962,
+        "latest_date": "2026-08-19",
+        "duplicate_key_count": 0,
+        "sha256": "59a701791f58c9d9ffd99649a308b93f830d2afcaa5b819b24493e61aef1190d"
+      },
+      "after": {
+        "row_count": 42117,
+        "unique_key_count": 42117,
+        "latest_date": "2026-08-20",
+        "duplicate_key_count": 0,
+        "sha256": "6e235f51d3159ee6bd1150c481691be31f0669fefcf1c52ecd3243c6d0ac65e6"
+      },
+      "modified_historical_dates": [],
+      "target_date_changed_keys": 155,
+      "normalization": {
+        "removed_identical_rows": 0,
+        "conflicting_duplicate_keys": [],
+        "before_rows": 42117,
+        "after_rows": 42117
+      }
+    }
+  }
+}

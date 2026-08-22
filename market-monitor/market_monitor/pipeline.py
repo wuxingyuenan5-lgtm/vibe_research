@@ -11,12 +11,11 @@ from .collectors import (
     fetch_a_share_spot,
     fetch_indices,
     fetch_innovation_current_em,
-    fetch_innovation_current_ths,
+    fetch_limit_pools,
     fetch_sw_analysis,
-    infer_limit_counts,
     update_innovation_history,
-    update_innovation_history_ths,
     update_market_history,
+    upsert_innovation_direct_quote,
 )
 from .common import ensure_dir, load_json, write_json
 from .sw_mapping import load_or_refresh_mapping
@@ -139,10 +138,20 @@ def _validation(
     add("hot_amount", abs(hot_amount - float(market["hot_amount_100m"])) < 0.05, "FAIL", f"{hot_amount:.4f} vs {market['hot_amount_100m']}")
     index_ok = all(item.get("close") is not None and item.get("date") == target_date for item in indices)
     add("indices", index_ok, "WARN", "; ".join(f"{x['name']}={x.get('status')}" for x in indices))
-    add("sw_targets", len(sw_targets) >= 4, "WARN", f"{len(sw_targets)} targets")
-    innovation_ok = innovation_latest is not None and innovation_latest.get("date") == target_date
-    add("innovation_current", innovation_ok, "WARN", str(innovation_latest.get("date") if innovation_latest else None))
-    add("innovation_turnover", innovation_latest is not None and innovation_latest.get("turnover") is not None, "WARN", str(innovation_latest.get("turnover") if innovation_latest else None))
+    sw_ok = len(sw_targets) == 4 and all(
+        row.get("date") == target_date
+        and row.get("amount_share_of_a") is not None
+        and row.get("turnover") is not None
+        for row in sw_targets.values()
+    )
+    add("sw_targets", sw_ok, "FAIL", f"{len(sw_targets)} targets; dates={[row.get('date') for row in sw_targets.values()]}")
+    innovation_ok = (
+        innovation_latest is not None
+        and innovation_latest.get("date") == target_date
+        and "东方财富创新药BK1106" in str(innovation_latest.get("source") or "")
+    )
+    add("innovation_current", innovation_ok, "FAIL", str(innovation_latest.get("date") if innovation_latest else None))
+    add("innovation_turnover", innovation_latest is not None and innovation_latest.get("turnover") is not None, "FAIL", str(innovation_latest.get("turnover") if innovation_latest else None))
     add("sw_mapping_cache", mapping_available, "WARN", "available" if mapping_available else "not initialized; weekly refresh required")
 
     failed = [c for c in checks if not c["ok"] and c["level"] == "FAIL"]
@@ -198,7 +207,10 @@ def run(
     spot = fetch_a_share_spot()
     timings["market_snapshot_s"] = round(time.perf_counter() - t0, 3)
     spot_source = str(spot["snapshot_source"].iloc[0]) if "snapshot_source" in spot.columns and not spot.empty else "unknown"
-    limit_up, limit_down = infer_limit_counts(spot)
+    snapshot_dates = sorted(set(spot.get("snapshot_date", pd.Series(dtype=str)).dropna().astype(str)))
+    if snapshot_dates != [target_date]:
+        raise RuntimeError(f"all-A snapshot date mismatch: expected={target_date}, actual={snapshot_dates}")
+    limit_up, limit_down, limit_pool = fetch_limit_pools(target_date)
     advance = int((spot["return"] > 0).sum())
     decline = int((spot["return"] < 0).sum())
     flat = int((spot["return"] == 0).sum())
@@ -231,6 +243,8 @@ def run(
         "hot_amount_100m": hot_amount,
         "hot_concentration": hot_amount / total_amount if total_amount else None,
         "market_breadth": (advance - decline) / (advance + decline) if advance + decline else None,
+        "snapshot_source": spot_source,
+        "limit_source": "东方财富涨跌停池直接接口",
     }
     market_history = update_market_history(paths.history_dir / "market_core.csv", market)
 
@@ -239,7 +253,7 @@ def run(
     timings["indices_s"] = round(time.perf_counter() - t0, 3)
 
     t0 = time.perf_counter()
-    # 拥挤度跟随生产流程母表（akshare 申万日度分析，T+1/T+2 发布）；不用实时源
+    # 拥挤度读取本次生产前刚刷新的申万官网日度分析缓存；只接受官网直接字段。
     sw_raw = fetch_sw_analysis(target_date)
     timings["sw_analysis_s"] = round(time.perf_counter() - t0, 3)
     sw_raw.to_csv(paths.output_dir / "sw_analysis_daily_second.csv", index=False, encoding="utf-8-sig")
@@ -248,23 +262,18 @@ def run(
 
     t0 = time.perf_counter()
     em_path = paths.history_dir / "innovation_drug_eastmoney.csv"
-    ths_path = paths.history_dir / "innovation_drug_ths.csv"
     innovation_history = update_innovation_history(target_date, em_path, config["history_start"])
-    history_mode = "eastmoney"
-    if innovation_history.empty:
-        innovation_history = update_innovation_history_ths(target_date, ths_path, config["history_start"])
-        history_mode = "ths" if not innovation_history.empty else "none"
+    history_mode = "eastmoney_direct_only"
+    innovation_current = fetch_innovation_current_em(target_date)
+    current_mode = "eastmoney_direct" if innovation_current is not None else "none"
+    if innovation_current is not None:
+        innovation_history = upsert_innovation_direct_quote(em_path, innovation_current)
     innovation_latest, innovation_history_latest_date = _prepare_innovation_history(
         innovation_history,
         market_history,
         target_date,
         paths.history_dir / "innovation_drug_enriched.csv",
     )
-    innovation_current = fetch_innovation_current_em(target_date)
-    current_mode = "eastmoney"
-    if innovation_current is None:
-        innovation_current = fetch_innovation_current_ths(target_date)
-        current_mode = "ths" if innovation_current is not None else "none"
     if innovation_current is not None:
         innovation_latest = {
             "date": target_date,
@@ -298,6 +307,7 @@ def run(
         "market": market,
         "indices": {item["name"]: item for item in indices},
         "hot_stocks": hot_records,
+        "limit_pool": limit_pool,
         "sw_crowding": {"date": sw_date, "targets": sw_targets, "combined": combined},
         "innovation_drug": innovation_latest,
         "rendering": {"table_order": "descending", "chart_time_order": "ascending"},
@@ -309,6 +319,7 @@ def run(
         "pipeline_version": "0.1.0",
         "sources": {
             "a_share_snapshot": spot_source,
+            "limit_pool": "东方财富 getTopicZTPool/getTopicDTPool 直接接口",
             "indices": {item["name"]: item.get("source") for item in indices},
             "sw_analysis": "AKShare index_analysis_daily_sw / 申万",
             "innovation_drug": {"history_mode": history_mode, "current_mode": current_mode},
@@ -319,7 +330,6 @@ def run(
             "sw_mapping_available": mapping_available,
             "market_history": str(paths.history_dir / "market_core.csv"),
             "innovation_history_eastmoney": str(em_path),
-            "innovation_history_ths": str(ths_path),
         },
         "timings_seconds": timings,
     }
@@ -328,6 +338,9 @@ def run(
     write_json(paths.output_dir / "validation.json", validation)
     write_json(paths.output_dir / "source_manifest.json", manifest)
     hot_frame.to_csv(paths.output_dir / "hot_stocks.csv", index=False, encoding="utf-8-sig", float_format="%.10f")
+    pd.DataFrame(limit_pool).to_csv(
+        paths.output_dir / "limit_pool.csv", index=False, encoding="utf-8-sig", float_format="%.10f"
+    )
     spot.to_csv(paths.output_dir / "all_a_snapshot.csv", index=False, encoding="utf-8-sig", float_format="%.10f")
     if validation["status"] == "FAIL":
         raise RuntimeError(f"validation failed: {validation}")

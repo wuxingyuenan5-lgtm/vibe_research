@@ -119,14 +119,20 @@ def validate_report(report: dict, html: str) -> dict[str, object]:
             if latest_market.get(field) is None:
                 failures.append(f"market_structure_latest_missing:{field}")
 
-    expected_hot = int((latest_market or {}).get("hot_count") or 0)
-    actual_hot = len(report.get("hot_stocks_latest") or [])
+    hot_latest = report.get("hot_stocks_latest") or []
+    hot_date = str((hot_latest[0] if hot_latest else {}).get("date") or "")
+    hot_market = next(
+        (row for row in market if str(row.get("date") or "") == hot_date),
+        None,
+    )
+    expected_hot = int((hot_market or {}).get("hot_count") or 0)
+    actual_hot = len(hot_latest)
     if actual_hot != expected_hot:
         failures.append("hot_detail_count_mismatch")
     if html.count('data-hot-row="1"') != actual_hot:
         failures.append("hot_html_row_count_mismatch")
 
-    matrix_sum = _matrix_target_sum(report.get("hot_stock_matrix") or {}, target)
+    matrix_sum = _matrix_target_sum(report.get("hot_stock_matrix") or {}, hot_date)
     if matrix_sum != expected_hot:
         failures.append("hot_matrix_count_mismatch")
 

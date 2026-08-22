@@ -1,0 +1,32 @@
+{
+  "date": "2026-08-19",
+  "pipeline_version": "0.1.0",
+  "sources": {
+    "a_share_snapshot": "AKShare stock_zh_a_spot / 新浪",
+    "indices": {
+      "上证50": "东方财富轻量指数报价 / api/qt/stock/get",
+      "中证2000": "东方财富轻量指数报价 / api/qt/stock/get",
+      "中证全指": "东方财富轻量指数报价 / api/qt/stock/get"
+    },
+    "sw_analysis": "AKShare index_analysis_daily_sw / 申万",
+    "innovation_drug": {
+      "history_mode": "eastmoney",
+      "current_mode": "eastmoney"
+    },
+    "sw_mapping": "AKShare sw_index_second_info + index_component_sw"
+  },
+  "cache": {
+    "sw_mapping_refreshed": false,
+    "sw_mapping_available": true,
+    "market_history": "/Users/zhangxu/Desktop/codex/Vibe-Research/market-monitor/output/2026-08-19/.canonical_stage/data/history/market_core.csv",
+    "innovation_history_eastmoney": "/Users/zhangxu/Desktop/codex/Vibe-Research/market-monitor/output/2026-08-19/.canonical_stage/data/history/innovation_drug_eastmoney.csv",
+    "innovation_history_ths": "/Users/zhangxu/Desktop/codex/Vibe-Research/market-monitor/output/2026-08-19/.canonical_stage/data/history/innovation_drug_ths.csv"
+  },
+  "timings_seconds": {
+    "market_snapshot_s": 31.418,
+    "indices_s": 0.156,
+    "sw_analysis_s": 0.013,
+    "innovation_drug_s": 0.499,
+    "total_s": 32.207
+  }
+}

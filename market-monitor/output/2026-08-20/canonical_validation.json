@@ -1,0 +1,135 @@
+{
+  "schema_version": "2.0",
+  "target_date": "2026-08-20",
+  "status": "PASS",
+  "failures": [],
+  "warnings": [],
+  "tables": {
+    "market_core": {
+      "row_count": 152,
+      "unique_key_count": 152,
+      "latest_date": "2026-08-20",
+      "duplicate_key_count": 0,
+      "sha256": "1fd4c8edf563c54dbd75288e628e5c7beb16540ce925806218acfa03b6ee6608",
+      "modified_historical_dates": [],
+      "target_date_changed_keys": 1,
+      "deleted_keys": 0,
+      "added_keys": 1,
+      "previous_row_count": 151,
+      "previous_unique_key_count": 151
+    },
+    "indices_history": {
+      "row_count": 27,
+      "unique_key_count": 27,
+      "latest_date": "2026-08-20",
+      "duplicate_key_count": 0,
+      "sha256": "cf4c3f26f06bd0d0d7aec7d171734c9734eab04f621325cfbc12fe84f0175c39",
+      "modified_historical_dates": [],
+      "target_date_changed_keys": 3,
+      "deleted_keys": 0,
+      "added_keys": 3,
+      "previous_row_count": 24,
+      "previous_unique_key_count": 24
+    },
+    "hot_stocks": {
+      "row_count": 282,
+      "unique_key_count": 282,
+      "latest_date": "2026-08-20",
+      "duplicate_key_count": 0,
+      "sha256": "c6e2501a00c3b167ccc3d7b53c4ba1e5a70bac6ff5bd458e2dc77f564b93fa21",
+      "modified_historical_dates": [],
+      "target_date_changed_keys": 12,
+      "deleted_keys": 0,
+      "added_keys": 12,
+      "previous_row_count": 270,
+      "previous_unique_key_count": 270
+    },
+    "innovation": {
+      "row_count": 152,
+      "unique_key_count": 152,
+      "latest_date": "2026-08-19",
+      "duplicate_key_count": 0,
+      "sha256": "57fe0c4b478844ae1d1d6c6ad875f998094a69af096a43886e27dd9e71c0a19f",
+      "modified_historical_dates": [],
+      "target_date_changed_keys": 0,
+      "deleted_keys": 0,
+      "added_keys": 0,
+      "previous_row_count": 152,
+      "previous_unique_key_count": 152
+    },
+    "sw_crowding": {
+      "row_count": 19912,
+      "unique_key_count": 19912,
+      "latest_date": "2026-08-19",
+      "duplicate_key_count": 0,
+      "sha256": "d1dab66ad03741ded18f23231f496213c01222f01333ae1331f7d44db8456181",
+      "modified_historical_dates": [
+        "2026-08-19"
+      ],
+      "target_date_changed_keys": 0,
+      "deleted_keys": 0,
+      "added_keys": 131,
+      "previous_row_count": 19781,
+      "previous_unique_key_count": 19781
+    },
+    "sw_industry_history": {
+      "row_count": 42117,
+      "unique_key_count": 42117,
+      "latest_date": "2026-08-20",
+      "duplicate_key_count": 0,
+      "sha256": "6e235f51d3159ee6bd1150c481691be31f0669fefcf1c52ecd3243c6d0ac65e6",
+      "modified_historical_dates": [],
+      "target_date_changed_keys": 155,
+      "deleted_keys": 0,
+      "added_keys": 155,
+      "previous_row_count": 41962,
+      "previous_unique_key_count": 41962
+    }
+  },
+  "cross_checks": {
+    "market_rows_checked": 152
+  },
+  "normalization": {
+    "market_core": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 152,
+      "after_rows": 152
+    },
+    "indices_history": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 27,
+      "after_rows": 27
+    },
+    "hot_stocks": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 282,
+      "after_rows": 282
+    },
+    "innovation": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 152,
+      "after_rows": 152
+    },
+    "sw_crowding": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 19912,
+      "after_rows": 19912
+    },
+    "sw_industry_history": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 42117,
+      "after_rows": 42117
+    }
+  },
+  "source_refresh": {
+    "warnings": [],
+    "sw_crowding": "ok",
+    "sw_industry": "ok_fast"
+  }
+}

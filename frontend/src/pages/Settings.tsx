@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { KeyRound, Sparkles, ShieldCheck, Check, Trash2, Terminal } from "lucide-react";
+import { useEffect, useState } from "react";
+import { KeyRound, Sparkles, ShieldCheck, Check, Trash2, Terminal, Activity } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { toast } from "sonner";
@@ -22,6 +22,17 @@ export function Settings() {
   const [apiKey, setApiKey] = useState(existing && !existingIsCli ? existing.apiKey : "");
   // 后端访问密钥（对应部署时的 VR_API_KEY）；本机自用不设鉴权时留空
   const [accessKey, setAccessKey] = useState(loadAccessKey());
+
+  // 数据源健康状态（tencent / eastmoney / akshare 等）
+  const [providers, setProviders] = useState<Record<string, { ok: boolean; degraded?: boolean; latency_ms?: number; last_error?: string }>>({});
+  const [providersLoaded, setProvidersLoaded] = useState(false);
+  const refreshProviders = () => {
+    fetch("/api/health/providers")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b) => { setProviders(b?.data || {}); setProvidersLoaded(true); })
+      .catch(() => { setProviders({}); setProvidersLoaded(true); });
+  };
+  useEffect(() => { refreshProviders(); }, []);
 
   const providerOf = (id: string): ProviderId => aiModels.find((m) => m.id === id)?.provider ?? "openai-compatible";
 
@@ -199,6 +210,40 @@ export function Settings() {
             保存
           </button>
         </div>
+      </GlassCard>
+
+      {/* 数据源健康状态：各上游源当前可用性 / 耗时 / 降级情况 */}
+      <GlassCard className="mt-4">
+        <div className="flex items-center justify-between">
+          <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+            <Activity className="h-4 w-4 text-primary" /> 数据源健康状态
+          </h3>
+          <button onClick={refreshProviders} className="text-[11px] text-muted-foreground hover:text-primary">刷新</button>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          各上游数据源当前是否可用、耗时与降级情况。市场总览 / 自选股等页面依赖这些源；
+          「降级」表示主源失败、已切换备用源，数据仍可用。
+        </p>
+        {providersLoaded && Object.keys(providers).length === 0 ? (
+          <p className="mt-3 text-xs text-muted-foreground/60">暂无数据源状态（后端未响应，或还没有任何数据请求触发上游）。</p>
+        ) : (
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {Object.entries(providers).map(([name, p]) => (
+              <div key={name} className={`rounded-lg border px-3 py-2 ${p.ok ? "border-success/30 bg-success/5" : "border-warning/30 bg-warning/5"}`}>
+                <div className="flex items-center gap-1.5">
+                  <span className={`h-2 w-2 rounded-full ${p.ok ? "bg-success" : "bg-warning"}`} />
+                  <span className="font-medium">{name}</span>
+                  <span className={`ml-auto text-[10px] ${p.ok ? "text-success" : "text-warning"}`}>
+                    {p.ok ? "正常" : p.degraded ? "降级" : "异常"}
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {p.ok ? (p.latency_ms != null ? `耗时 ${p.latency_ms}ms` : "可用") : (p.last_error || "不可用")}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </GlassCard>
     </div>
   );

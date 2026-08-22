@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X, RefreshCw, CloudUpload, Plus } from "lucide-react";
 import { AskAiButton } from "@/components/ui/AskAiButton";
-import { loadWatch, saveWatch, addCodes } from "@/lib/watchlist";
+import { addCodes } from "@/lib/watchlist";
 import "./stock-pool.css";
 
 /* ============================================================
@@ -126,26 +126,23 @@ export function StockPool() {
   }, [data]);
   const [batchInput, setBatchInput] = useState("");
 
-  // —— 近期关注（独立自选：GitHub 真源 focus.json + localStorage 兜底；在行业筛选「近期关注」里增删查看）——
+  // —— 近期关注（独立自选：focus.json 唯一真源，同步 GitHub；在行业筛选「近期关注」里增删查看）——
   const [watchCodes, setWatchCodes] = useState<string[]>([]);
   const [focusInput, setFocusInput] = useState("");
-  // 从后端读关注列表（GitHub data/stock-pool/focus.json 真源）；后端不可用时回退 localStorage
+  // 从后端读关注列表（data/stock-pool/focus.json 唯一真源）；后端不可用时显示空，不再静默回退本地
   useEffect(() => {
     let alive = true;
     fetch("/api/stock-pool/focus")
       .then((r) => r.json())
       .then((b) => {
         const codes: string[] = b?.data?.codes || [];
-        if (!alive) return;
-        setWatchCodes(codes);
-        if (codes.length) saveWatch(codes);
+        if (alive) setWatchCodes(codes);
       })
-      .catch(() => { if (alive) setWatchCodes(loadWatch()); });
+      .catch((e) => { console.warn("[stock-pool] focus 读取失败:", e); if (alive) setWatchCodes([]); });
     return () => { alive = false; };
   }, []);
   const persistFocus = (codes: string[]) => {
-    saveWatch(codes); // 本地兜底
-    fetch("/api/stock-pool/focus", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codes }) }).catch(() => {});
+    fetch("/api/stock-pool/focus", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codes }) }).catch((e) => console.warn("[stock-pool] focus 保存失败:", e));
   };
   // 关注股行情：不在核心池里的代码也能显示明细数据（/api/quote 实时行情）
   const [watchQuotes, setWatchQuotes] = useState<Record<string, Record<string, number | string | null>>>({});
@@ -155,7 +152,7 @@ export function StockPool() {
     fetch(`/api/quote?codes=${watchCodes.join(",")}`)
       .then((r) => r.json())
       .then((b) => { if (alive) setWatchQuotes(b.data || {}); })
-      .catch(() => { if (alive) setWatchQuotes({}); });
+      .catch((e) => { console.warn("[stock-pool] watchQuotes 失败:", e); if (alive) setWatchQuotes({}); });
     return () => { alive = false; };
   }, [watchCodes]);
   const addFocus = () => {

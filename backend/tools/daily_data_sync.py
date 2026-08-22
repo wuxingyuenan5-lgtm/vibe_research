@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""每日数据同步：采集当日数据 → 更新后端 canonical → 提交推送 GitHub（多设备数据中枢）。
+"""本地市场数据诊断工具（正式生产只允许 GitHub Actions 执行）。
 
 流程：
 1. 核心股票池日更：python -m market_monitor.daily_refresh --date <today>
@@ -9,9 +9,9 @@
    （canonical 单一真源，后端 /api/market-monitor 读的正是 backend/data/market-monitor/）
 4. 删除后端 snapshot（backend/data/market-monitor/output/<date>/report_data.json）
    —— API 下次请求自动重建，保证数据即时生效
-5. git add backend/data/market-monitor + commit + push backup（vibe_research）
+5. 不提交、不推送；检查结果仅保留在本地工作区供排障。
 
-用法：python backend/tools/daily_data_sync.py [--date YYYY-MM-DD] [--skip-push]
+用法：python backend/tools/daily_data_sync.py --diagnostic-only [--date YYYY-MM-DD]
 """
 from __future__ import annotations
 
@@ -60,14 +60,38 @@ def sync_market_data() -> None:
     print("  ok: canonical 已同步到 backend/data/market-monitor/data", flush=True)
 
 
+def sync_morning_brief() -> None:
+    """晨报 payload（可选）：若根 market-monitor/morning-brief 存在则同步到后端。
+    由统一晨报生产链（unified_morning）输出；未输出时跳过，不影响其他步骤。"""
+    src = MARKET_MONITOR / "morning-brief"
+    dst = BACKEND_DATA / "morning-brief"
+    if not src.exists():
+        print("  skip: 无 market-monitor/morning-brief（晨报生产链未输出 payload）", flush=True)
+        return
+    dst.mkdir(parents=True, exist_ok=True)
+    if dst.exists():
+        shutil.rmtree(dst)
+    shutil.copytree(src, dst)
+    print("  ok: morning-brief 已同步到后端", flush=True)
+
+
 def clear_snapshot(target_date: str) -> None:
-    """删后端 snapshot，让 API 下次请求自动重建（保证新数据即时生效）。"""
-    snap = BACKEND_DATA / "output" / target_date / "report_data.json"
-    if snap.exists():
-        snap.unlink()
-        print(f"[4/5] 已删除旧 snapshot {snap}（API 将重建）", flush=True)
-    else:
-        print("[4/5] 无旧 snapshot，跳过", flush=True)
+    """清空后端 output 目录所有旧 snapshot，让 API 下次请求自动重建最新（保证新数据即时生效）。
+
+    只删 target_date 日期的快照删不干净——旧快照可能早于当天（历史遗留，如 8/18），
+    日期不匹配就永远留着，API 会一直读旧快照。故全清，API 从最新 history 现场重建。
+    """
+    out_root = BACKEND_DATA / "output"
+    removed = 0
+    if out_root.exists():
+        for snap in out_root.glob("*/report_data.json"):
+            snap.unlink()
+            removed += 1
+        # 顺手清理空快照目录（保留 stock-pool）
+        for d in out_root.iterdir():
+            if d.is_dir() and d.name != "stock-pool" and not any(d.iterdir()):
+                d.rmdir()
+    print(f"[4/5] 已清理 {removed} 个旧 snapshot（API 将自动重建最新）", flush=True)
 
 
 def git_push() -> None:
@@ -110,9 +134,13 @@ def git_push() -> None:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", default=datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d"))
-    ap.add_argument("--skip-push", action="store_true", help="只更新本地数据，不 push")
+    ap.add_argument("--diagnostic-only", action="store_true", help="确认这是本地诊断，不属于正式生产")
+    ap.add_argument("--skip-push", action="store_true", help="兼容旧命令；本工具现在始终不 push")
     ap.add_argument("--skip-collect", action="store_true", help="跳过采集（只同步+提交）")
     args = ap.parse_args()
+
+    if not args.diagnostic_only:
+        ap.error("正式生产只允许 GitHub Actions；本地排障请显式添加 --diagnostic-only")
 
     if not args.skip_collect:
         _run(
@@ -127,11 +155,9 @@ def main() -> None:
         )
 
     sync_market_data()
+    sync_morning_brief()
     clear_snapshot(args.date)
-    if not args.skip_push:
-        git_push()
-    else:
-        print("[5/5] --skip-push：未推送（本地数据已更新）", flush=True)
+    print("[5/5] 本地诊断完成：未 commit、未 push；正式数据等待 GitHub Actions 发布", flush=True)
 
 
 if __name__ == "__main__":

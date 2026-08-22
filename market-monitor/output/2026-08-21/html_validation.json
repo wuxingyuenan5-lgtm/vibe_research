@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.1",
+  "report_date": "2026-08-21",
+  "status": "WARN",
+  "failures": [],
+  "warnings": [
+    "quality_warning:indices_history",
+    "quality_warning:market_denominator",
+    "unresolved_index_history_gaps",
+    "unresolved_market_denominator_gaps"
+  ],
+  "checks": {
+    "latest_market_date": "2026-08-21",
+    "hot_detail_rows": 9,
+    "hot_expected": 9,
+    "hot_matrix_sum": 9,
+    "market_chart_latest_marker": true,
+    "offline_single_file": true,
+    "innovation_activity_proxy_absent": true,
+    "time_chart_count": 6,
+    "expected_time_charts": 6,
+    "hot_matrix_dates": [
+      "2026-08-21",
+      "2026-08-14",
+      "2026-08-06",
+      "2026-07-31"
+    ],
+    "hot_matrix_latest_date": "2026-08-21"
+  }
+}

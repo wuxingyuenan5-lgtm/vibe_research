@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+from math import ceil
+
 import akshare as ak
 import pandas as pd
 import requests
 
 from .common import retry
 
-EM_ALL_A_URL = "https://82.push2.eastmoney.com/api/qt/clist/get"
+EM_ALL_A_URL = "https://push2delay.eastmoney.com/api/qt/clist/get"
+EM_PAGE_SIZE = 100
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
 
 
@@ -43,23 +47,24 @@ def _normalize(raw: pd.DataFrame, source: str) -> pd.DataFrame:
 
 
 def _fetch_eastmoney_all_a() -> pd.DataFrame:
-    params = {
-        "pn": "1",
-        "pz": "20000",
+    base_params = {
+        "pz": str(EM_PAGE_SIZE),
         "po": "1",
         "np": "2",
         "ut": "bd1d9ddb04089700cf9c27f6f7426281",
         "fltt": "2",
         "invt": "2",
-        "fid": "f3",
+        "fid": "f6",
         "fs": "m:0 t:6,m:0 t:80,m:1 t:2,m:1 t:23,m:0 t:81 s:2048",
-        "fields": "f2,f3,f5,f6,f12,f14,f18",
+        "fields": "f2,f3,f5,f6,f12,f14,f18,f124",
     }
 
-    def request() -> dict:
-        response = requests.get(
+    def request_page(page: int) -> tuple[int, list[dict]]:
+        session = requests.Session()
+        session.trust_env = False
+        response = session.get(
             EM_ALL_A_URL,
-            params=params,
+            params={**base_params, "pn": str(page)},
             headers={"User-Agent": UA, "Referer": "https://quote.eastmoney.com/center/gridlist.html#hs_a_board"},
             timeout=(4, 8),
         )
@@ -68,11 +73,25 @@ def _fetch_eastmoney_all_a() -> pd.DataFrame:
         data = payload.get("data") or {}
         if not (data.get("diff") or []):
             raise RuntimeError("empty Eastmoney all-A snapshot")
-        return data
+        diff = data.get("diff") or []
+        rows = list(diff.values()) if isinstance(diff, dict) else list(diff)
+        return int(data.get("total") or len(rows)), rows
 
-    data = retry(request, attempts=2, delay=0.8)
-    raw = pd.DataFrame(data["diff"])
-    required = {"f2", "f3", "f5", "f6", "f12", "f14", "f18"}
+    total, first_page = retry(lambda: request_page(1), attempts=3, delay=0.8)
+    page_count = max(1, ceil(total / EM_PAGE_SIZE))
+    rows = list(first_page)
+    if page_count > 1:
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            def request_page_with_retry(page: int) -> tuple[int, list[dict]]:
+                return retry(lambda: request_page(page), attempts=3, delay=0.8)
+
+            for _, page_rows in executor.map(request_page_with_retry, range(2, page_count + 1)):
+                rows.extend(page_rows)
+    if len(rows) != total:
+        raise RuntimeError(f"Eastmoney all-A pagination incomplete: {len(rows)}/{total}")
+
+    raw = pd.DataFrame(rows)
+    required = {"f2", "f3", "f5", "f6", "f12", "f14", "f18", "f124"}
     if not required.issubset(raw.columns):
         raise RuntimeError(f"Eastmoney all-A fields changed: {list(raw.columns)}")
     normalized = pd.DataFrame({
@@ -83,10 +102,20 @@ def _fetch_eastmoney_all_a() -> pd.DataFrame:
         "成交额": raw["f6"],
         "成交量": raw["f5"],
         "涨跌幅": raw["f3"],
+        "snapshot_timestamp": raw["f124"],
     })
-    result = _normalize(normalized, "东方财富沪深京A股直连")
+    result = _normalize(normalized, "东方财富沪深京A股延迟行情直连")
+    timestamps = pd.to_datetime(
+        pd.to_numeric(normalized.loc[result.index, "snapshot_timestamp"], errors="coerce"),
+        unit="s",
+        errors="coerce",
+        utc=True,
+    ).dt.tz_convert("Asia/Shanghai")
+    result["snapshot_date"] = timestamps.dt.strftime("%Y-%m-%d")
     if len(result) < 4500:
         raise RuntimeError(f"Eastmoney all-A snapshot too small: {len(result)}")
+    if result["snapshot_date"].isna().any():
+        raise RuntimeError("Eastmoney all-A snapshot contains missing timestamps")
     return result
 
 
@@ -96,7 +125,5 @@ def _fetch_sina_all_a() -> pd.DataFrame:
 
 
 def fetch_a_share_spot_fast() -> pd.DataFrame:
-    try:
-        return _fetch_eastmoney_all_a()
-    except Exception:
-        return _fetch_sina_all_a()
+    # 正式生产只使用带源时间戳、可完整分页的东财快照；不再静默切换口径。
+    return _fetch_eastmoney_all_a()

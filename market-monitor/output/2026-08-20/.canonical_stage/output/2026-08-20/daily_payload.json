@@ -1,0 +1,236 @@
+{
+  "schema_version": "1.0",
+  "date": "2026-08-20",
+  "market": {
+    "date": "2026-08-20",
+    "advance": 3920,
+    "decline": 1320,
+    "flat": 91,
+    "limit_up": 79,
+    "limit_down": 12,
+    "effective_stocks": 5331,
+    "total_amount_100m": 20707.42711378,
+    "hot_count": 12,
+    "hot_amount_100m": 1661.09396923,
+    "hot_concentration": 0.08021730368060094,
+    "market_breadth": 0.4961832061068702
+  },
+  "indices": {
+    "上证50": {
+      "date": "2026-08-20",
+      "name": "上证50",
+      "code": "1.000016",
+      "close": 2881.44,
+      "return": -0.0049,
+      "amount_100m": 1692.33700578,
+      "source": "腾讯 qt.gtimg.cn 实时回退",
+      "status": "ok"
+    },
+    "中证2000": {
+      "date": "2026-08-20",
+      "name": "中证2000",
+      "code": "2.932000",
+      "close": null,
+      "return": null,
+      "amount_100m": null,
+      "source": "东方财富历史K线直连",
+      "status": "error: 东财历史K线与腾讯实时均不可达: 2.932000"
+    },
+    "中证全指": {
+      "date": "2026-08-20",
+      "name": "中证全指",
+      "code": "1.000985",
+      "close": 5882.46,
+      "return": 0.0062,
+      "amount_100m": 20094.16122709,
+      "source": "腾讯 qt.gtimg.cn 实时回退",
+      "status": "ok"
+    }
+  },
+  "hot_stocks": [
+    {
+      "rank": 1,
+      "stock_code": "300308",
+      "stock_name": "中际旭创",
+      "close": 904.2,
+      "return": 0.0096,
+      "amount_100m": 203.38306136,
+      "sw_level1": "通信",
+      "sw_level2": "通信设备"
+    },
+    {
+      "rank": 2,
+      "stock_code": "688825",
+      "stock_name": "长鑫科技",
+      "close": 57.57,
+      "return": 0.00035000000000000005,
+      "amount_100m": 169.65735081,
+      "sw_level1": "电子",
+      "sw_level2": "半导体"
+    },
+    {
+      "rank": 3,
+      "stock_code": "688256",
+      "stock_name": "寒武纪",
+      "close": 1010.88,
+      "return": -0.03771,
+      "amount_100m": 151.91095235,
+      "sw_level1": "电子",
+      "sw_level2": "半导体"
+    },
+    {
+      "rank": 4,
+      "stock_code": "603986",
+      "stock_name": "兆易创新",
+      "close": 403.5,
+      "return": -0.00052,
+      "amount_100m": 146.29180703,
+      "sw_level1": "电子",
+      "sw_level2": "半导体"
+    },
+    {
+      "rank": 5,
+      "stock_code": "603259",
+      "stock_name": "药明康德",
+      "close": 167.9,
+      "return": 0.023780000000000003,
+      "amount_100m": 145.89305368,
+      "sw_level1": "医药生物",
+      "sw_level2": "医疗服务"
+    },
+    {
+      "rank": 6,
+      "stock_code": "300394",
+      "stock_name": "天孚通信",
+      "close": 276.25,
+      "return": -0.00415,
+      "amount_100m": 141.95536272,
+      "sw_level1": "通信",
+      "sw_level2": "通信设备"
+    },
+    {
+      "rank": 7,
+      "stock_code": "601899",
+      "stock_name": "紫金矿业",
+      "close": 34.25,
+      "return": 0.04548,
+      "amount_100m": 141.78910927,
+      "sw_level1": "有色金属",
+      "sw_level2": "工业金属"
+    },
+    {
+      "rank": 8,
+      "stock_code": "600276",
+      "stock_name": "恒瑞医药",
+      "close": 49.5,
+      "return": -0.06001,
+      "amount_100m": 119.2991845,
+      "sw_level1": "医药生物",
+      "sw_level2": "化学制药"
+    },
+    {
+      "rank": 9,
+      "stock_code": "600487",
+      "stock_name": "亨通光电",
+      "close": 62.02,
+      "return": 0.05279,
+      "amount_100m": 118.43644349,
+      "sw_level1": "通信",
+      "sw_level2": "通信设备"
+    },
+    {
+      "rank": 10,
+      "stock_code": "300502",
+      "stock_name": "新易盛",
+      "close": 414.02,
+      "return": 0.00612,
+      "amount_100m": 117.42942472,
+      "sw_level1": "通信",
+      "sw_level2": "通信设备"
+    },
+    {
+      "rank": 11,
+      "stock_code": "002384",
+      "stock_name": "东山精密",
+      "close": 197.67,
+      "return": 0.0028899999999999998,
+      "amount_100m": 103.35940236,
+      "sw_level1": "电子",
+      "sw_level2": "元件"
+    },
+    {
+      "rank": 12,
+      "stock_code": "000636",
+      "stock_name": "风华高科",
+      "close": 53.09,
+      "return": -0.05382,
+      "amount_100m": 101.68881694,
+      "sw_level1": "电子",
+      "sw_level2": "元件"
+    }
+  ],
+  "sw_crowding": {
+    "date": "2026-08-19",
+    "targets": {
+      "通信设备": {
+        "date": "2026-08-19",
+        "code": "801102",
+        "name": "通信设备",
+        "amount_100m": null,
+        "amount_share_of_a": 0.08990000000000001,
+        "turnover": 0.0768,
+        "share_source": "申万官方成交额占比"
+      },
+      "计算机设备": {
+        "date": "2026-08-19",
+        "code": "801101",
+        "name": "计算机设备",
+        "amount_100m": null,
+        "amount_share_of_a": 0.015700000000000002,
+        "turnover": 0.045599999999999995,
+        "share_source": "申万官方成交额占比"
+      },
+      "元件": {
+        "date": "2026-08-19",
+        "code": "801083",
+        "name": "元件",
+        "amount_100m": null,
+        "amount_share_of_a": 0.0633,
+        "turnover": 0.1009,
+        "share_source": "申万官方成交额占比"
+      },
+      "半导体": {
+        "date": "2026-08-19",
+        "code": "801081",
+        "name": "半导体",
+        "amount_100m": null,
+        "amount_share_of_a": 0.1966,
+        "turnover": 0.0817,
+        "share_source": "申万官方成交额占比"
+      }
+    },
+    "combined": {
+      "amount_100m": null,
+      "amount_share_of_a": 0.3655
+    }
+  },
+  "innovation_drug": {
+    "date": "2026-08-19",
+    "amount_100m": 871.23341925,
+    "amount_share_of_a": 0.03499958192149116,
+    "turnover": 0.0344,
+    "volume_activity_20d": 1.1059717753,
+    "return": -0.0299,
+    "volume": 53187607.0,
+    "source": "东方财富创新药BK1106历史K线直连",
+    "topic_code": "INNOVATION_DRUG_THEME",
+    "history_latest_date": "2026-08-19",
+    "history_source_mode": "eastmoney",
+    "current_source_mode": "none",
+    "turnover_status": "供应商直接字段"
+  },
+  "rendering": {
+    "table_order": "descending",
+    "chart_time_order": "ascending"
+  }
+}

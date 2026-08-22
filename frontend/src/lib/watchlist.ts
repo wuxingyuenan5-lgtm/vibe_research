@@ -1,23 +1,6 @@
-const KEY = "vr-watchlist";
-
-export function loadWatch(): string[] {
-  try {
-    const v = JSON.parse(localStorage.getItem(KEY) || "[]");
-    return Array.isArray(v) ? v.filter((c) => /^\d{6}$/.test(c)) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveWatch(codes: string[]) {
-  // localStorage 在隐私模式 / 嵌入式浏览器 / 配额写满时会抛异常。
-  // 存不下就算了——自选丢失总好过整页崩掉（读取侧同样是 try/catch 兜底）。
-  try {
-    localStorage.setItem(KEY, JSON.stringify(codes));
-  } catch {
-    /* 存储不可用：本次会话内仍可正常使用，只是关掉页面后不保留 */
-  }
-}
+// 注意：自选股（近期关注 focus）的唯一真源已收敛到后端 `data/stock-pool/focus.json`
+// （经 /api/stock-pool/focus 读写 + 同步 GitHub），不再使用 localStorage 兜底。
+// 本文件仅保留「代码解析」纯函数，供批量添加输入框使用。
 
 // 从任意文本里抽取 6 位 A 股代码（逗号 / 空格 / 换行 / 顿号分隔都行，方便一次粘贴一串）。
 export function parseCodes(raw: string): string[] {

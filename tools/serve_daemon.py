@@ -35,6 +35,17 @@ LOG_DAEMON = os.path.join(LOG_DIR, "vibe-daemon.log")
 LOG_FRONT = os.path.join(LOG_DIR, "vibe-frontend.log")
 LOG_BACK = os.path.join(LOG_DIR, "vibe-backend.log")
 
+# 干净环境：显式清空系统/launchd 继承的随机代理变量（代理进程常没启动 → Connection refused），
+# 并固定 VR_* 开关让后端 requests 默认直连（见 backend/astock.py monkey patch）。
+_AGENT_ENV = {
+    "VR_HTTP_PROXY": "0",    # 后端 requests 默认 trust_env=False（不读代理）
+    "VR_CHAT_NO_PROXY": "1", # LLM 调用默认直连
+    "NO_PROXY": "localhost,127.0.0.1,::1",
+    "no_proxy": "localhost,127.0.0.1,::1",
+}
+for _k in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY", "all_proxy"):
+    _AGENT_ENV[_k] = ""
+
 
 def daemonize():
     if os.fork() > 0:
@@ -76,9 +87,11 @@ def is_alive(pid):
 
 def spawn(cmd, cwd, logfile):
     log = open(logfile, "a")
+    env = dict(os.environ)
+    env.update(_AGENT_ENV)  # 固定/清空代理相关变量，避免继承过期代理
     return subprocess.Popen(
         cmd, cwd=cwd, stdout=log, stderr=subprocess.STDOUT,
-        start_new_session=True, close_fds=True,
+        start_new_session=True, close_fds=True, env=env,
     )
 
 

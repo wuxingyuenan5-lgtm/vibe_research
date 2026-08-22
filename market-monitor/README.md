@@ -20,7 +20,8 @@ run_history_preflight.py  (历史缺口预检/回填)
 → validate_market_monitor_html.py (展示层校验 → html_validation.json)
 ```
 
-网页端唯一运行入口：`config/html_production_runtime.json`。正式展示只消费 `report_data.json`。
+网页端唯一数据入口：`data/published/latest_market_monitor.json`。GitHub Actions
+在全部校验完成后一次性替换该文件；正式展示不拼接生产中的 CSV，也不现场生产。
 
 ## 模块说明
 

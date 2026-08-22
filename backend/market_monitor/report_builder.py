@@ -84,8 +84,15 @@ def _hot_rows(path: Path, target_date: str) -> list[dict[str, object]]:
             "sw_level1": str(raw.get("sw_level1") or "未匹配"),
             "sw_level2": str(raw.get("sw_level2") or "未匹配"),
         })
+    # 兼容旧版逐日历史：每个 ISO 周取最后一个有记录交易日作为周度快照。
+    latest_date_by_week: dict[tuple[int, int], str] = {}
+    for row in rows:
+        day = datetime.strptime(str(row["date"]), "%Y-%m-%d").date()
+        key = (day.isocalendar()[0], day.isocalendar()[1])
+        latest_date_by_week[key] = max(latest_date_by_week.get(key, ""), str(row["date"]))
+    weekly_dates = set(latest_date_by_week.values())
     return sorted(
-        rows,
+        [row for row in rows if str(row["date"]) in weekly_dates],
         key=lambda row: (row["date"], row["rank"] if row["rank"] is not None else 9999),
     )
 
@@ -201,7 +208,8 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
     indices_history = _indices_history(root / "data/history/indices_history.csv", target_date)
     sw_industry = _sw_industry(root / "data/sw_industry_latest.csv")
     hot_all = _hot_rows(root / "data/history/hot_stocks.csv", target_date)
-    latest_hot = [row for row in hot_all if row["date"] == target_date]
+    hot_latest_date = max((row["date"] for row in hot_all), default=None)
+    latest_hot = [row for row in hot_all if row["date"] == hot_latest_date]
     matrix = build_hot_stock_matrix(hot_all)
     sw_crowding = _sw_crowding(root / "data/history/sw_analysis_daily_second.csv", market_history, target_date)
     innovation = _innovation(root / "data/history/innovation_drug_eastmoney.csv", market_history, target_date)
@@ -214,7 +222,8 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
         unresolved.append({"module": "indices_history", "level": "WARN", "detail": gaps["indices"]})
     if gaps["market_denominator_dates"]:
         unresolved.append({"module": "market_denominator", "level": "WARN", "detail": gaps["market_denominator_dates"]})
-    expected_hot = int(latest_market_row.get("hot_count") or 0)
+    hot_market_row = next((row for row in market_history if row["date"] == hot_latest_date), {})
+    expected_hot = int(hot_market_row.get("hot_count") or 0)
     if len(latest_hot) != expected_hot:
         unresolved.append({
             "module": "hot_stocks_latest",
@@ -265,6 +274,7 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
                 "sw_industry": sw_latest,
                 "sw_crowding": crowd_latest,
                 "innovation": innovation_latest,
+                "hot_stocks": hot_latest_date,
             },
             "history_gaps": gaps,
             "canonical_validation": {

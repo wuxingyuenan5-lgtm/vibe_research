@@ -14,7 +14,8 @@ HTML 是每日正式展示成品，Excel 不再是 HTML 的中间母表。
 → HTML v1.1 Renderer
 → HTML Validator
 → HTML + report_data + Canonical/HTML validation 单 artifact
-→ GitHub 归档
+→ 生成 data/published/latest_market_monitor.json
+→ GitHub 一次提交原子发布
 ```
 
 唯一网页运行入口：`config/html_production_runtime.json`。
@@ -63,7 +64,8 @@ Canonical Validator 为 FAIL 时，不允许生成正式 `report_data.json` 和 
 6. `build_report_data.py` 从 Canonical 生成唯一展示数据合同；
 7. `render_market_monitor_html.py` 生成 HTML v1.1 单文件报告；
 8. `validate_market_monitor_html.py` 执行展示层一致性校验；
-9. 写 `data/latest_bundle_pointer.json`；
+9. 将报告、发布日期与校验状态封装为唯一发布文件 `data/published/latest_market_monitor.json`；
+10. 与历史文件在同一个 Git commit 中发布；平台在提交完成前继续读取上一份有效包；
 10. 上传一个 `a-share-monitor-html-YYYY-MM-DD` artifact；
 11. 归档历史、manifest、validation、JSON 和 HTML。
 
@@ -74,8 +76,8 @@ Canonical Validator 为 FAIL 时，不允许生成正式 `report_data.json` 和 
 关键检查包括：
 
 - 上证50、中证2000、中证全指：历史涨跌幅与成交额；
-- 全A：成交额、涨跌家数、涨跌停、市场宽度；
-- 百亿成交：每日数量与完整个股明细；
+- 全A：东方财富完整分页快照计算成交额、涨跌家数和市场宽度；涨跌停读取东财官方池并保存明细；
+- 百亿成交：每日生产时校验，周五归档完整个股明细（手动可强制归档）；
 - 创新药：成交额、成交额占全A、供应商直接换手率；
 - 申万行业与四行业拥挤度最新有效日。
 
@@ -85,6 +87,11 @@ Canonical Validator 为 FAIL 时，不允许生成正式 `report_data.json` 和 
 - 大面积初始化使用每指数一次日期区间请求，零散缺口再定点补抓；
 - 创新药成交额占比只允许 `同日创新药成交额 / 同日全部A股成交额`；
 - 创新药换手率只接受供应商直接板块换手率；
+- 四行业拥挤度只接受申万官网日度分析直接字段，不再生成当日估算行；
+- GitHub Actions 在工作日上海时间 15:20 只运行一次；数据日期、分页或关键字段失败时不晋升 Canonical，也不以延迟补跑掩盖生产问题；
+- 正式环境只有 GitHub Actions 可以发布数据；本地 `daily_data_sync.py` 必须显式使用 `--diagnostic-only`，且不会 commit/push；
+- 后端默认读取 `wuxingyuenan5-lgtm/vibe_research@main` 的唯一发布文件，使用 180 秒内存缓存；可用 `VR_MARKET_DATA_REPO`、`VR_MARKET_DATA_REF`、`VR_MARKET_DATA_PATH`、`VR_MARKET_DATA_TTL` 调整，私有仓库通过 `VR_GITHUB_TOKEN` 只读访问；
+- GitHub 尚未完成新一日发布或暂时不可访问时，平台继续返回进程内/项目内最后有效包，不现场采集、不写 0；
 - 新空值不得覆盖已验证历史非空值；
 - 无同定义可靠来源的数据继续留空并 WARN，禁止为了 PASS 伪填。
 
@@ -160,8 +167,8 @@ Canonical Validator 为 FAIL 时，不允许生成正式 `report_data.json` 和 
 
 1. 报告日等于市场历史最新日；
 2. 最新市场结构四项完整；
-3. 百亿成交明细数量等于 `hot_count`；
-4. 百亿成交矩阵报告日合计等于 `hot_count`；
+3. 周度百亿成交明细数量等于该归档日的 `hot_count`；
+4. 百亿成交矩阵最新归档日合计等于该日 `hot_count`；
 5. 市场图包含最新报告日数据 marker；
 6. HTML 无外部运行依赖；
 7. 创新药不存在代理活跃度字段；

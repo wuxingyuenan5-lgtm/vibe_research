@@ -27,6 +27,17 @@ export interface ReportData {
   innovation_history: { date: string; amount_100m: number | null; amount_share_of_a: number | null; turnover: number | null; return: number | null; volume: number | null }[];
   quality: { status: string; unresolved?: { module: string; level: string; detail: unknown }[]; module_latest_dates?: Record<string, string>; canonical_validation?: { status?: string } };
 }
+export interface MarketPublication {
+  status: "published" | string;
+  data_date: string;
+  published_at: string;
+  producer: string;
+  run_id?: string;
+  validation?: { canonical?: string; html?: string; report?: string };
+  source: "github" | "memory-last-good" | "bundled-last-good" | string;
+  using_fallback: boolean;
+  remote_error?: string;
+}
 
 const CROWD_TARGETS = ["通信设备", "计算机设备", "元件", "半导体"] as const;
 const INDEX_NAMES = ["上证50", "中证2000", "中证全指"] as const;
@@ -38,16 +49,17 @@ const upDownCls = (v: number | null | undefined) => (v == null ? "neutral" : v >
 
 function useReportData() {
   const [data, setData] = useState<ReportData | null>(null);
+  const [publication, setPublication] = useState<MarketPublication | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     fetch("/api/market-monitor")
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then((b) => setData(b.data))
+      .then((b) => { setData(b.data); setPublication(b.publication || null); })
       .catch((e) => setError(e instanceof Error ? e.message : "加载失败"))
       .finally(() => setLoading(false));
   }, []);
-  return { data, error, loading };
+  return { data, publication, error, loading };
 }
 
 /* 市场涨跌结构 + 市场宽度 两张时间图（可独立嵌入任何页面） */
@@ -257,7 +269,7 @@ function TimeChart({ cfg, initialRange = "all" }: { cfg: ChartConfig; initialRan
 
 /* ---------- 页面 ---------- */
 export function AStockMonitor({ embed = false }: { embed?: boolean } = {}) {
-  const { data, error, loading } = useReportData();
+  const { data, publication, error, loading } = useReportData();
   const [swQuery, setSwQuery] = useState("");
   const [swLevel, setSwLevel] = useState(""); // 全部层级 / 一级行业 / 二级行业
   const [swSort, setSwSort] = useState<{ key: "成交额" | "日收益率" | "20日年化波动率" | null; state: "original" | "desc" | "asc" }>({ key: null, state: "original" });
@@ -377,7 +389,7 @@ export function AStockMonitor({ embed = false }: { embed?: boolean } = {}) {
             <div className="hero-top">
               <div>
                 <h1>A股每日市场监控</h1>
-                <div className="meta">报告日期 {data.meta.report_date} ｜ 申万行业最新有效日 {moduleLatest.sw_industry ?? "—"} ｜ 单文件离线报告</div>
+                <div className="meta">报告日期 {data.meta.report_date} ｜ 申万行业最新有效日 {moduleLatest.sw_industry ?? "—"} ｜ {publication ? (publication.using_fallback ? "GitHub 暂不可用，保留最后有效版本" : "GitHub 已验证发布") : "最后有效数据"}</div>
               </div>
               <div className={`status ${data.meta.status === "PASS" ? "pass" : "warn"}`}>数据状态 {data.meta.status}</div>
             </div>

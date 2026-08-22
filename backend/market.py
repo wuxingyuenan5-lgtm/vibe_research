@@ -6,22 +6,9 @@ from datetime import datetime, timezone, timedelta
 
 import astock
 import gstock
+from dataservice import TTL, get as _ds_get, record_provider
 
 BEIJING = timezone(timedelta(hours=8))
-_CACHE: dict = {}
-_TTL = 300  # 5 分钟；全站共享，省数据源压力
-
-
-def _cached(key: str, fn, valid=bool):
-    """TTL 缓存。数据源故障的空结果不缓存（valid 判否），下次请求直接重试。"""
-    now = time.time()
-    hit = _CACHE.get(key)
-    if hit and now - hit[0] < _TTL:
-        return hit[1]
-    val = fn()
-    if valid(val):
-        _CACHE[key] = (now, val)
-    return val
 
 
 def _num(v) -> int:
@@ -67,6 +54,7 @@ def _sentiment_fallback() -> dict:
         down = sum(int(x.get("f105") or 0) for x in diffs)
         flat = sum(int(x.get("f106") or 0) for x in diffs)
         if not (up or down):
+            record_provider("eastmoney", False, error="涨跌家数为空")
             return {}
         # 涨跌停家数：复用东财涨停池（emotion 同源，守护环境下同样可达）
         zt = dt = zt_real = dt_real = 0
@@ -79,6 +67,7 @@ def _sentiment_fallback() -> dict:
         except Exception:  # noqa: BLE001
             pass
         breadth, speculation = _sentiment_breadth_speculation(up, down, zt_real)
+        record_provider("eastmoney", True)
         return {
             "up": up, "down": down, "flat": flat,
             "zt": zt, "zt_real": zt_real, "dt": dt, "dt_real": dt_real,
@@ -86,7 +75,8 @@ def _sentiment_fallback() -> dict:
             "breadth": breadth, "speculation": speculation,
             "date": datetime.now(BEIJING).strftime("%Y-%m-%d"),
         }
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        record_provider("eastmoney", False, error=str(e))
         return {}
 
 
@@ -95,6 +85,7 @@ def _sentiment() -> dict:
 
     数据源：akshare 乐咕乐股（全量字段）→ 失败时降级东财（涨跌家数 + 涨停池计数）。
     """
+    start = time.time()
     try:
         ak = astock._akshare()
         df = None
@@ -105,10 +96,13 @@ def _sentiment() -> dict:
             except Exception:
                 time.sleep(0.8)
         if df is None or len(df) == 0:
+            record_provider("akshare", False, error="乐咕乐股空表/持续失败")
             return _sentiment_fallback()  # 乐咕乐股持续失败 → 东财兜底
         d = {row["item"]: row["value"] for _, row in df.iterrows()}
-    except Exception:
+    except Exception as e:  # noqa: BLE001
+        record_provider("akshare", False, error=str(e))
         return _sentiment_fallback()
+    record_provider("akshare", True, latency_ms=(time.time() - start) * 1000)
     up, down, flat = _num(d.get("上涨")), _num(d.get("下跌")), _num(d.get("平盘"))
     zt, zt_real = _num(d.get("涨停")), _num(d.get("真实涨停"))
     dt, dt_real = _num(d.get("跌停")), _num(d.get("真实跌停"))
@@ -146,18 +140,23 @@ def _sectors_fallback() -> list[dict]:
                 "outflow": round(-min(net, 0), 2),
                 "firms": 0,
             })
+        record_provider("eastmoney", True)
         return out
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        record_provider("eastmoney", False, error=str(e))
         return []
 
 
 def _sectors() -> list[dict]:
     """行业资金流（按净额降序）。不含领涨股等个股字段。"""
+    start = time.time()
     try:
         f = astock._akshare().stock_fund_flow_industry(symbol="即时")
         f = f.sort_values("净额", ascending=False)
-    except Exception:
+    except Exception as e:  # noqa: BLE001
+        record_provider("akshare", False, error=str(e))
         return _sectors_fallback()
+    record_provider("akshare", True, latency_ms=(time.time() - start) * 1000)
     out = []
     for _, row in f.iterrows():
         out.append({
@@ -171,15 +170,30 @@ def _sectors() -> list[dict]:
     return out
 
 
+def get_sentiment() -> dict:
+    """市场情绪（独立缓存；akshare 主源 + 东财兜底）。空结果不缓存。
+    provider 健康由 _sentiment 内部精确记录（akshare 失败会记 akshare=degraded + eastmoney 兜底）。"""
+    return _ds_get("market:sentiment", TTL["minute"], _sentiment, valid=bool)
+
+
+def get_sectors() -> list[dict]:
+    """板块资金流（独立缓存；akshare 主源 + 东财兜底）。空结果不缓存。
+    provider 健康由 _sectors 内部精确记录。"""
+    return _ds_get("market:sectors", TTL["minute"], _sectors, valid=bool)
+
+
+def get_a_indices() -> list[dict]:
+    """A股大盘指数实时行情（短 TTL，秒级）。空结果不缓存。"""
+    return _ds_get("market:a_indices", TTL["live"], astock.index_quote, valid=bool, provider="tencent")
+
+
 def get_overview() -> dict:
-    """市场情绪 + 板块资金（含缓存）。资金轮动由前端从 sectors 头尾取。"""
-    def build():
-        return {
-            "sentiment": _sentiment(),
-            "sectors": _sectors(),
-            "updated": datetime.now(BEIJING).strftime("%Y-%m-%d %H:%M"),
-        }
-    return _cached("overview", build, valid=lambda v: bool(v.get("sentiment") or v.get("sectors")))
+    """市场情绪 + 板块资金（兼容旧接口：两个独立缓存各自降级，不再一荣俱荣一损俱损）。"""
+    return {
+        "sentiment": get_sentiment(),
+        "sectors": get_sectors(),
+        "updated": datetime.now(BEIJING).strftime("%Y-%m-%d %H:%M"),
+    }
 
 
 def _emotion() -> dict:
@@ -249,20 +263,20 @@ def _emotion() -> dict:
 
 
 def get_short_term_emotion() -> dict:
-    """短线情绪（含缓存，5 分钟）。"""
-    return _cached("emotion", _emotion)
+    """短线情绪（含缓存，分钟级）。"""
+    return _ds_get("market:emotion", TTL["minute"], _emotion, valid=bool, provider="eastmoney")
 
 
 def get_turnover_top() -> dict:
-    """全市场成交额榜 Top20（客观公开榜单，含缓存 5 分钟）。"""
+    """全市场成交额榜 Top20（客观公开榜单，含缓存，分钟级）。"""
     def build():
         return {
             "stocks": astock.market_turnover_rank(20),
             "updated": datetime.now(BEIJING).strftime("%Y-%m-%d %H:%M"),
         }
-    return _cached("turnover_top", build, valid=lambda v: bool(v.get("stocks")))
+    return _ds_get("market:turnover_top", TTL["minute"], build, valid=lambda v: bool(v.get("stocks")), provider="eastmoney")
 
 
 def get_global_indices() -> list[dict]:
-    """全球指数快照（美股 / 港股，含缓存 5 分钟）。空结果不缓存。"""
-    return _cached("global_indices", gstock.global_indices, valid=bool)
+    """全球指数快照（美股 / 港股，含缓存，分钟级）。空结果不缓存。"""
+    return _ds_get("market:global_indices", TTL["minute"], gstock.global_indices, valid=bool, provider="eastmoney")

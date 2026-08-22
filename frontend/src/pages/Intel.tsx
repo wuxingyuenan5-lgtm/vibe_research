@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { TrendingUp, FileText, Newspaper, Rss, RefreshCw, Loader2, ExternalLink, AlertCircle, Sparkles, Lightbulb, Star } from "lucide-react";
+import { TrendingUp, FileText, Newspaper, Rss, RefreshCw, Loader2, ExternalLink, AlertCircle, Sparkles, Lightbulb, Star, X, BarChart3 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { SaveNoteButton } from "@/components/ui/SaveNoteButton";
-import { api, ApiError, type RadarData, type Industry, type Announcement, type NewsItem } from "@/lib/api";
+import { api, ApiError, type RadarData, type Industry, type Announcement, type NewsItem, type HalfYearReport } from "@/lib/api";
 import { hasLlm, chatStream } from "@/lib/llm";
 import { cn } from "@/lib/utils";
 
@@ -183,21 +183,44 @@ function InvestmentNewsPanel() {
 interface FeedRow { code: string; name: string; when: string; title: string; meta?: string; url?: string }
 const MAX_ROWS = 60;
 
+// 业绩报告判定：白名单命中且不在黑名单 → 保留
+// 白名单 = 定期报告（年报/中报/季报全文与摘要）+ 业绩预告/快报 + 主要经营数据公告
+// 黑名单 = 业绩说明会/发布会、募集资金、审计报告、调研活动、再融资 等事务性公告
+const EARNINGS_TYPE_KW = ["年报", "中报", "季报", "业绩预告", "业绩快报", "经营数据", "报告"];
+const EARNINGS_TITLE_KW = ["年度报告", "半年度报告", "季度报告", "主要经营数据", "业绩预告", "业绩快报"];
+const EARNINGS_BLACK_TYPE = ["募集资金", "审计报告", "调研活动", "再融资"];
+const EARNINGS_BLACK_TITLE = ["业绩说明会", "业绩发布会", "业绩说明", "业绩发布", "募集资金", "审计报告", "再融资"];
+function isEarningsAnnouncement(type: string, title: string): boolean {
+  // 黑名单优先：明确事务性公告直接排除（业绩说明会、募集资金、审计报告等）
+  if (EARNINGS_BLACK_TYPE.some((k) => type.includes(k))) return false;
+  if (EARNINGS_BLACK_TITLE.some((k) => title.includes(k))) return false;
+  // 白名单：定期报告 / 业绩预告·快报 / 经营数据
+  return EARNINGS_TYPE_KW.some((k) => type.includes(k)) || EARNINGS_TITLE_KW.some((k) => title.includes(k));
+}
+
 function WatchlistFeed({ kind }: { kind: "filings" | "news" }) {
   const [poolStocks, setPoolStocks] = useState<{ code: string; name: string; industry: string }[]>([]);
   const [industry, setIndustry] = useState("");
   const [stockCode, setStockCode] = useState("");
   const [days, setDays] = useState(7);  // 日期范围：0 = 全部
+  const [earningsOnly, setEarningsOnly] = useState(true);  // 业绩报告筛选（默认打开，仅 A 股公告）
   const [rows, setRows] = useState<FeedRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [depNote, setDepNote] = useState<string | null>(null);
 
+  // 半年报追踪抽屉状态
+  const [hyOpen, setHyOpen] = useState(false);
+  const [hyLoading, setHyLoading] = useState(false);
+  const [hyErr, setHyErr] = useState<string | null>(null);
+  const [hyData, setHyData] = useState<HalfYearReport | null>(null);
+  const [hyDays, setHyDays] = useState(1);
+
   // 标的池 = 核心股票池（/api/stock-pool）；公告/新闻接口仅支持 A 股 6 位代码
   const loadPoolStocks = useCallback(async () => {
     try {
       const r = await fetch("/api/stock-pool").then((x) => x.json());
-      const stocks = (r?.data?.stocks || [])
+      const stocks = ((r?.data?.stocks || []) as Array<{ code: string; name: string; industry: string }>)
         .map((s) => ({ code: s.code || "", name: s.name || "", industry: s.industry || "" }))
         .filter((s) => s.code && /^\d{6}$/.test(s.code));
       setPoolStocks(stocks);
@@ -233,7 +256,7 @@ function WatchlistFeed({ kind }: { kind: "filings" | "news" }) {
         const res: { c: string; a: Announcement[] }[] = [];
         for (let i = 0; i < cs.length; i += 10) {
           const batch = await Promise.all(
-            cs.slice(i, i + 10).map((c) => api.announcements(c).then((a) => ({ c, a })).catch(() => ({ c, a: [] as Announcement[] }))),
+            cs.slice(i, i + 10).map((c) => api.announcements(c).then((a) => ({ c, a })).catch((e) => { console.warn("[intel] 公告失败:", c, e); return { c, a: [] as Announcement[] }; })),
           );
           res.push(...batch);
         }
@@ -270,7 +293,12 @@ function WatchlistFeed({ kind }: { kind: "filings" | "news" }) {
       const cutoff = days > 0 ? Date.now() - days * 86400000 : 0;
       const inRange = cutoff > 0 ? out.filter((r) => ts(r.when) >= cutoff) : out;
       inRange.sort((p, q) => ts(q.when) - ts(p.when));
-      setRows(inRange.slice(0, MAX_ROWS));
+      // 兜底：拉到股票池但一条公告都没拿到 → 提示上游可能异常，避免静默 0 条
+      if (cs.length > 0 && inRange.length === 0 && kind === "filings") {
+        setDepNote("已请求 " + cs.length + " 只个股公告，但接口均返回空（可能上游被掐或非交易时段）。可点「刷新」重试或切换「近 30 天」。");
+      }
+      // 存全量（未截断），展示层再按「业绩报告」筛选 + 截断
+      setRows(inRange);
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "加载失败");
     } finally {
@@ -282,6 +310,37 @@ function WatchlistFeed({ kind }: { kind: "filings" | "news" }) {
   useEffect(() => { load(filtered.map((s) => s.code)); }, [load, filtered]);
 
   const refresh = () => { load(filtered.map((s) => s.code)); };
+
+  // 半年报追踪：拉取窗口期内发布半年报的自选股聚合报告
+  const fetchHalfYear = useCallback(async (d: number) => {
+    if (!poolStocks.length) return;
+    setHyLoading(true); setHyErr(null);
+    try {
+      const names: Record<string, string> = {};
+      const codes = poolStocks.map((s) => { names[s.code] = s.name; return s.code; });
+      const data = await api.halfYearReport(codes, d, names);
+      setHyData(data);
+    } catch (e) {
+      setHyErr(e instanceof ApiError ? e.message : "半年报聚合失败");
+      setHyData(null);
+    } finally {
+      setHyLoading(false);
+    }
+  }, [poolStocks]);
+
+  const openHalfYear = () => {
+    setHyOpen(true);
+    setHyDays(1);
+    if (!hyData) fetchHalfYear(1);
+  };
+
+  // 展示行：业绩报告筛选（默认开启）→ 再截断；切换筛选无需重新请求
+  const visibleRows = useMemo(() => {
+    const base = kind === "filings" && earningsOnly
+      ? rows.filter((r) => isEarningsAnnouncement(r.meta || "", r.title))
+      : rows;
+    return base.slice(0, MAX_ROWS);
+  }, [rows, kind, earningsOnly]);
 
   if (!poolStocks.length) {
     return (
@@ -314,8 +373,23 @@ function WatchlistFeed({ kind }: { kind: "filings" | "news" }) {
           <option value={0}>全部日期</option>
         </select>
         <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Star className="h-3.5 w-3.5 text-primary/70" /> 筛选 {filtered.length} 只 · 共 {rows.length} 条{kind === "filings" ? "公告" : "新闻"}
+          <Star className="h-3.5 w-3.5 text-primary/70" /> 筛选 {filtered.length} 只 · 共 {visibleRows.length} 条{kind === "filings" ? "公告" : "新闻"}
         </span>
+        {kind === "filings" && (
+          <button onClick={() => setEarningsOnly((v) => !v)}
+            title="只显示年报 / 中报 / 季报 / 业绩预告等业绩类公告，过滤事务性公告"
+            className={cn("inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors",
+              earningsOnly ? "border-primary/50 bg-primary/15 font-medium text-primary" : "border-border text-muted-foreground hover:text-foreground")}>
+            业绩报告
+          </button>
+        )}
+        {kind === "filings" && (
+          <button onClick={openHalfYear}
+            title="汇总自选股池中近 24 小时内发布半年报的公司：实际H1净利 + 同花顺一致预期 + 完成度（网页公开数据）"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground">
+            <BarChart3 className="h-4 w-4" />半年报追踪
+          </button>
+        )}
         <button onClick={refresh} disabled={loading}
           className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50">
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -333,11 +407,15 @@ function WatchlistFeed({ kind }: { kind: "filings" | "news" }) {
         <p className="py-6 text-center text-xs text-warning">{depNote}（安装后新闻即可用）</p>
       ) : loading && rows.length === 0 ? (
         <p className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> 正在汇总关注股的{kind === "filings" ? "公告" : "新闻"}…</p>
-      ) : rows.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground/60">关注列表里的个股近期暂无{kind === "filings" ? "公告" : "新闻"}。</p>
+      ) : visibleRows.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground/60">
+          {kind === "filings" && earningsOnly
+            ? "关注列表里的个股近期暂无业绩报告，可关闭「业绩报告」筛选查看全部公告。"
+            : `关注列表里的个股近期暂无${kind === "filings" ? "公告" : "新闻"}。`}
+        </p>
       ) : (
         <div className="space-y-2">
-          {rows.map((r, i) => (
+          {visibleRows.map((r, i) => (
             <a key={i} href={r.url || undefined} target={r.url ? "_blank" : undefined} rel="noreferrer"
               className={cn("group flex items-baseline gap-3 border-b border-border/30 pb-2 text-sm last:border-0", r.url && "cursor-pointer")}>
               <span className="w-20 shrink-0 font-mono text-xs text-muted-foreground/70">{(r.when || "").slice(kind === "filings" ? 0 : 5, kind === "filings" ? 10 : 16)}</span>
@@ -348,6 +426,133 @@ function WatchlistFeed({ kind }: { kind: "filings" | "news" }) {
             </a>
           ))}
         </div>
+      )}
+
+      {/* 半年报追踪抽屉 */}
+      {hyOpen && (
+        <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setHyOpen(false)} />
+      )}
+      {hyOpen && (
+        <aside className="fixed inset-y-0 right-0 z-50 flex w-[480px] max-w-full flex-col border-l border-border bg-background shadow-2xl">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-medium">自选股半年报追踪</h2>
+            </div>
+            <button onClick={() => setHyOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground" title="关闭">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* 工具栏：时间窗切换 + 摘要 */}
+          <div className="flex items-center gap-2 border-b border-border/60 px-4 py-2 text-xs">
+            <span className="text-muted-foreground">时间窗</span>
+            {([1, 7, 30] as const).map((d) => (
+              <button key={d} onClick={() => { setHyDays(d); fetchHalfYear(d); }}
+                className={cn("rounded border px-2 py-0.5 text-xs",
+                  hyDays === d ? "border-primary/50 bg-primary/15 text-primary" : "border-border text-muted-foreground hover:text-foreground")}>
+                近 {d} 天
+              </button>
+            ))}
+            {hyData && (
+              <span className="ml-auto text-muted-foreground/80">
+                扫描 {hyData.scanned} · 命中 {hyData.published} · 财务覆盖 {hyData.covered}
+              </span>
+            )}
+          </div>
+
+          {/* 内容区 */}
+          <div className="flex-1 overflow-y-auto px-4 py-3 text-sm">
+            {hyErr && (
+              <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 shrink-0" />{hyErr}
+              </div>
+            )}
+            {hyLoading && !hyData && (
+              <p className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />正在批量扫描公告并汇总命中公司的财务数据…
+              </p>
+            )}
+            {hyData && (
+              <>
+                {hyData.fetched_at && (
+                  <p className="mb-3 text-xs text-muted-foreground/70">
+                    数据时间：{hyData.fetched_at}　|　公告扫描{hyData.scan_complete ? "完整" : "不完整"}，
+                    {hyData.announcement_requests} 次批量请求覆盖 {hyData.requested_codes} 只股票　|　
+                    一致预期来自同花顺盈利预测，完成度 = 实际H1净利 / 当年全年预期
+                  </p>
+                )}
+                {hyData.published === 0 && (
+                  <p className="py-12 text-center text-muted-foreground/60">
+                    近 {hyData.window_days} 天自选股池中无新增半年报披露。
+                  </p>
+                )}
+                {([
+                  ["big_beat", "大幅超预期（完成度 ≥ 70%）", TrendingUp, "text-emerald-600 dark:text-emerald-400"],
+                  ["meet", "符合预期", Sparkles, "text-primary"],
+                  ["pending", "预期待验证", Lightbulb, "text-muted-foreground"],
+                ] as const).map(([key, title, Icon, color]) => {
+                  const items = hyData.groups[key];
+                  if (!items.length) return null;
+                  return (
+                    <section key={key} className="mb-5">
+                      <h3 className={cn("mb-2 flex items-center gap-1.5 text-sm font-medium", color)}>
+                        <Icon className="h-4 w-4" />{title}　<span className="text-xs text-muted-foreground/70">{items.length} 家</span>
+                      </h3>
+                      <ul className="space-y-1.5">
+                        {items.map((row) => {
+                          const yoy = row.yoy_pct;
+                          const yoyColor = yoy == null ? "text-muted-foreground/70" :
+                            yoy >= 100 ? "text-emerald-600 dark:text-emerald-400" :
+                            yoy <= -30 ? "text-rose-600 dark:text-rose-400" :
+                            "text-muted-foreground";
+                          return (
+                            <li key={row.code} className="rounded-md border border-border/60 px-2.5 py-1.5">
+                              <div className="flex items-baseline gap-2 text-sm">
+                                {row.ann_url ? (
+                                  <a href={row.ann_url} target="_blank" rel="noreferrer"
+                                    className="font-mono text-xs text-primary/90 hover:underline">{row.code}</a>
+                                ) : (
+                                  <span className="font-mono text-xs text-primary/90">{row.code}</span>
+                                )}
+                                <span className="flex-1 truncate text-sm">{row.name || row.code}</span>
+                                {row.completion_pct != null ? (
+                                  <span className="shrink-0 text-xs font-medium tabular-nums text-primary">
+                                    完成度 {row.completion_pct.toFixed(1)}%
+                                  </span>
+                                ) : (
+                                  <span className={cn("shrink-0 text-xs font-medium tabular-nums", yoyColor)}>
+                                    {yoy == null ? "—" : `同比 ${yoy >= 0 ? "+" : ""}${yoy.toFixed(1)}%`}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground/80">
+                                {row.net_profit_yi != null && (
+                                  <span>实际 H1 净利 <span className="text-foreground tabular-nums">{row.net_profit_yi >= 0 ? "" : "-"}{Math.abs(row.net_profit_yi).toFixed(2)} 亿</span></span>
+                                )}
+                                {row.consensus_mean != null && (
+                                  <span>一致预期 <span className="tabular-nums">{row.consensus_mean.toFixed(1)} 亿</span>
+                                    {row.consensus_n ? <span className="text-muted-foreground/60">（{row.consensus_n} 机构）</span> : null}
+                                  </span>
+                                )}
+                                {row.yoy_pct != null && row.completion_pct != null && (
+                                  <span className={yoyColor}>同比 {row.yoy_pct >= 0 ? "+" : ""}{row.yoy_pct.toFixed(1)}%</span>
+                                )}
+                                {row.period && <span>报告期 {row.period}</span>}
+                                {row._note && <span className="text-warning/80">{row._note}</span>}
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        </aside>
       )}
     </div>
   );

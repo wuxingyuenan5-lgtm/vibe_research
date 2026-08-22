@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
@@ -44,7 +46,7 @@ def _request_json(url: str, params: dict) -> dict:
             raise RuntimeError("empty Eastmoney quote payload")
         return payload
 
-    return retry(call, attempts=2, delay=0.6)
+    return retry(call, attempts=3, delay=0.8)
 
 
 def _index_current_quote(target_date: str, definition: dict[str, str]) -> dict[str, object]:
@@ -116,40 +118,39 @@ def fetch_indices_resilient(target_date: str, definitions: list[dict[str, str]])
 
 
 def fetch_innovation_current_reliable(target_date: str):
-    try:
-        payload = _request_json(
-            EM_CONCEPT_QUOTE_URL,
-            {
-                "secid": INNOVATION_SECID,
-                "fields": "f43,f48,f168,f170",
-                "mpi": "1000",
-                "invt": "2",
-                "fltt": "1",
-            },
-        )
-        data = payload["data"]
-        amount = _number(data.get("f48"))
-        turnover_raw = _number(data.get("f168"))
-        return_raw = _number(data.get("f170"))
-        if amount is None or turnover_raw is None or return_raw is None:
-            raise RuntimeError("innovation quote missing amount/turnover/return")
-        return {
-            "date": target_date,
-            "amount_100m": amount / 1e8,
-            "turnover": turnover_raw / 10000,
-            "return": return_raw / 10000,
-            "source": "东方财富创新药BK1106轻量板块报价（供应商直接换手率）",
-        }
-    except Exception:
-        return None
-
-
-def _no_ths_current(_target_date: str):
-    return None
-
-
-def _no_ths_history(_target_date: str, _history_path: Path, _history_start: str):
-    return pd.DataFrame()
+    payload = _request_json(
+        EM_CONCEPT_QUOTE_URL,
+        {
+            "secid": INNOVATION_SECID,
+            "fields": "f43,f47,f48,f86,f168,f170",
+            "mpi": "1000",
+            "invt": "2",
+            "fltt": "2",
+        },
+    )
+    data = payload["data"]
+    amount = _number(data.get("f48"))
+    close = _number(data.get("f43"))
+    volume = _number(data.get("f47"))
+    quote_timestamp = _number(data.get("f86"))
+    turnover_raw = _number(data.get("f168"))
+    return_raw = _number(data.get("f170"))
+    if None in (amount, close, volume, quote_timestamp, turnover_raw, return_raw):
+        raise RuntimeError("innovation quote missing close/volume/amount/time/turnover/return")
+    quote_time = datetime.fromtimestamp(quote_timestamp, ZoneInfo("Asia/Shanghai"))
+    quote_date = quote_time.strftime("%Y-%m-%d")
+    if quote_date != target_date:
+        raise RuntimeError(f"innovation quote date mismatch: {quote_date} != {target_date}")
+    return {
+        "date": quote_date,
+        "quote_time": quote_time.isoformat(timespec="seconds"),
+        "close": close,
+        "volume": volume,
+        "amount_100m": amount / 1e8,
+        "turnover": turnover_raw / 100,
+        "return": return_raw / 100,
+        "source": "东方财富创新药BK1106轻量板块报价（供应商直接字段）",
+    }
 
 
 def run(
@@ -167,8 +168,6 @@ def run(
     )
     pipeline.fetch_indices = fetch_indices_resilient
     pipeline.fetch_innovation_current_em = fetch_innovation_current_reliable
-    pipeline.fetch_innovation_current_ths = _no_ths_current
-    pipeline.update_innovation_history_ths = _no_ths_history
     return pipeline.run(
         target_date=target_date,
         config_path=config_path,

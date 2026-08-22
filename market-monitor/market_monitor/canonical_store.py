@@ -18,6 +18,9 @@ CANONICAL_TABLES: dict[str, TableSpec] = {
     "market_core": TableSpec("market_core", "data/history/market_core.csv", ("date",), "date"),
     "indices_history": TableSpec("indices_history", "data/history/indices_history.csv", ("date", "name"), "date"),
     "hot_stocks": TableSpec("hot_stocks", "data/history/hot_stocks.csv", ("date", "stock_code"), "date"),
+    "limit_pool": TableSpec(
+        "limit_pool", "data/history/limit_pool.csv", ("date", "direction", "stock_code"), "date"
+    ),
     "innovation": TableSpec("innovation", "data/history/innovation_drug_eastmoney.csv", ("日期",), "日期"),
     "sw_crowding": TableSpec("sw_crowding", "data/history/sw_analysis_daily_second.csv", ("发布日期", "指数代码"), "发布日期"),
     "sw_industry_history": TableSpec("sw_industry_history", "data/sw_industry_history.csv", ("日期", "指数代码"), "日期"),
