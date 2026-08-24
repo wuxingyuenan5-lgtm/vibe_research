@@ -1,6 +1,10 @@
 name: Daily A-share Market Monitor
 
 on:
+  schedule:
+    # GitHub cron 使用 UTC：上海时间工作日 15:20 只生产一次。
+    # 若数据日期、分页或关键字段校验失败，任务直接失败并暴露生产问题，不自动补跑。
+    - cron: "20 7 * * 1-5"
   workflow_dispatch:
     inputs:
       target_date:
@@ -17,12 +21,18 @@ on:
         required: false
         type: boolean
         default: false
+      force_hot_snapshot:
+        description: "Archive weekly 10bn-turnover stock snapshot outside Friday"
+        required: false
+        type: boolean
+        default: false
   pull_request:
     paths:
       - market-monitor/run_daily.py
       - market-monitor/run_history_preflight.py
       - market-monitor/validate_canonical_data.py
       - market-monitor/build_report_data.py
+      - market-monitor/publish_latest_bundle.py
       - market-monitor/render_market_monitor_html.py
       - market-monitor/validate_market_monitor_html.py
       - market-monitor/market_monitor/**
@@ -82,7 +92,7 @@ jobs:
         run: |
           python -m py_compile \
             run_daily.py run_history_preflight.py validate_canonical_data.py build_report_data.py \
-            render_market_monitor_html.py validate_market_monitor_html.py \
+            render_market_monitor_html.py validate_market_monitor_html.py publish_latest_bundle.py \
             update_sw_industry.py update_sw_industry_fast.py
           python -m py_compile market_monitor/*.py
 
@@ -138,6 +148,9 @@ jobs:
           if [ "${{ inputs.full_refresh_sw_industry }}" = "true" ]; then
             args="$args --full-refresh-sw-industry"
           fi
+          if [ "${{ inputs.force_hot_snapshot }}" = "true" ]; then
+            args="$args --force-hot-snapshot"
+          fi
           python run_daily.py --target-date "${{ steps.date.outputs.value }}" $args
 
       - name: Validate Canonical data
@@ -166,6 +179,13 @@ jobs:
             --html "output/${{ steps.date.outputs.value }}/A股每日市场监控_${{ steps.date.outputs.compact }}.html" \
             --output "output/${{ steps.date.outputs.value }}/html_validation.json"
 
+      - name: Publish single validated data bundle
+        if: github.event_name != 'pull_request'
+        run: |
+          python publish_latest_bundle.py \
+            --target-date "${{ steps.date.outputs.value }}" \
+            --output "data/published/latest_market_monitor.json"
+
       - name: Write latest HTML pointer
         if: github.event_name != 'pull_request'
         shell: bash
@@ -183,6 +203,7 @@ jobs:
               "artifact_name": f"a-share-monitor-html-{d}",
               "primary_file": f"A股每日市场监控_{compact}.html",
               "data_contract": "report_data.json",
+              "published_data": "data/published/latest_market_monitor.json",
               "canonical_validation_file": "canonical_validation.json",
               "canonical_validation_status": canonical_validation["status"],
               "validation_file": "html_validation.json",
@@ -209,6 +230,7 @@ jobs:
             market-monitor/output/${{ steps.date.outputs.value }}/html_validation.json
             market-monitor/output/${{ steps.date.outputs.value }}/history_preflight.json
             market-monitor/output/${{ steps.date.outputs.value }}/source_manifest.json
+            market-monitor/data/published/latest_market_monitor.json
           if-no-files-found: error
           retention-days: 30
 
@@ -221,6 +243,7 @@ jobs:
           git add \
             market-monitor/data/history market-monitor/data/cache \
             market-monitor/data/sw_industry_history.csv market-monitor/data/sw_industry_latest.csv \
+            market-monitor/data/published/latest_market_monitor.json \
             market-monitor/data/latest_bundle_pointer.json \
             "market-monitor/output/${{ steps.date.outputs.value }}/*.json" \
             "market-monitor/output/${{ steps.date.outputs.value }}/*.html"
