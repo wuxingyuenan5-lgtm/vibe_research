@@ -190,7 +190,12 @@ def _sw_crowding(path: Path, market_history: list[dict[str, object]], target_dat
     for raw in _read_csv(path):
         row_date = str(raw.get("发布日期") or raw.get("日期") or "")[:10]
         code = str(raw.get("指数代码") or "").replace(".0", "")
-        if not row_date or row_date > target_date or code not in TARGET_SW.values():
+        if (
+            not row_date
+            or row_date > target_date
+            or row_date not in denominator
+            or code not in TARGET_SW.values()
+        ):
             continue
         label = next(name for name, target_code in TARGET_SW.items() if target_code == code)
         share_raw = _num(raw.get("成交额占比"))
@@ -227,7 +232,7 @@ def _innovation(path: Path, market_history: list[dict[str, object]], target_date
     rows = []
     for raw in _read_csv(path):
         row_date = str(raw.get("日期") or raw.get("date") or "")[:10]
-        if not row_date or row_date > target_date:
+        if not row_date or row_date > target_date or row_date not in denominator:
             continue
         raw_amount = _num(raw.get("成交额"))
         amount = raw_amount / 1e8 if raw_amount is not None else _num(raw.get("amount_100m"))

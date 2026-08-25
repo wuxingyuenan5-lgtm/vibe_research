@@ -1,0 +1,241 @@
+{
+  "schema_version": "2.0",
+  "target_date": "2026-08-25",
+  "validation_status": "WARN",
+  "failures": [],
+  "warnings": [
+    "historical_value_changed:innovation:2026-08-14:换手率",
+    "historical_value_changed:innovation:2026-08-17:换手率",
+    "historical_value_changed:innovation:2026-08-18:换手率",
+    "historical_value_changed:innovation:2026-08-19:换手率",
+    "historical_value_changed:innovation:2026-08-21:成交额",
+    "historical_value_changed:innovation:2026-08-21:换手率",
+    "historical_value_changed:innovation:2026-08-21:数据源",
+    "historical_value_changed:innovation:2026-08-21:20日成交量活跃度代理",
+    "sw_crowding_critical_rows_missing:2026-08-25:0",
+    "market_turnover_jump:2026-08-21->2026-08-25:0.3224",
+    "sw_crowding_refresh_failed:申万日度分析当日数据不完整: rows=0, missing_critical=['801081', '801083', '801101', '801102']"
+  ],
+  "normalization": {
+    "market_core": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 154,
+      "after_rows": 154
+    },
+    "indices_history": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 33,
+      "after_rows": 33
+    },
+    "hot_stocks": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 291,
+      "after_rows": 291
+    },
+    "limit_pool": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 106,
+      "after_rows": 106
+    },
+    "innovation": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 156,
+      "after_rows": 156
+    },
+    "sw_crowding": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 20174,
+      "after_rows": 20174
+    },
+    "sw_industry_history": {
+      "removed_identical_rows": 0,
+      "conflicting_duplicate_keys": [],
+      "before_rows": 42427,
+      "after_rows": 42427
+    }
+  },
+  "tables": {
+    "market_core": {
+      "before": {
+        "row_count": 153,
+        "unique_key_count": 153,
+        "latest_date": "2026-08-21",
+        "duplicate_key_count": 0,
+        "sha256": "913bbf77c262fd0b02a3ad9cc676165b71b17ca0ee0315b47ed658e926d9aa6a"
+      },
+      "after": {
+        "row_count": 154,
+        "unique_key_count": 154,
+        "latest_date": "2026-08-25",
+        "duplicate_key_count": 0,
+        "sha256": "9192908fbbd8162dffc8a867209ef0503c67463216c8918cf9a8a0507426e993"
+      },
+      "modified_historical_dates": [],
+      "target_date_changed_keys": 1,
+      "normalization": {
+        "removed_identical_rows": 0,
+        "conflicting_duplicate_keys": [],
+        "before_rows": 154,
+        "after_rows": 154
+      }
+    },
+    "indices_history": {
+      "before": {
+        "row_count": 30,
+        "unique_key_count": 30,
+        "latest_date": "2026-08-21",
+        "duplicate_key_count": 0,
+        "sha256": "257f685de9b669ff8447c3c1b09dc6438497f9805432e139c340093e07576271"
+      },
+      "after": {
+        "row_count": 33,
+        "unique_key_count": 33,
+        "latest_date": "2026-08-25",
+        "duplicate_key_count": 0,
+        "sha256": "5b594de3569e9c65749fcdaced463addc51113ec049e1ecb475bf07f93ee3ff1"
+      },
+      "modified_historical_dates": [],
+      "target_date_changed_keys": 3,
+      "normalization": {
+        "removed_identical_rows": 0,
+        "conflicting_duplicate_keys": [],
+        "before_rows": 33,
+        "after_rows": 33
+      }
+    },
+    "hot_stocks": {
+      "before": {
+        "row_count": 291,
+        "unique_key_count": 291,
+        "latest_date": "2026-08-21",
+        "duplicate_key_count": 0,
+        "sha256": "d1386dd21103696f8f65fb5a52764d3e9e4fad16ef051e5d281552069b42d57a"
+      },
+      "after": {
+        "row_count": 291,
+        "unique_key_count": 291,
+        "latest_date": "2026-08-21",
+        "duplicate_key_count": 0,
+        "sha256": "d1386dd21103696f8f65fb5a52764d3e9e4fad16ef051e5d281552069b42d57a"
+      },
+      "modified_historical_dates": [],
+      "target_date_changed_keys": 0,
+      "normalization": {
+        "removed_identical_rows": 0,
+        "conflicting_duplicate_keys": [],
+        "before_rows": 291,
+        "after_rows": 291
+      }
+    },
+    "limit_pool": {
+      "before": {
+        "row_count": 67,
+        "unique_key_count": 67,
+        "latest_date": "2026-08-21",
+        "duplicate_key_count": 0,
+        "sha256": "64d31a1f4b0ae4ea9306131b503fec6f1e8e1fb8e973c96a8223df33679bc6e3"
+      },
+      "after": {
+        "row_count": 106,
+        "unique_key_count": 106,
+        "latest_date": "2026-08-25",
+        "duplicate_key_count": 0,
+        "sha256": "b67851aca37e44ff6ea09bc8c45f6640f278ca28b83f021cf678e5ccef410a69"
+      },
+      "modified_historical_dates": [],
+      "target_date_changed_keys": 39,
+      "normalization": {
+        "removed_identical_rows": 0,
+        "conflicting_duplicate_keys": [],
+        "before_rows": 106,
+        "after_rows": 106
+      }
+    },
+    "innovation": {
+      "before": {
+        "row_count": 153,
+        "unique_key_count": 153,
+        "latest_date": "2026-08-21",
+        "duplicate_key_count": 0,
+        "sha256": "df006b604c9b32390909c77cff91e46c8c1651df552108608bf164fa50e4e3ab"
+      },
+      "after": {
+        "row_count": 156,
+        "unique_key_count": 156,
+        "latest_date": "2026-08-25",
+        "duplicate_key_count": 0,
+        "sha256": "99f1d31087de83157b7454f3be7421e040f0981d316316ee537f2a19bf21a4d1"
+      },
+      "modified_historical_dates": [
+        "2026-08-14",
+        "2026-08-17",
+        "2026-08-18",
+        "2026-08-19",
+        "2026-08-20",
+        "2026-08-21",
+        "2026-08-24"
+      ],
+      "target_date_changed_keys": 1,
+      "normalization": {
+        "removed_identical_rows": 0,
+        "conflicting_duplicate_keys": [],
+        "before_rows": 156,
+        "after_rows": 156
+      }
+    },
+    "sw_crowding": {
+      "before": {
+        "row_count": 20174,
+        "unique_key_count": 20174,
+        "latest_date": "2026-08-21",
+        "duplicate_key_count": 0,
+        "sha256": "148b7ae6229e312a97b2795126e77e2543ec3858d146de72bea0a3ae505673d1"
+      },
+      "after": {
+        "row_count": 20174,
+        "unique_key_count": 20174,
+        "latest_date": "2026-08-21",
+        "duplicate_key_count": 0,
+        "sha256": "148b7ae6229e312a97b2795126e77e2543ec3858d146de72bea0a3ae505673d1"
+      },
+      "modified_historical_dates": [],
+      "target_date_changed_keys": 0,
+      "normalization": {
+        "removed_identical_rows": 0,
+        "conflicting_duplicate_keys": [],
+        "before_rows": 20174,
+        "after_rows": 20174
+      }
+    },
+    "sw_industry_history": {
+      "before": {
+        "row_count": 42272,
+        "unique_key_count": 42272,
+        "latest_date": "2026-08-21",
+        "duplicate_key_count": 0,
+        "sha256": "89e41b2d3b82d941ac095fde3ffcbd7bc19422c7b29543f66a00d05f64547c62"
+      },
+      "after": {
+        "row_count": 42427,
+        "unique_key_count": 42427,
+        "latest_date": "2026-08-25",
+        "duplicate_key_count": 0,
+        "sha256": "a54a1da70c5bdcd8992418c0e5b89063e216a739377da82036cb72b236d05182"
+      },
+      "modified_historical_dates": [],
+      "target_date_changed_keys": 155,
+      "normalization": {
+        "removed_identical_rows": 0,
+        "conflicting_duplicate_keys": [],
+        "before_rows": 42427,
+        "after_rows": 42427
+      }
+    }
+  }
+}
