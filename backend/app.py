@@ -338,11 +338,13 @@ def market_monitor():
         )
     except Exception as exc:  # GitHub 短暂不可用时只降级读取，不现场生产。
         remote_error = exc
-        bundle = market_monitor_published.last_good()
-        source = "memory-last-good"
-        if bundle is None:
-            bundle = market_monitor_published.load_bundled_fallback(project_root)
+        memory_bundle = market_monitor_published.last_good()
+        bundled_bundle = market_monitor_published.load_bundled_fallback(project_root)
+        bundle = market_monitor_published.newer_bundle(memory_bundle, bundled_bundle)
+        if bundle is bundled_bundle and bundled_bundle is not None:
             source = "bundled-last-good"
+        else:
+            source = "memory-last-good"
     if bundle is None:
         detail = str(remote_error or "没有可用的已验证发布包")[:180]
         raise HTTPException(502, f"市场监控暂无已验证数据：{detail}")

@@ -57,6 +57,19 @@ def validate_bundle(bundle: object) -> dict:
     return bundle
 
 
+def bundle_data_date(bundle: dict | None) -> str:
+    if not isinstance(bundle, dict):
+        return ""
+    return str(bundle.get("data_date") or "")
+
+
+def newer_bundle(*bundles: dict | None) -> dict | None:
+    valid = [bundle for bundle in bundles if isinstance(bundle, dict)]
+    if not valid:
+        return None
+    return max(valid, key=bundle_data_date)
+
+
 def fetch_remote_bundle() -> dict:
     repository, ref, path = repository_config()
     url = f"https://api.github.com/repos/{repository}/contents/{path}"
@@ -97,13 +110,15 @@ def load_bundled_fallback(project_root: Path) -> dict | None:
         project_root / "market-monitor" / "data" / "published" / "latest_market_monitor.json",
         project_root / "backend" / "data" / "market-monitor" / "data" / "published" / "latest_market_monitor.json",
     )
+    best: dict | None = None
     for path in candidates:
         if not path.exists():
             continue
         try:
             bundle = validate_bundle(json.loads(path.read_text(encoding="utf-8")))
-            remember(bundle)
-            return bundle
+            best = newer_bundle(best, bundle)
         except Exception:
             continue
-    return None
+    if best is not None:
+        remember(best)
+    return best

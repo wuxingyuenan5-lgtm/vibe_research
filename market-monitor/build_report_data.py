@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Iterable
 
-from market_monitor.history_preflight import read_index_history, scan_history_gaps
+from market_monitor.history_preflight import read_index_history, read_market_core_rows, scan_history_gaps
 
 
 TARGET_SW = {"通信设备": "801102", "计算机设备": "801101", "元件": "801083", "半导体": "801081"}
@@ -84,11 +84,11 @@ def append_hot_stock_history(path: Path, target_date: str, rows: Iterable[dict[s
     return values
 
 
-def _market_history(path: Path, target_date: str) -> list[dict[str, object]]:
+def _market_history(root: Path, target_date: str) -> list[dict[str, object]]:
     integer_fields = ("advance", "decline", "flat", "limit_up", "limit_down", "effective_stocks", "hot_count")
     numeric_fields = ("total_amount_100m", "hot_amount_100m", "hot_concentration", "market_breadth")
     rows = []
-    for raw in _read_csv(path):
+    for raw in read_market_core_rows(root):
         row_date = str(raw.get("date") or "")[:10]
         if not row_date or row_date > target_date:
             continue
@@ -259,7 +259,7 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
         else {"status": "UNKNOWN", "failures": [], "warnings": [], "tables": {}}
     )
 
-    market_history = _market_history(root / "data/history/market_core.csv", target_date)
+    market_history = _market_history(root, target_date)
     indices_history = _indices_history(root / "data/history/indices_history.csv", target_date)
     sw_industry = _sw_industry(root / "data/sw_industry_latest.csv")
     hot_all = _hot_rows(root / "data/history/hot_stocks.csv", target_date)
