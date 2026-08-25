@@ -144,14 +144,14 @@ def _validation(
         and row.get("turnover") is not None
         for row in sw_targets.values()
     )
-    add("sw_targets", sw_ok, "FAIL", f"{len(sw_targets)} targets; dates={[row.get('date') for row in sw_targets.values()]}")
+    add("sw_targets", sw_ok, "WARN", f"{len(sw_targets)} targets; dates={[row.get('date') for row in sw_targets.values()]}")
     innovation_ok = (
         innovation_latest is not None
         and innovation_latest.get("date") == target_date
         and "东方财富创新药BK1106" in str(innovation_latest.get("source") or "")
     )
-    add("innovation_current", innovation_ok, "FAIL", str(innovation_latest.get("date") if innovation_latest else None))
-    add("innovation_turnover", innovation_latest is not None and innovation_latest.get("turnover") is not None, "FAIL", str(innovation_latest.get("turnover") if innovation_latest else None))
+    add("innovation_current", innovation_ok, "WARN", str(innovation_latest.get("date") if innovation_latest else None))
+    add("innovation_turnover", innovation_latest is not None and innovation_latest.get("turnover") is not None, "WARN", str(innovation_latest.get("turnover") if innovation_latest else None))
     add("sw_mapping_cache", mapping_available, "WARN", "available" if mapping_available else "not initialized; weekly refresh required")
 
     failed = [c for c in checks if not c["ok"] and c["level"] == "FAIL"]

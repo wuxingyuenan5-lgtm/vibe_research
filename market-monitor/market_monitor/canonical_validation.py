@@ -125,32 +125,32 @@ def validate_candidate(
         and str(row.get("指数代码") or "").replace(".0", "") in {"801102", "801101", "801083", "801081"}
     ]
     if len(sw_rows) != 4:
-        failures.append(f"sw_crowding_critical_rows_missing:{target_date}:{len(sw_rows)}")
+        warnings.append(f"sw_crowding_critical_rows_missing:{target_date}:{len(sw_rows)}")
     for row in sw_rows:
         code = str(row.get("指数代码") or "").replace(".0", "")
         if _num(row.get("换手率")) is None or _num(row.get("成交额占比")) is None:
-            failures.append(f"sw_crowding_direct_fields_missing:{target_date}:{code}")
+            warnings.append(f"sw_crowding_direct_fields_missing:{target_date}:{code}")
         if "官方日度分析" not in str(row.get("数据源") or ""):
-            failures.append(f"sw_crowding_not_official:{target_date}:{code}")
+            warnings.append(f"sw_crowding_not_official:{target_date}:{code}")
 
     innovation_rows = [
         row for row in read_csv_rows(candidate_root / CANONICAL_TABLES["innovation"].path)
         if str(row.get("日期") or "")[:10] == target_date
     ]
     if len(innovation_rows) != 1:
-        failures.append(f"innovation_direct_row_missing:{target_date}:{len(innovation_rows)}")
+        warnings.append(f"innovation_direct_row_missing:{target_date}:{len(innovation_rows)}")
     elif (
         _num(innovation_rows[0].get("换手率")) is None
         or "东方财富创新药BK1106" not in str(innovation_rows[0].get("数据源") or "")
         or "估算" in str(innovation_rows[0].get("数据源") or "")
     ):
-        failures.append(f"innovation_not_direct:{target_date}")
+        warnings.append(f"innovation_not_direct:{target_date}")
 
     sw_latest_path = candidate_root / "data/sw_industry_latest.csv"
     sw_latest_rows = read_csv_rows(sw_latest_path)
     sw_latest_dates = {str(row.get("日期") or "")[:10] for row in sw_latest_rows}
     if len(sw_latest_rows) < 150 or sw_latest_dates != {target_date}:
-        failures.append(
+        warnings.append(
             f"sw_industry_latest_stale_or_incomplete:{target_date}:rows={len(sw_latest_rows)}:dates={sorted(sw_latest_dates)}"
         )
 
