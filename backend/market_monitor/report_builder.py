@@ -372,15 +372,8 @@ def _hot_rows(path: Path, target_date: str) -> list[dict[str, object]]:
             "sw_level1": str(raw.get("sw_level1") or "未匹配"),
             "sw_level2": str(raw.get("sw_level2") or "未匹配"),
         })
-    # 兼容旧版逐日历史：每个 ISO 周取最后一个有记录交易日作为周度快照。
-    latest_date_by_week: dict[tuple[int, int], str] = {}
-    for row in rows:
-        day = datetime.strptime(str(row["date"]), "%Y-%m-%d").date()
-        key = (day.isocalendar()[0], day.isocalendar()[1])
-        latest_date_by_week[key] = max(latest_date_by_week.get(key, ""), str(row["date"]))
-    weekly_dates = set(latest_date_by_week.values())
     return sorted(
-        [row for row in rows if str(row["date"]) in weekly_dates],
+        rows,
         key=lambda row: (row["date"], row["rank"] if row["rank"] is not None else 9999),
     )
 
