@@ -25,7 +25,25 @@ export interface ReportData {
   hot_stocks_latest: HotRow[];
   sw_crowding_history: { date: string; targets: Record<string, { amount_100m: number | null; amount_share_of_a: number | null; turnover: number | null }> }[];
   innovation_history: { date: string; amount_100m: number | null; amount_share_of_a: number | null; turnover: number | null; return: number | null; volume: number | null }[];
-  quality: { status: string; unresolved?: { module: string; level: string; detail: unknown }[]; module_latest_dates?: Record<string, string>; canonical_validation?: { status?: string } };
+  quality: {
+    status: string;
+    unresolved?: { module: string; level: string; detail: unknown }[];
+    module_latest_dates?: Record<string, string>;
+    canonical_validation?: { status?: string };
+    summary?: {
+      report_date?: string;
+      mother_tables?: { key: string; label: string; latest: string | null; status: string; detail?: string }[];
+      frontend_checks?: { key: string; label: string; status: string; detail?: string }[];
+      history_integrity?: {
+        status?: string;
+        index_gap_count?: number;
+        index_gap_dates?: string[];
+        market_denominator_gap_count?: number;
+        market_denominator_gap_dates?: string[];
+        notes?: string[];
+      };
+    };
+  };
 }
 export interface MarketPublication {
   status: "published" | string;
@@ -46,6 +64,14 @@ const signedPct = (v: number | null | undefined) => (v == null ? "—" : `${v > 
 const num2 = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const num0 = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("zh-CN", { maximumFractionDigits: 0 }));
 const upDownCls = (v: number | null | undefined) => (v == null ? "neutral" : v > 0 ? "up" : v < 0 ? "down" : "neutral");
+const qualityCls = (status: string | null | undefined) => status === "PASS" ? "quality-ok" : status === "WARN" ? "quality-pending" : "quality-bad";
+const qualityModuleLabel = (name: string) => ({
+  indices_history: "监控页三项指数历史",
+  market_denominator: "全A成交额分母",
+  hot_stocks_latest: "百亿成交榜",
+  canonical_validation: "底层 Canonical 审计",
+  publication_gate: "发布门禁",
+}[name] ?? name);
 
 function useReportData() {
   const [data, setData] = useState<ReportData | null>(null);
@@ -379,6 +405,7 @@ export function AStockMonitor({ embed = false }: { embed?: boolean } = {}) {
   const innovLatest = data?.innovation_history[data.innovation_history.length - 1];
   const quality = data?.quality;
   const moduleLatest = quality?.module_latest_dates ?? {};
+  const qualitySummary = quality?.summary;
   const canonicalStatus = quality?.canonical_validation?.status ?? quality?.status ?? data?.meta.status ?? "";
 
   if (loading) return <div className="asm-root"><div className="page"><div className="empty">正在加载市场监控数据…</div></div></div>;
@@ -487,25 +514,60 @@ export function AStockMonitor({ embed = false }: { embed?: boolean } = {}) {
         <section className="section">
           <div className="section-title">数据质量</div>
           <div className="card">
+            <div className="subnote">页面基准日：{qualitySummary?.report_date ?? data.meta.latest_market_date ?? data.meta.report_date ?? "—"}</div>
             <div className="table-wrap">
               <table>
-                <thead><tr><th>模块</th><th>最新有效日</th></tr></thead>
+                <thead><tr><th>母表</th><th>最新更新日</th><th>状态</th></tr></thead>
                 <tbody>
-                  <tr><td>市场核心</td><td>{moduleLatest.market ?? "—"}</td></tr>
-                  <tr><td>三项指数</td><td>{moduleLatest.indices ?? "—"}</td></tr>
-                  <tr><td>申万行业</td><td>{moduleLatest.sw_industry ?? "—"}</td></tr>
-                  <tr><td>四行业拥挤度</td><td>{moduleLatest.sw_crowding ?? "—"}</td></tr>
-                  <tr><td>创新药</td><td>{moduleLatest.innovation ?? "—"}</td></tr>
+                  {(qualitySummary?.mother_tables?.length ? qualitySummary.mother_tables : [
+                    { key: "market", label: "市场核心母表", latest: moduleLatest.market ?? null, status: "PASS" },
+                    { key: "indices", label: "监控页三项指数", latest: moduleLatest.indices ?? null, status: "PASS" },
+                    { key: "sw_industry", label: "申万行业母表", latest: moduleLatest.sw_industry ?? null, status: "PASS" },
+                    { key: "sw_crowding", label: "四行业拥挤度母表", latest: moduleLatest.sw_crowding ?? null, status: "PASS" },
+                    { key: "innovation", label: "创新药母表", latest: moduleLatest.innovation ?? null, status: "PASS" },
+                    { key: "hot_stocks", label: "百亿成交母表", latest: moduleLatest.hot_stocks ?? null, status: "PASS" },
+                  ]).map((row) => (
+                    <tr key={row.key}>
+                      <td>{row.label}</td>
+                      <td>{row.latest ?? "—"}</td>
+                      <td><span className={`quality-badge ${qualityCls(row.status)}`}>{row.status}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="table-wrap quality-section-gap">
+              <table>
+                <thead><tr><th>前端检查项</th><th>状态</th><th>说明</th></tr></thead>
+                <tbody>
+                  {(qualitySummary?.frontend_checks ?? []).map((row) => (
+                    <tr key={row.key}>
+                      <td>{row.label}</td>
+                      <td><span className={`quality-badge ${qualityCls(row.status)}`}>{row.status}</span></td>
+                      <td>{row.detail ?? "—"}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
             <div className="quality-meta">Canonical：<b>{canonicalStatus}</b></div>
-            {quality?.unresolved?.length ? (
+
+            {qualitySummary?.history_integrity ? (
+              <div className="quality-warn">
+                <b>历史完整性</b>
+                <ul>
+                  {(qualitySummary.history_integrity.notes ?? []).map((note, i) => (
+                    <li key={i}>{note}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : quality?.unresolved?.length ? (
               <div className="quality-warn">
                 <b>未解决事项</b>
                 <ul>
                   {quality.unresolved.map((u, i) => (
-                    <li key={i}><b>{u.module}</b>：{typeof u.detail === "string" ? u.detail : JSON.stringify(u.detail)}</li>
+                    <li key={i}><b>{qualityModuleLabel(u.module)}</b>：请查看母表审计结果并继续修复该模块</li>
                   ))}
                 </ul>
               </div>

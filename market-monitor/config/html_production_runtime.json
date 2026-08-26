@@ -48,10 +48,10 @@
   "web_execution": {
     "single_artifact_download": true,
     "steps": [
-      "read data/published/latest_market_monitor.json",
-      "verify status=published and matching data_date/latest_market_date",
-      "render the embedded report contract",
-      "keep the previous published bundle until the new file is committed"
+      "read output/YYYY-MM-DD/report_data.json",
+      "verify report_date/latest_market_date and validation companions",
+      "render the embedded report contract from the canonical mother tables",
+      "offline HTML remains an audit artifact and never becomes the web runtime source"
     ]
   },
   "artifact": {

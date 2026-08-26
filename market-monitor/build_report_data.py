@@ -8,11 +8,19 @@ import json
 from pathlib import Path
 from typing import Iterable
 
-from market_monitor.history_preflight import read_index_history, read_market_core_rows, scan_history_gaps
+from market_monitor.history_preflight import INDEX_NAMES, read_index_history, read_market_core_rows, scan_history_gaps
 
 
 TARGET_SW = {"通信设备": "801102", "计算机设备": "801101", "元件": "801083", "半导体": "801081"}
 HOT_FIELDS = ("date", "rank", "stock_code", "stock_name", "close", "return", "amount_100m", "sw_level1", "sw_level2")
+QUALITY_MODULE_LABELS = {
+    "market": "市场核心母表",
+    "indices": "监控页三项指数",
+    "sw_industry": "申万行业母表",
+    "sw_crowding": "四行业拥挤度母表",
+    "innovation": "创新药母表",
+    "hot_stocks": "百亿成交母表",
+}
 
 
 def _read_json(path: Path) -> dict:
@@ -49,6 +57,108 @@ def _filter_rows(rows: list[dict[str, object]], cutoff_date: str | None, key: st
     if not cutoff_date:
         return []
     return [row for row in rows if str(row.get(key) or "")[:10] <= cutoff_date]
+
+
+def _check_status(ok: bool, warn: bool = False) -> str:
+    if ok:
+        return "PASS"
+    return "WARN" if warn else "FAIL"
+
+
+def _module_health_rows(module_latest_dates: dict[str, str | None], benchmark_date: str | None) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    order = ("market", "indices", "sw_industry", "sw_crowding", "innovation", "hot_stocks")
+    for key in order:
+        latest = module_latest_dates.get(key)
+        if not latest:
+            status = "FAIL"
+            detail = "母表缺少有效数据"
+        elif benchmark_date and latest < benchmark_date:
+            status = "WARN"
+            detail = f"晚于页面基准日 {benchmark_date} 的数据尚未补齐"
+        else:
+            status = "PASS"
+            detail = "母表已就绪"
+        rows.append({
+            "key": key,
+            "label": QUALITY_MODULE_LABELS.get(key, key),
+            "latest": latest,
+            "status": status,
+            "detail": detail,
+        })
+    return rows
+
+
+def _build_quality_summary(
+    report_date: str,
+    module_latest_dates: dict[str, str | None],
+    latest_hot: list[dict[str, object]],
+    expected_hot: int,
+    hot_latest_date: str | None,
+    indices_history: list[dict[str, object]],
+    sw_industry: list[dict[str, object]],
+    sw_crowding: list[dict[str, object]],
+    innovation: list[dict[str, object]],
+    gaps: dict[str, object],
+    canonical_validation: dict[str, object],
+) -> dict[str, object]:
+    mother_tables = _module_health_rows(module_latest_dates, report_date)
+    latest_indices = [row for row in indices_history if str(row.get("date") or "") == report_date]
+    indices_ok = len([row for row in latest_indices if row.get("name") in INDEX_NAMES and row.get("return") is not None and row.get("amount_100m") is not None]) == len(INDEX_NAMES)
+    crowding_row = next((row for row in sw_crowding if str(row.get("date") or "") == report_date), None)
+    crowding_targets = (crowding_row or {}).get("targets") or {}
+    crowding_ok = len(crowding_targets) == len(TARGET_SW) and all(
+        crowding_targets.get(name, {}).get("amount_100m") is not None
+        and crowding_targets.get(name, {}).get("amount_share_of_a") is not None
+        and crowding_targets.get(name, {}).get("turnover") is not None
+        for name in TARGET_SW
+    )
+    innovation_row = next((row for row in innovation if str(row.get("date") or "") == report_date), None)
+    innovation_ok = bool(
+        innovation_row
+        and innovation_row.get("amount_100m") is not None
+        and innovation_row.get("amount_share_of_a") is not None
+        and innovation_row.get("turnover") is not None
+    )
+    frontend_checks = [
+        {"key": "market", "label": "市场总览正常显示", "status": _check_status(bool(report_date and module_latest_dates.get("market") == report_date)), "detail": "依赖 market_core 最新交易日"},
+        {"key": "indices", "label": "监控页三项指数正常显示", "status": _check_status(indices_ok, warn=bool(latest_indices)), "detail": "要求上证50/中证2000/中证全指在页面基准日同时具备涨跌幅和成交额"},
+        {"key": "sw_industry", "label": "申万行业表正常显示", "status": _check_status(bool(sw_industry and module_latest_dates.get("sw_industry") == report_date), warn=bool(sw_industry)), "detail": "要求页面基准日存在行业快照"},
+        {"key": "sw_crowding", "label": "四行业拥挤度图正常显示", "status": _check_status(crowding_ok, warn=bool(crowding_row)), "detail": "要求四条行业线在页面基准日同时具备成交额、占全A和换手率"},
+        {"key": "innovation", "label": "创新药模块正常显示", "status": _check_status(innovation_ok, warn=bool(innovation_row)), "detail": "要求页面基准日存在成交额、占全A和换手率"},
+        {"key": "hot_stocks", "label": "百亿成交榜正常显示", "status": _check_status(hot_latest_date == report_date and len(latest_hot) == expected_hot, warn=bool(latest_hot)), "detail": f"要求页面基准日百亿成交股数量与 market_core 记录一致（当前应为 {expected_hot} 只）"},
+    ]
+    index_gap_items = list(gaps.get("indices") or [])
+    index_gap_dates = sorted({str(item.get("date") or "")[:10] for item in index_gap_items if isinstance(item, dict) and str(item.get("date") or "")[:10]})
+    denominator_gap_dates = [str(item)[:10] for item in (gaps.get("market_denominator_dates") or []) if str(item)[:10]]
+    canonical_status = str(canonical_validation.get("status") or "UNKNOWN")
+    history_notes: list[str] = []
+    if index_gap_items:
+        history_notes.append(f"监控页三项指数最近窗口仍有 {len(index_gap_items)} 个字段缺口，涉及 {', '.join(index_gap_dates)}")
+    if denominator_gap_dates:
+        history_notes.append(f"创新药 / 四行业占全A分母仍缺 {', '.join(denominator_gap_dates)}")
+    if canonical_status == "FAIL":
+        history_notes.append("底层 Canonical 审计未通过，仍需继续修复后再作为完全稳定版本使用")
+    elif canonical_status == "WARN":
+        history_notes.append("底层 Canonical 审计仍有提醒项，但当前页面依赖的母表和展示检查已通过")
+    elif canonical_status == "UNKNOWN":
+        history_notes.append("尚未读取到 Canonical 审计结果，建议补跑一次离线审计")
+    history_status = "PASS" if not history_notes else ("FAIL" if canonical_status == "FAIL" else "WARN")
+    if not history_notes:
+        history_notes.append("未发现历史缺口")
+    return {
+        "report_date": report_date,
+        "mother_tables": mother_tables,
+        "frontend_checks": frontend_checks,
+        "history_integrity": {
+            "status": history_status,
+            "index_gap_count": len(index_gap_items),
+            "index_gap_dates": index_gap_dates,
+            "market_denominator_gap_count": len(denominator_gap_dates),
+            "market_denominator_gap_dates": denominator_gap_dates,
+            "notes": history_notes,
+        },
+    }
 
 
 def append_hot_stock_history(path: Path, target_date: str, rows: Iterable[dict[str, object]]) -> list[dict[str, object]]:
@@ -284,7 +394,7 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
     canonical_validation = (
         _read_json(canonical_validation_path)
         if canonical_validation_path.exists()
-        else {"status": "UNKNOWN", "failures": [], "warnings": [], "tables": {}}
+        else {"status": "SKIPPED", "failures": [], "warnings": [], "tables": {}}
     )
 
     # 所有展示数据都来自同一套滚动母表；target_date 只是读取截止日，不会选择另一套母表。
@@ -381,7 +491,7 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
             "level": "FAIL",
             "detail": canonical_validation.get("failures") or [],
         })
-    elif canonical_validation.get("status") in ("WARN", "UNKNOWN"):
+    elif canonical_validation.get("status") == "WARN":
         unresolved.append({
             "module": "canonical_validation",
             "level": "WARN",
@@ -409,6 +519,19 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
         "blocking_reasons": blocking_reasons,
         "module_latest_dates": module_latest_dates,
     }
+    quality_summary = _build_quality_summary(
+        latest_market or target_date,
+        module_latest_dates,
+        latest_hot,
+        expected_hot,
+        hot_latest_date,
+        indices_history,
+        sw_industry,
+        sw_crowding,
+        innovation,
+        gaps,
+        canonical_validation,
+    )
 
     return {
         "meta": {
@@ -429,6 +552,7 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
         "innovation_history": innovation,
         "quality": {
             "status": status,
+            "summary": quality_summary,
             "unresolved": unresolved,
             "module_latest_dates": module_latest_dates,
             "history_gaps": gaps,

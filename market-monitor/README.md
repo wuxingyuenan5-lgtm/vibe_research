@@ -18,7 +18,7 @@ run_daily.py（15:20 抓取并按日期 upsert）
 → 前端展示
 ```
 
-`report_data.json`、HTML 和 `data/published/` 仅可作为离线审计产物，不参与网页运行。
+`report_data.json` 与离线 HTML 仅作为审计产物，不参与网页运行。
 
 ## 模块说明
 

@@ -196,15 +196,33 @@ def _innovation(report):
 
 def _quality(report):
     quality = report.get("quality", {})
-    labels = {"market":"市场核心","indices":"三项指数","sw_industry":"申万行业","sw_crowding":"四行业拥挤度","innovation":"创新药"}
-    rows = [[labels.get(k,k), escape(str(v or "—"))] for k,v in quality.get("module_latest_dates", {}).items()]
-    out = _table(["模块","最新有效日"], rows)
+    summary = quality.get("summary") or {}
+    mother_tables = summary.get("mother_tables") or []
+    if mother_tables:
+        rows = [[
+            escape(str(item.get("label") or "—")),
+            escape(str(item.get("latest") or "—")),
+            escape(str(item.get("status") or "—")),
+        ] for item in mother_tables]
+    else:
+        labels = {"market":"市场核心母表","indices":"监控页三项指数","sw_industry":"申万行业母表","sw_crowding":"四行业拥挤度母表","innovation":"创新药母表","hot_stocks":"百亿成交母表"}
+        rows = [[labels.get(k,k), escape(str(v or "—")), "—"] for k,v in quality.get("module_latest_dates", {}).items()]
+    out = _table(["母表","最新更新日","状态"], rows)
+    frontend_checks = summary.get("frontend_checks") or []
+    if frontend_checks:
+        frontend_rows = [[
+            escape(str(item.get("label") or "—")),
+            escape(str(item.get("status") or "—")),
+            escape(str(item.get("detail") or "—")),
+        ] for item in frontend_checks]
+        out += _table(["前端检查项","状态","说明"], frontend_rows)
     canonical = quality.get("canonical_validation", {})
     out += f'<div class="quality-meta">Canonical：<b>{escape(str(canonical.get("status") or "UNKNOWN"))}</b></div>'
-    unresolved = quality.get("unresolved", [])
-    if unresolved:
-        items = "".join(f'<li><b>{escape(str(x.get("module")))}</b>：{escape(json.dumps(x.get("detail"),ensure_ascii=False))}</li>' for x in unresolved)
-        out += f'<div class="quality-warn"><b>未解决事项</b><ul>{items}</ul></div>'
+    history_integrity = summary.get("history_integrity") or {}
+    notes = history_integrity.get("notes") or []
+    if notes:
+        items = "".join(f'<li>{escape(str(item))}</li>' for item in notes)
+        out += f'<div class="quality-warn"><b>历史完整性</b><ul>{items}</ul></div>'
     else:
         out += '<div class="quality-pass">Canonical 与历史预检未发现未解决关键缺口。</div>'
     return out
