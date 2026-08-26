@@ -136,4 +136,4 @@ Core positioning: **data + factual brief**. All analysis / decisions flow throug
 
 ## Acknowledgements
 
-<!-- TODO: optional — short paragraph (<10 lines) crediting original author simonlin1212 / upstream data sources / libraries / tools. -->
+<!-- TODO: optional — short paragraph (<10 lines) crediting upstream data sources / libraries / tools. -->
