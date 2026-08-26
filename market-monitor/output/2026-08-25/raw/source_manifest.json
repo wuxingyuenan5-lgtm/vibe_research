@@ -23,10 +23,10 @@
     "innovation_history_eastmoney": "/Users/zhangxu/Desktop/codex/Vibe-Research/market-monitor/output/2026-08-25/.canonical_stage/data/history/innovation_drug_eastmoney.csv"
   },
   "timings_seconds": {
-    "market_snapshot_s": 1.947,
-    "indices_s": 0.648,
-    "sw_analysis_s": 0.009,
-    "innovation_drug_s": 0.692,
-    "total_s": 4.017
+    "market_snapshot_s": 1.924,
+    "indices_s": 0.748,
+    "sw_analysis_s": 0.015,
+    "innovation_drug_s": 1.582,
+    "total_s": 5.864
   }
 }

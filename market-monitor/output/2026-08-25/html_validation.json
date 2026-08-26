@@ -7,25 +7,32 @@
     "quality_warning:indices_history",
     "quality_warning:market_denominator",
     "quality_warning:canonical_validation",
+    "quality_warning:sw_crowding_turnover_latest",
     "unresolved_index_history_gaps",
     "unresolved_market_denominator_gaps"
   ],
   "checks": {
     "latest_market_date": "2026-08-25",
-    "hot_detail_rows": 9,
-    "hot_expected": 9,
-    "hot_matrix_sum": 9,
+    "hot_detail_rows": 8,
+    "hot_expected": 8,
+    "hot_matrix_sum": 8,
     "market_chart_latest_marker": true,
     "offline_single_file": true,
     "innovation_activity_proxy_absent": true,
     "time_chart_count": 6,
     "expected_time_charts": 6,
     "hot_matrix_dates": [
+      "2026-08-25",
+      "2026-08-24",
       "2026-08-21",
+      "2026-08-20",
+      "2026-08-19",
+      "2026-08-18",
+      "2026-08-17",
       "2026-08-14",
-      "2026-08-06",
-      "2026-07-31"
+      "2026-08-13",
+      "2026-08-12"
     ],
-    "hot_matrix_latest_date": "2026-08-21"
+    "hot_matrix_latest_date": "2026-08-25"
   }
 }
