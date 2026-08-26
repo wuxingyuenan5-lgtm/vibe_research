@@ -170,6 +170,7 @@ jobs:
       - name: Persist mother tables
         if: github.event_name != 'pull_request'
         shell: bash
+        working-directory: .
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
