@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import atexit
 from datetime import datetime
 import json
 from pathlib import Path
@@ -13,7 +14,6 @@ from market_monitor.production import run
 from market_monitor.history_preflight import append_index_history
 from market_monitor.canonical_store import CANONICAL_TABLES, normalize_candidate, read_csv_rows
 from market_monitor.canonical_validation import validate_candidate
-from market_monitor.sw_cache import refresh_sw_cache
 from market_monitor.collectors import update_limit_pool_history
 from build_report_data import append_hot_stock_history
 from update_sw_industry_fast import update as update_sw_industry_fast
@@ -38,7 +38,6 @@ def refresh_sources(
     root: Path,
     target_date: str,
     full_refresh_sw_industry: bool = False,
-    crowding_refresh_fn: Callable = refresh_sw_cache,
     fast_industry_refresh_fn: Callable = update_sw_industry_fast,
     full_industry_refresh_fn: Callable = update_sw_industry_full,
 ) -> dict[str, object]:
@@ -47,32 +46,19 @@ def refresh_sources(
     data_dir = root / "data"
     result: dict[str, object] = {"warnings": []}
 
-    try:
-        crowding_refresh_fn(
-            target_date,
-            cache_path=data_dir / "cache/sw_analysis_daily_second.csv",
-            history_path=data_dir / "history/sw_analysis_daily_second.csv",
+    if full_refresh_sw_industry:
+        full_industry_refresh_fn(
+            history_rows=260,
+            sleep_seconds=0.15,
+            workers=4,
+            data_dir=data_dir,
         )
-        result["sw_crowding"] = "ok"
-    except Exception as exc:
-        result["sw_crowding"] = "fallback_previous_canonical"
-        result["warnings"].append(f"sw_crowding_refresh_failed:{exc}")
-
-    try:
-        if full_refresh_sw_industry:
-            full_industry_refresh_fn(
-                history_rows=260,
-                sleep_seconds=0.15,
-                workers=4,
-                data_dir=data_dir,
-            )
-            result["sw_industry"] = "ok_full"
-        else:
-            fast_industry_refresh_fn(target_date, data_dir=data_dir)
-            result["sw_industry"] = "ok_fast"
-    except Exception as exc:
-        result["sw_industry"] = "fallback_previous_canonical"
-        result["warnings"].append(f"sw_industry_refresh_failed:{exc}")
+        result["sw_industry"] = "ok_full_sws"
+    else:
+        fast_industry_refresh_fn(target_date, data_dir=data_dir)
+        result["sw_industry"] = "ok_fast_sws"
+    # 四行业东方财富整表重建必须等 pipeline 写入当天全A分母后执行。
+    result["four_sector_crowding"] = "scheduled_after_market_core"
 
     return result
 
@@ -93,6 +79,30 @@ def _baseline_rows(root: Path) -> dict[str, list[dict[str, str]]]:
     }
 
 
+def _mother_table_paths(root: Path) -> list[Path]:
+    paths = {root / spec.path for spec in CANONICAL_TABLES.values()}
+    paths.update({
+        root / "data/sw_industry_latest.csv",
+        root / "data/history/innovation_drug_enriched.csv",
+    })
+    return sorted(paths)
+
+
+def _snapshot_mother_tables(root: Path) -> dict[Path, bytes | None]:
+    return {path: path.read_bytes() if path.exists() else None for path in _mother_table_paths(root)}
+
+
+def _restore_mother_tables(snapshot: dict[Path, bytes | None]) -> None:
+    for path, content in snapshot.items():
+        if content is None:
+            path.unlink(missing_ok=True)
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_suffix(path.suffix + ".rollback")
+        temporary.write_bytes(content)
+        temporary.replace(path)
+
+
 def main() -> None:
     args = parse_args()
     today = default_date()
@@ -103,6 +113,14 @@ def main() -> None:
         )
 
     repo_root = Path(".").resolve()
+    mother_snapshot = _snapshot_mother_tables(repo_root)
+    transaction = {"committed": False}
+
+    def rollback_failed_run() -> None:
+        if not transaction["committed"]:
+            _restore_mother_tables(mother_snapshot)
+
+    atexit.register(rollback_failed_run)
     config_path = (repo_root / args.config).resolve()
     baseline_rows = _baseline_rows(repo_root)
     source_refresh = refresh_sources(
@@ -164,10 +182,13 @@ def main() -> None:
 
     payload_validation = result["validation"]
     removed = sum(int(item.get("removed_identical_rows") or 0) for item in normalization.values())
+    transaction["committed"] = True
+    atexit.unregister(rollback_failed_run)
     print(
         f"completed date={args.target_date} payload_status={payload_validation['status']} "
         f"canonical_status={canonical_validation['status']} identical_duplicates_removed={removed} "
-        f"sw_crowding={source_refresh['sw_crowding']} sw_industry={source_refresh['sw_industry']} "
+        f"four_sector_crowding={source_refresh['four_sector_crowding']} "
+        f"sw_industry={source_refresh['sw_industry']} "
         "innovation=direct_eastmoney_only "
         f"output={output_dir}"
     )

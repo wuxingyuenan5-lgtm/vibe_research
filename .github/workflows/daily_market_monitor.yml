@@ -2,7 +2,7 @@ name: Daily A-share Market Monitor
 
 on:
   schedule:
-    # GitHub cron 使用 UTC：上海时间工作日 15:20 只生产一次。
+    # GitHub cron 使用 UTC：上海时间工作日 15:20。
     # 若数据日期、分页或关键字段校验失败，任务直接失败并暴露生产问题，不自动补跑。
     - cron: "20 7 * * 1-5"
   workflow_dispatch:
@@ -17,7 +17,7 @@ on:
         type: boolean
         default: false
       full_refresh_sw_industry:
-        description: "Run slow per-index Shenwan history refresh on the mother tables"
+        description: "Run slow per-index refresh for the separate Shenwan-industry mother table"
         required: false
         type: boolean
         default: false
@@ -32,7 +32,6 @@ on:
       - market-monitor/run_history_preflight.py
       - market-monitor/validate_canonical_data.py
       - market-monitor/build_report_data.py
-      - market-monitor/publish_latest_bundle.py
       - market-monitor/render_market_monitor_html.py
       - market-monitor/validate_market_monitor_html.py
       - market-monitor/market_monitor/**
@@ -42,12 +41,15 @@ on:
       - market-monitor/config/market_monitor.json
       - market-monitor/config/html_production_runtime.json
       - market-monitor/data/history/hot_stocks.csv
+      - backend/market_monitor/daily_refresh.py
+      - backend/market_monitor/stock_pool.py
+      - data/stock-pool/**
       - market-monitor/requirements.txt
       - .github/workflows/daily_market_monitor.yml
 
 concurrency:
-  group: daily-market-monitor-${{ github.ref }}
-  cancel-in-progress: true
+  group: vibe-research-data-writer
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -92,8 +94,8 @@ jobs:
         run: |
           python -m py_compile \
             run_daily.py run_history_preflight.py validate_canonical_data.py build_report_data.py \
-            render_market_monitor_html.py validate_market_monitor_html.py publish_latest_bundle.py \
-            update_sw_industry.py update_sw_industry_fast.py
+            render_market_monitor_html.py validate_market_monitor_html.py audit_mother_tables.py \
+            update_sw_industry.py update_sw_industry_fast.py rebuild_eastmoney_sectors.py
           python -m py_compile market_monitor/*.py
 
       - name: Full unit tests on code review only
@@ -133,10 +135,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: History preflight and recoverable backfill
-        if: github.event_name != 'pull_request'
-        run: python run_history_preflight.py --target-date "${{ steps.date.outputs.value }}"
-
       - name: Produce normalized payload
         if: github.event_name != 'pull_request'
         shell: bash
@@ -151,8 +149,8 @@ jobs:
           if [ "${{ inputs.force_hot_snapshot }}" = "true" ]; then
             args="$args --force-hot-snapshot"
           fi
-          # 15:20 启动；延迟行情节点尚未形成完整收盘快照时，每 5 分钟重试。
-          # run_daily 直接按日期 upsert 唯一母表；校验失败时工作流退出且不会提交。
+          # 15:20 启动；接口尚未形成完整快照时，每 5 分钟重试。
+          # run_daily 只按日期 upsert 唯一母表。
           for attempt in 1 2 3 4 5; do
             if python run_daily.py --target-date "${{ steps.date.outputs.value }}" $args; then
               break
@@ -165,104 +163,23 @@ jobs:
             sleep 300
           done
 
-      - name: Validate Canonical data
+      - name: Audit mother tables
         if: github.event_name != 'pull_request'
-        run: |
-          python validate_canonical_data.py \
-            --target-date "${{ steps.date.outputs.value }}" \
-            --output "output/${{ steps.date.outputs.value }}/canonical_validation.json"
+        run: python audit_mother_tables.py --target-date "${{ steps.date.outputs.value }}"
 
-      - name: Build normalized report data
-        if: github.event_name != 'pull_request'
-        run: python build_report_data.py --target-date "${{ steps.date.outputs.value }}"
-
-      - name: Render offline HTML
-        if: github.event_name != 'pull_request'
-        run: |
-          python render_market_monitor_html.py \
-            --input "output/${{ steps.date.outputs.value }}/report_data.json" \
-            --output "output/${{ steps.date.outputs.value }}/A股每日市场监控_${{ steps.date.outputs.compact }}.html"
-
-      - name: Validate HTML
-        if: github.event_name != 'pull_request'
-        run: |
-          python validate_market_monitor_html.py \
-            --data "output/${{ steps.date.outputs.value }}/report_data.json" \
-            --html "output/${{ steps.date.outputs.value }}/A股每日市场监控_${{ steps.date.outputs.compact }}.html" \
-            --output "output/${{ steps.date.outputs.value }}/html_validation.json"
-
-      - name: Publish single validated data bundle
-        if: github.event_name != 'pull_request'
-        run: |
-          python publish_latest_bundle.py \
-            --target-date "${{ steps.date.outputs.value }}" \
-            --output "data/published/latest_market_monitor.json"
-
-      - name: Write latest HTML pointer
-        if: github.event_name != 'pull_request'
-        shell: bash
-        run: |
-          python - <<'PY'
-          import json, os
-          from pathlib import Path
-          d = "${{ steps.date.outputs.value }}"
-          compact = "${{ steps.date.outputs.compact }}"
-          html_validation = json.loads(Path(f"output/{d}/html_validation.json").read_text(encoding="utf-8"))
-          canonical_validation = json.loads(Path(f"output/{d}/canonical_validation.json").read_text(encoding="utf-8"))
-          pointer = {
-              "date": d,
-              "run_id": int(os.environ["GITHUB_RUN_ID"]),
-              "artifact_name": f"a-share-monitor-html-{d}",
-              "primary_file": f"A股每日市场监控_{compact}.html",
-              "data_contract": "report_data.json",
-              "published_data": "data/published/latest_market_monitor.json",
-              "canonical_validation_file": "canonical_validation.json",
-              "canonical_validation_status": canonical_validation["status"],
-              "validation_file": "html_validation.json",
-              "validation_status": html_validation["status"],
-              "runtime_manifest": "config/html_production_runtime.json",
-              "workflow": "daily_market_monitor.yml"
-          }
-          Path("data/latest_bundle_pointer.json").write_text(
-              json.dumps(pointer, ensure_ascii=False, indent=2), encoding="utf-8"
-          )
-          print(json.dumps(pointer, ensure_ascii=False))
-          PY
-
-      - name: Upload HTML production artifact
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: a-share-monitor-html-${{ steps.date.outputs.value }}
-          path: |
-            market-monitor/output/${{ steps.date.outputs.value }}/A股每日市场监控_${{ steps.date.outputs.compact }}.html
-            market-monitor/output/${{ steps.date.outputs.value }}/report_data.json
-            market-monitor/output/${{ steps.date.outputs.value }}/canonical_manifest.json
-            market-monitor/output/${{ steps.date.outputs.value }}/canonical_validation.json
-            market-monitor/output/${{ steps.date.outputs.value }}/html_validation.json
-            market-monitor/output/${{ steps.date.outputs.value }}/history_preflight.json
-            market-monitor/output/${{ steps.date.outputs.value }}/source_manifest.json
-            market-monitor/data/published/latest_market_monitor.json
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Persist histories, snapshots, HTML archive, and latest pointer
+      - name: Persist mother tables
         if: github.event_name != 'pull_request'
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
-            market-monitor/data/history market-monitor/data/cache \
-            market-monitor/data/sw_industry_history.csv market-monitor/data/sw_industry_latest.csv \
-            market-monitor/data/published/latest_market_monitor.json \
-            market-monitor/data/latest_bundle_pointer.json \
-            "market-monitor/output/${{ steps.date.outputs.value }}/*.json" \
-            "market-monitor/output/${{ steps.date.outputs.value }}/*.html"
+            market-monitor/data/history \
+            market-monitor/data/sw_industry_history.csv market-monitor/data/sw_industry_latest.csv
           if git diff --cached --quiet; then
             echo "No persistent data changes"
           else
-            git commit -m "data: daily HTML market monitor ${{ steps.date.outputs.value }}"
+            git commit -m "data: update market mother tables ${{ steps.date.outputs.value }}"
             git pull --rebase origin main
             git push
           fi

@@ -2,23 +2,18 @@
 
 ## 1. 正式架构
 
-HTML 是每日正式展示成品，Excel 不再是 HTML 的中间母表。
+正式展示只经过唯一母表，HTML/JSON 只用于离线审计。
 
 ```text
-历史完整性预检 / 定点回填
-→ Raw / Stage 当日采集
-→ 对同一套母表按日期 upsert
-→ 母表标准化与 Validator
-→ 校验通过后提交；失败不提交
-→ report_data.json
-→ HTML v1.1 Renderer
-→ HTML Validator
-→ HTML + report_data + Canonical/HTML validation 单 artifact
-→ 生成 data/published/latest_market_monitor.json
-→ GitHub 一次提交原子发布
+15:20 API 当日采集
+→ 所有日度序列按主键 upsert；四行业每天追加四条东方财富板块收盘记录
+→ 母表审计
+→ GitHub 提交母表
+→ 后端直接读取母表
+→ 前端展示
 ```
 
-唯一网页运行入口：`config/html_production_runtime.json`。
+唯一网页运行入口：`GET /api/market-monitor`，其数据源固定为 `market-monitor/data/`。
 
 旧 Excel Renderer v1.5 暂时保留为兼容/历史路径，不属于 HTML 日常关键路径。
 
@@ -57,17 +52,10 @@ Canonical Validator 为 FAIL 时，不允许生成正式 `report_data.json` 和 
 `.github/workflows/daily_market_monitor.yml` 正常日依次执行：
 
 1. 安装依赖与快速语法检查；
-2. `run_history_preflight.py` 扫描历史关键字段并定点修复可恢复缺口；
-3. `run_daily.py` 直接在同一套母表中完成当日市场、指数、百亿成交、申万与创新药的按日期 upsert；
-4. `validate_canonical_data.py` 对母表做结构、历史和数学一致性验证；
-5. 仅在 Canonical 非 FAIL 时更新正式历史；
-6. `build_report_data.py` 从 Canonical 生成唯一展示数据合同；
-7. `render_market_monitor_html.py` 生成 HTML v1.1 单文件报告；
-8. `validate_market_monitor_html.py` 执行展示层一致性校验；
-9. 将报告、发布日期与校验状态封装为唯一发布文件 `data/published/latest_market_monitor.json`；
-10. 与历史文件在同一个 Git commit 中发布；平台在提交完成前继续读取上一份有效包；
-10. 上传一个 `a-share-monitor-html-YYYY-MM-DD` artifact；
-11. 归档历史、manifest、validation、JSON 和 HTML。
+2. `run_daily.py` 在同一套母表中完成市场、指数、百亿成交、申万与创新药的按日期 upsert；
+3. `audit_mother_tables.py` 输出母表缺口与一致性诊断；
+4. 只提交 `market-monitor/data/` 母表；
+5. 自选股由独立 `daily_stock_pool.yml` 在15:25覆盖轻量缓存，互不阻断。
 
 完整单元测试只在 PR/code review 跑，普通日不重复执行。
 
@@ -79,7 +67,7 @@ Canonical Validator 为 FAIL 时，不允许生成正式 `report_data.json` 和 
 - 全A：东方财富完整分页快照计算成交额、涨跌家数和市场宽度；涨跌停读取东财官方池并保存明细；
 - 百亿成交：每天按 `date + stock_code` 写入同一张 `hot_stocks.csv` 母表；
 - 创新药：成交额、成交额占全A、供应商直接换手率；
-- 申万行业与四行业拥挤度最新有效日。
+- 申万行业最新有效日，以及东方财富四行业当天四条记录完整。
 
 规则：
 
@@ -87,12 +75,15 @@ Canonical Validator 为 FAIL 时，不允许生成正式 `report_data.json` 和 
 - 大面积初始化使用每指数一次日期区间请求，零散缺口再定点补抓；
 - 创新药成交额占比只允许 `同日创新药成交额 / 同日全部A股成交额`；
 - 创新药换手率只接受供应商直接板块换手率；
-- 四行业当日成交额/占全A读取申万 current 聚合接口；该接口不提供换手率时保持空值，待官方日度分析用同日主键覆盖，禁止拿旧日换手率冒充当天；
+- 四行业固定映射东方财富行业板块：通信设备 `BK0448`、计算机设备 `BK0735`、元件 `BK0459`、半导体 `BK1036`；
+- 先写入同日 `market_core` 全 A 成交额，再从东方财富历史 K 线读取成交额和换手率，并计算成交额占全 A；
+- 普通日更使用 `push2delay` 轻量报价直接写入当天四行；四个板块任一字段缺失即失败；
+- `rebuild_eastmoney_sectors.py` 只在补历史时调用 `push2his` 整段重建，不阻塞每日生产；不使用持久化 `current` 临时截面；
+- `sw_industry_history.csv` 仍是独立的申万行业模块，不再兼任四行业图的成交额旁表；
 - GitHub Actions 在工作日上海时间 15:20 启动；收盘源未完整时每 5 分钟复查；母表校验通过才提交，失败不提交；
 - 正式环境只有 GitHub Actions 可以发布数据；本地 `daily_data_sync.py` 必须显式使用 `--diagnostic-only`，且不会 commit/push；
-- 后端默认读取 `wuxingyuenan5-lgtm/vibe_research@main` 的唯一发布文件，使用 180 秒内存缓存；可用 `VR_MARKET_DATA_REPO`、`VR_MARKET_DATA_REF`、`VR_MARKET_DATA_PATH`、`VR_MARKET_DATA_TTL` 调整，私有仓库通过 `VR_GITHUB_TOKEN` 只读访问；
-- GitHub 尚未完成新一日发布或暂时不可访问时，平台继续返回进程内/项目内最后有效包，不现场采集、不写 0；
-- 新空值不得覆盖已验证历史非空值；
+- 后端直接读取根目录唯一母表，不读取发布文件、后端副本或内存回退包；
+- 新空值不得覆盖核心历史字段；改源后东方财富不提供的申万 PE/PB 等非展示字段允许显式留空；
 - 无同定义可靠来源的数据继续留空并 WARN，禁止为了 PASS 伪填。
 
 ## 5. `report_data.json`

@@ -15,12 +15,12 @@ import cli_runtime
 import debate as debate_layer
 import gstock
 import macro_brief as macro_brief_mod
-import market_monitor.published as market_monitor_published
+import market_monitor.report_builder as market_monitor_builder
 import market_monitor.stock_pool as stock_pool_builder
 import newsradar
 import portfolio as pf
 import market
-from dataservice import TTL, get as _ds_get
+from dataservice import TTL, get as _ds_get, invalidate as _ds_invalidate
 import myreports as mr
 import reflection as reflect_layer
 import market_monitor.morning_brief as morning_brief
@@ -318,57 +318,47 @@ def radar_refresh():
 
 @app.get("/api/market-monitor")
 def market_monitor():
-    """只读 GitHub 已验证发布包；远端异常时保留最后一次成功版本。"""
+    """直接读取根目录唯一母表；不经过发布包、后端副本或内存回退。"""
     project_root = Path(__file__).resolve().parent.parent
-    repository, ref, path = market_monitor_published.repository_config()
     try:
-        configured_ttl = float(os.environ.get("VR_MARKET_DATA_TTL", "180"))
-    except ValueError:
-        configured_ttl = 180.0
-    cache_ttl = max(30.0, min(configured_ttl, 900.0))
-    remote_error: Exception | None = None
-    source = "github"
-    try:
-        bundle = _ds_get(
-            f"market-monitor:published:{repository}:{ref}:{path}",
-            cache_ttl,
-            market_monitor_published.fetch_remote_bundle,
-            valid=lambda value: bool(value and value.get("status") == "published"),
-            provider="github-market-data",
-        )
-    except Exception as exc:  # GitHub 短暂不可用时只降级读取，不现场生产。
-        remote_error = exc
-        memory_bundle = market_monitor_published.last_good()
-        bundled_bundle = market_monitor_published.load_bundled_fallback(project_root)
-        bundle = market_monitor_published.newer_bundle(memory_bundle, bundled_bundle)
-        if bundle is bundled_bundle and bundled_bundle is not None:
-            source = "bundled-last-good"
-        else:
-            source = "memory-last-good"
-    if bundle is None:
-        detail = str(remote_error or "没有可用的已验证发布包")[:180]
-        raise HTTPException(502, f"市场监控暂无已验证数据：{detail}")
-
-    publication = {
-        "status": bundle.get("status"),
-        "data_date": bundle.get("data_date"),
-        "published_at": bundle.get("published_at"),
-        "producer": bundle.get("producer"),
-        "run_id": bundle.get("run_id"),
-        "validation": bundle.get("validation") or {},
-        "source": source,
-        "using_fallback": source != "github",
-    }
-    if remote_error is not None:
-        publication["remote_error"] = str(remote_error)[:180]
-    return {"data": bundle["report"], "publication": publication}
+        mother_root = project_root / "market-monitor"
+        target_date = market_monitor_builder.latest_market_date(mother_root)
+        if not target_date:
+            raise RuntimeError("market_core.csv 没有有效日期")
+        report = market_monitor_builder.build_report_data(target_date, mother_root)
+        return {"data": report, "publication": {
+            "data_date": target_date,
+            "source": "canonical-mother-tables",
+            "using_fallback": False,
+        }}
+    except Exception as exc:
+        raise HTTPException(502, f"读取市场母表失败：{exc}") from exc
 
 
 @app.get("/api/stock-pool")
 def stock_pool():
-    """核心股票池 payload（可编辑池子定义 + 日更快照行情，实时构建）。"""
+    """核心股票池只读取 GitHub 已发布的日更 bundle；网络失败时回退仓库内最后成功版本。"""
     try:
-        return {"data": stock_pool_builder.build_stock_pool_payload()}
+        try:
+            bundle = _ds_get(
+                "stock-pool:published:main",
+                TTL["minute"],
+                stock_pool_builder.fetch_remote_latest,
+                valid=lambda value: bool(value and value.get("status") == "published"),
+                provider="github-stock-pool",
+            )
+            source = "github"
+        except Exception:
+            bundle = stock_pool_builder.load_bundled_latest()
+            source = "bundled-last-good"
+        if bundle is None:
+            raise RuntimeError("没有可用的已验证股票池发布包")
+        return {"data": bundle["payload"], "publication": {
+            "data_date": bundle["data_date"],
+            "published_at": bundle.get("published_at"),
+            "source": source,
+            "using_fallback": source != "github",
+        }}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"股票池数据异常：{e}") from e
 
@@ -435,7 +425,16 @@ def stock_pool_sync():
 def stock_pool_focus_get():
     """近期关注列表（独立于核心股票池，存 GitHub data/stock-pool/focus.json）。"""
     try:
-        codes = stock_pool_builder.load_focus()
+        try:
+            codes = _ds_get(
+                "stock-pool:focus:main",
+                TTL["minute"],
+                stock_pool_builder.fetch_remote_focus,
+                valid=lambda value: isinstance(value, list),
+                provider="github-stock-pool-focus",
+            )
+        except Exception:
+            codes = stock_pool_builder.load_focus()
         return {"data": {"codes": codes}}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"读取近期关注失败：{e}") from e
@@ -450,6 +449,7 @@ async def stock_pool_focus_save(request: Request):
         result = stock_pool_builder.save_focus(codes)
         if not result.get("ok"):
             raise HTTPException(502, result.get("error", "保存失败"))
+        _ds_invalidate("stock-pool:focus:main")
         return {"data": {"ok": True, "count": len(codes), "commit": result.get("commit")}}
     except HTTPException:
         raise

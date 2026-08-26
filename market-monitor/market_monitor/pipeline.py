@@ -12,11 +12,11 @@ from .collectors import (
     fetch_indices,
     fetch_innovation_current_em,
     fetch_limit_pools,
-    fetch_sw_analysis,
     update_innovation_history,
     update_market_history,
     upsert_innovation_direct_quote,
 )
+from .sector_eastmoney import upsert_eastmoney_sector_current
 from .common import ensure_dir, load_json, write_json
 from .sw_mapping import load_or_refresh_mapping
 
@@ -24,6 +24,11 @@ from .sw_mapping import load_or_refresh_mapping
 def fetch_market_activity_summary(target_date: str) -> dict[str, int] | None:
     """Optional current-day aggregate source; production overrides this with the webpage API."""
     return None
+
+
+def fetch_four_sector_current(target_date: str) -> list[dict[str, object]]:
+    """Production overrides this with the Eastmoney delayed close quote."""
+    raise RuntimeError("Eastmoney four-sector current collector is not configured")
 
 
 @dataclass(frozen=True)
@@ -106,7 +111,7 @@ def _normalize_sw_targets(
             "amount_share_of_a": share,
             "turnover": turnover,
             "share_source": str(row.get("数据源") or "") or (
-                "申万官方成交额占比" if share_raw is not None else "derived"
+            "母表直接成交额占比" if share_raw is not None else "derived"
             ),
         }
     return out
@@ -121,62 +126,6 @@ def _combine_sw_targets(sw_targets: dict[str, dict[str, object]]) -> dict[str, o
         "amount_100m": sum(float(value) for value in amounts if value is not None) if complete_amounts else None,
         "amount_share_of_a": sum(valid_shares) if valid_shares else None,
     }
-
-
-def _upsert_current_sw_amounts(
-    industry_history_path: Path,
-    crowding_history_path: Path,
-    target_codes: dict[str, str],
-    target_date: str,
-    market_amount_100m: float,
-) -> pd.DataFrame:
-    """Use the same-day SWS aggregate snapshot for amount/share when daily analysis is not published yet.
-
-    The current endpoint does not provide turnover, so turnover remains empty instead of being copied
-    from an older day. A later official daily-analysis refresh overwrites the same date+code rows.
-    """
-    if not industry_history_path.exists():
-        return pd.DataFrame()
-    industry = pd.read_csv(industry_history_path, encoding="utf-8-sig")
-    date_values = industry.get("日期", pd.Series(dtype=str)).astype(str).str[:10]
-    code_values = industry.get("指数代码", pd.Series(dtype=str)).astype(str).str.replace(r"\.0$", "", regex=True)
-    selected = industry[(date_values == target_date) & code_values.isin(target_codes.values())].copy()
-    if len(selected) != len(target_codes):
-        return pd.DataFrame()
-
-    rows: list[dict[str, object]] = []
-    for label, code in target_codes.items():
-        row = selected[code_values.loc[selected.index] == code].iloc[-1]
-        amount = _number(row.get("成交额"))
-        if amount is None:
-            return pd.DataFrame()
-        rows.append({
-            "指数代码": code,
-            "指数名称": label,
-            "发布日期": target_date,
-            "收盘指数": _number(row.get("收盘价")),
-            "成交量": None,
-            "涨跌幅": (_number(row.get("日收益率")) or 0) * 100,
-            "换手率": None,
-            "市盈率": None,
-            "市净率": None,
-            "均价": None,
-            "成交额占比": amount / market_amount_100m * 100 if market_amount_100m else None,
-            "流通市值": None,
-            "平均流通市值": None,
-            "股息率": None,
-            "数据源": "申万 current 聚合接口（当日成交额；换手率待官方日度分析）",
-        })
-
-    fresh = pd.DataFrame(rows)
-    existing = pd.read_csv(crowding_history_path, encoding="utf-8-sig") if crowding_history_path.exists() else pd.DataFrame()
-    if not existing.empty:
-        dates = existing["发布日期"].astype(str).str[:10]
-        codes = existing["指数代码"].astype(str).str.replace(r"\.0$", "", regex=True)
-        existing = existing[~((dates == target_date) & codes.isin(target_codes.values()))]
-    combined = pd.concat([existing, fresh], ignore_index=True, sort=False)
-    combined.to_csv(crowding_history_path, index=False, encoding="utf-8-sig")
-    return combined
 
 
 def _validation(
@@ -322,23 +271,30 @@ def run(
     indices = fetch_indices(target_date, config["indices"])
     timings["indices_s"] = round(time.perf_counter() - t0, 3)
 
+    # 日更只读取 15:20 已定型的东方财富轻量报价并按日期追加四行。
+    # 整段历史接口只由显式 backfill 命令调用，不能阻塞每天的生产。
     t0 = time.perf_counter()
-    # 拥挤度读取本次生产前刚刷新的申万官网日度分析缓存；只接受官网直接字段。
-    sw_raw = fetch_sw_analysis(target_date)
+    sector_quotes = fetch_four_sector_current(target_date)
+    sw_raw = upsert_eastmoney_sector_current(target_date, paths.data_dir, sector_quotes, total_amount)
+    sw_dates = pd.to_datetime(sw_raw["发布日期"], errors="coerce")
+    sw_raw = sw_raw[(sw_dates.isna()) | (sw_dates <= pd.Timestamp(target_date))].copy()
     timings["sw_analysis_s"] = round(time.perf_counter() - t0, 3)
     sw_raw.to_csv(paths.output_dir / "sw_analysis_daily_second.csv", index=False, encoding="utf-8-sig")
     sw_targets = _normalize_sw_targets(sw_raw, config["sw_crowding_codes"], target_date, total_amount)
     sw_date = _sw_latest_date(sw_raw)
     if sw_date != target_date or len(sw_targets) != len(config["sw_crowding_codes"]):
-        sw_raw = _upsert_current_sw_amounts(
-            paths.data_dir / "sw_industry_history.csv",
-            paths.history_dir / "sw_analysis_daily_second.csv",
-            config["sw_crowding_codes"],
-            target_date,
-            total_amount,
+        raise RuntimeError(
+            f"Eastmoney sector daily rows are incomplete for {target_date}: "
+            f"latest={sw_date}, targets={len(sw_targets)}/{len(config['sw_crowding_codes'])}"
         )
-        sw_targets = _normalize_sw_targets(sw_raw, config["sw_crowding_codes"], target_date, total_amount)
-        sw_date = _sw_latest_date(sw_raw)
+    incomplete_sw = [
+        label for label, value in sw_targets.items()
+        if value.get("date") != target_date
+        or value.get("amount_share_of_a") is None
+        or value.get("turnover") is None
+    ]
+    if incomplete_sw:
+        raise RuntimeError(f"Eastmoney sector target metrics are incomplete: {incomplete_sw}")
 
     t0 = time.perf_counter()
     em_path = paths.history_dir / "innovation_drug_eastmoney.csv"
@@ -401,7 +357,7 @@ def run(
             "a_share_snapshot": spot_source,
             "limit_pool": "东方财富 getTopicZTPool/getTopicDTPool 直接接口",
             "indices": {item["name"]: item.get("source") for item in indices},
-            "sw_analysis": "AKShare index_analysis_daily_sw / 申万",
+            "sw_analysis": "东方财富 BK0448/BK0735/BK0459/BK1036 轻量收盘报价",
             "innovation_drug": {"history_mode": history_mode, "current_mode": current_mode},
             "sw_mapping": "AKShare sw_index_second_info + index_component_sw",
         },

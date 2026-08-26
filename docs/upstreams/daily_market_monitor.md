@@ -21,7 +21,9 @@
   - `history/sw_analysis_daily_second.csv`（四行业拥挤度）
   - `history/innovation_drug_eastmoney.csv`（创新药）
   - `sw_industry_latest.csv` / `sw_industry_history.csv`
-- 每日只按主键向上述同一套 CSV 做 upsert；日期是表内字段，不产生按日期拆分的母表。
+- 日期永远是母表内字段，不产生按日期拆分的母表。所有日度序列按主键 upsert。
+- 四行业固定使用东方财富 `BK0448/BK0735/BK0459/BK1036`：普通日更读取 15:20 后轻量收盘报价并追加当天四行；成交额和换手率取直接字段，占全 A 用同日 `market_core` 计算。历史 K 线仅用于显式补数或整段迁移，不阻塞每日生产。
+- `sw_industry_history.csv` 继续服务独立的申万行业模块，不再为四行业图提供成交额。
 - `market-monitor/output/YYYY-MM-DD/` 只保存该日报告的审计产物，不是母表。
 - `backend/data/market-monitor/` 下的旧复制不再作为读取、生产或同步来源。
 
@@ -36,9 +38,7 @@
 ## 数据管道（本仓库内）
 ```
 market-monitor/data/history/*.csv + market-monitor/data/sw_industry_history.csv（唯一 Canonical）
-  → market-monitor/build_report_data.py
-  → market-monitor/data/published/latest_market_monitor.json（唯一发布包）
-  → GET /api/market-monitor（FastAPI）
+  → GET /api/market-monitor（FastAPI 直接读取母表）
   → 前端「a股监控板」页面
 ```
-Raw 数据不直接驱动前端；前端只消费唯一发布包中的 report_data。
+后端不读取 `backend/data/market-monitor/` 副本，不选择本地包、远端包或内存回退包。

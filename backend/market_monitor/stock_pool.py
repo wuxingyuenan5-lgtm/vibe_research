@@ -31,11 +31,64 @@ LEADER_COUNT = 8
 REPO = "wuxingyuenan5-lgtm/vibe_research"
 GITHUB_PATH = "data/stock-pool/pool.json"
 GITHUB_FOCUS_PATH = "data/stock-pool/focus.json"
+GITHUB_LATEST_PATH = "data/stock-pool/latest_stock_pool.json"
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-POOL_PATH = BASE_DIR / "data" / "stock-pool" / "pool.json"
-FOCUS_PATH = BASE_DIR / "data" / "stock-pool" / "focus.json"
-SNAPSHOT_DIR = BASE_DIR / "data" / "market-monitor" / "stock-pool"
+PROJECT_ROOT = BASE_DIR.parent
+# 股票池定义、关注列表、日度母表和最新快照只保留在仓库根 data/stock-pool。
+# backend/data 下的旧副本不再参与读取或生产。
+POOL_PATH = PROJECT_ROOT / "data" / "stock-pool" / "pool.json"
+FOCUS_PATH = PROJECT_ROOT / "data" / "stock-pool" / "focus.json"
+SNAPSHOT_DIR = PROJECT_ROOT / "data" / "stock-pool"
+LATEST_BUNDLE_PATH = SNAPSHOT_DIR / "latest_stock_pool.json"
+
+
+def validate_published_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
+    if bundle.get("status") != "published":
+        raise RuntimeError("stock-pool bundle is not published")
+    payload = bundle.get("payload")
+    if not isinstance(payload, dict):
+        raise RuntimeError("stock-pool bundle payload missing")
+    data_date = str(bundle.get("data_date") or "")[:10]
+    report_date = str((payload.get("meta") or {}).get("report_date") or "")[:10]
+    stocks = payload.get("stocks") or []
+    summary = payload.get("summary") or {}
+    if not data_date or data_date != report_date:
+        raise RuntimeError(f"stock-pool bundle date mismatch: {data_date} != {report_date}")
+    if len(stocks) != int(summary.get("tracked_count") or 0):
+        raise RuntimeError("stock-pool tracked_count mismatch")
+    if int(summary.get("pending_refresh") or 0) != 0:
+        raise RuntimeError("stock-pool bundle contains pending snapshots")
+    return bundle
+
+
+def load_bundled_latest() -> dict[str, Any] | None:
+    if not LATEST_BUNDLE_PATH.exists():
+        return None
+    return validate_published_bundle(json.loads(LATEST_BUNDLE_PATH.read_text(encoding="utf-8")))
+
+
+def fetch_remote_latest(ref: str = "main") -> dict[str, Any]:
+    url = f"https://raw.githubusercontent.com/{REPO}/{ref}/{GITHUB_LATEST_PATH}"
+    request = urllib.request.Request(url, headers={"User-Agent": "Vibe-Research/stock-pool"})
+    with urllib.request.urlopen(request, timeout=15) as response:
+        return validate_published_bundle(json.loads(response.read().decode("utf-8")))
+
+
+def fetch_remote_json(github_path: str, ref: str = "main") -> dict[str, Any]:
+    url = f"https://raw.githubusercontent.com/{REPO}/{ref}/{github_path}"
+    request = urllib.request.Request(url, headers={"User-Agent": "Vibe-Research/stock-pool"})
+    with urllib.request.urlopen(request, timeout=15) as response:
+        value = json.loads(response.read().decode("utf-8"))
+    if not isinstance(value, dict):
+        raise RuntimeError(f"invalid GitHub JSON: {github_path}")
+    return value
+
+
+def fetch_remote_focus(ref: str = "main") -> list[str]:
+    data = fetch_remote_json(GITHUB_FOCUS_PATH, ref)
+    codes = data.get("codes") or []
+    return [str(code) for code in codes if str(code).strip()]
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:

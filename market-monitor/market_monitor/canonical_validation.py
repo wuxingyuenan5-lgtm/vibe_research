@@ -70,6 +70,14 @@ def validate_candidate(
                     continue
                 new_value = current.get(field)
                 if _blank(new_value):
+                    # 四行业改源时，东方财富没有 PE/PB 等申万分析附属字段。
+                    # 这些字段不参与图表；允许显式清空，但核心成交额/占比/换手率绝不豁免。
+                    if (
+                        name == "sw_crowding"
+                        and "东方财富行业板块" in str(current.get("数据源") or "")
+                        and field not in {"收盘指数", "成交量", "成交额", "涨跌幅", "换手率", "成交额占比", "数据源"}
+                    ):
+                        continue
                     prefix = "historical_non_null_erased" if row_date < target_date else "target_non_null_erased"
                     failures.append(f"{prefix}:{name}:{label}:{field}")
                 elif str(new_value) != str(old_value) and row_date < target_date:
@@ -136,10 +144,10 @@ def validate_candidate(
         warnings.append(f"sw_crowding_critical_rows_missing:{target_date}:{len(sw_rows)}")
     for row in sw_rows:
         code = str(row.get("指数代码") or "").replace(".0", "")
-        if _num(row.get("换手率")) is None or _num(row.get("成交额占比")) is None:
+        if _num(row.get("成交额")) is None or _num(row.get("换手率")) is None or _num(row.get("成交额占比")) is None:
             warnings.append(f"sw_crowding_direct_fields_missing:{target_date}:{code}")
-        if "官方日度分析" not in str(row.get("数据源") or ""):
-            warnings.append(f"sw_crowding_not_official:{target_date}:{code}")
+        if "东方财富行业板块" not in str(row.get("数据源") or ""):
+            warnings.append(f"four_sector_not_eastmoney:{target_date}:{code}")
 
     innovation_rows = [
         row for row in read_csv_rows(candidate_root / CANONICAL_TABLES["innovation"].path)

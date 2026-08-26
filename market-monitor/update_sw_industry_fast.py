@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import argparse
 import math
+from datetime import datetime, time
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
@@ -24,6 +26,7 @@ KEEP_HISTORY_ROWS = 1000
 VOL_WINDOW = 20
 ANNUALIZATION_DAYS = 252
 MIN_COVERAGE = 0.90
+CLOSE_READY_TIME = time(15, 20)
 SWS_CURRENT_URL = "https://www.swsresearch.com/institute-sw/api/index_publish/current/"
 SWS_CURRENT_REFERER = "https://www.swsresearch.com/institute_sw/allIndex/releasedIndex"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114 Safari/537.36"
@@ -50,6 +53,22 @@ def strip_suffix(value: object) -> str:
     return text.split(".")[0]
 
 
+def require_current_close_window(target_date: str, now: datetime | None = None) -> datetime:
+    """The bulk endpoint is a current quote, so it must never be backdated or read pre-close."""
+    current = now or datetime.now(ZoneInfo("Asia/Shanghai"))
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=ZoneInfo("Asia/Shanghai"))
+    else:
+        current = current.astimezone(ZoneInfo("Asia/Shanghai"))
+    if current.strftime("%Y-%m-%d") != target_date:
+        raise RuntimeError(
+            f"Shenwan current quote cannot be written as {target_date}; current date is {current:%Y-%m-%d}"
+        )
+    if current.time() < CLOSE_READY_TIME:
+        raise RuntimeError(f"Shenwan close quote not ready: {current.isoformat(timespec='seconds')}")
+    return current
+
+
 def load_existing(history_file: Path) -> pd.DataFrame:
     if not history_file.exists():
         raise RuntimeError(f"missing {history_file}; run full bootstrap first")
@@ -65,6 +84,8 @@ def load_existing(history_file: Path) -> pd.DataFrame:
     frame["level1_code"] = frame["level1_code"].map(strip_suffix)
     frame["close"] = pd.to_numeric(frame["close"], errors="coerce")
     frame["amount"] = pd.to_numeric(frame["amount"], errors="coerce")
+    if "daily_return" in frame.columns:
+        frame["daily_return"] = pd.to_numeric(frame["daily_return"], errors="coerce")
     return frame.dropna(subset=["date", "index_code", "close"])
 
 
@@ -123,7 +144,15 @@ def calculate_metrics(data: pd.DataFrame) -> pd.DataFrame:
         .drop_duplicates(["index_code", "date"], keep="last")
         .copy()
     )
-    data["daily_return"] = data.groupby("index_code")["close"].pct_change(fill_method=None)
+    # 实时接口直接给出昨收。历史母表偶有缺日时，必须优先使用
+    # close / prev_close - 1；不能跨过缺失交易日拿上一条母表记录计算。
+    supplied_return = (
+        pd.to_numeric(data["daily_return"], errors="coerce")
+        if "daily_return" in data.columns
+        else pd.Series(index=data.index, dtype="float64")
+    )
+    inferred_return = data.groupby("index_code")["close"].pct_change(fill_method=None)
+    data["daily_return"] = supplied_return.combine_first(inferred_return)
     data["volatility_20d"] = data.groupby("index_code")["daily_return"].transform(
         lambda series: series.rolling(VOL_WINDOW, min_periods=VOL_WINDOW).std(ddof=1)
         * math.sqrt(ANNUALIZATION_DAYS)
@@ -160,6 +189,7 @@ def write_outputs(
 
 
 def update(target_date: str, data_dir: Path = DATA_DIR) -> dict[str, object]:
+    require_current_close_window(target_date)
     data_dir = Path(data_dir)
     history_file = data_dir / "sw_industry_history.csv"
     latest_file = data_dir / "sw_industry_latest.csv"
@@ -186,13 +216,14 @@ def update(target_date: str, data_dir: Path = DATA_DIR) -> dict[str, object]:
         )
 
     fresh["date"] = pd.Timestamp(target_date)
+    fresh["daily_return"] = fresh["close"] / fresh["prev_close"] - 1
     fresh = fresh[[
         "date", "level", "level1_code", "level1_name", "index_code",
-        "index_name", "close", "amount",
+        "index_name", "close", "amount", "daily_return",
     ]]
     base = existing[[
         "date", "level", "level1_code", "level1_name", "index_code",
-        "index_name", "close", "amount",
+        "index_name", "close", "amount", "daily_return",
     ]]
     data = calculate_metrics(pd.concat([base, fresh], ignore_index=True))
     write_outputs(data, target_date, history_file, latest_file)

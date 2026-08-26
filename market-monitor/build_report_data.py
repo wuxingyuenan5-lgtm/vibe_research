@@ -198,8 +198,20 @@ def build_hot_stock_matrix(
     return {"dates": dates, "rows": matrix_rows}
 
 
-def _sw_crowding(path: Path, market_history: list[dict[str, object]], target_date: str) -> list[dict[str, object]]:
+def _sw_crowding(
+    path: Path,
+    industry_history_path: Path,
+    market_history: list[dict[str, object]],
+    target_date: str,
+) -> list[dict[str, object]]:
     denominator = {row["date"]: row.get("total_amount_100m") for row in market_history}
+    direct_amounts: dict[tuple[str, str], float] = {}
+    for raw in _read_csv(industry_history_path):
+        row_date = str(raw.get("日期") or "")[:10]
+        code = str(raw.get("指数代码") or "").replace(".0", "")
+        amount = _num(raw.get("成交额"))
+        if row_date and row_date <= target_date and code in TARGET_SW.values() and amount is not None:
+            direct_amounts[(row_date, code)] = amount
     rows_by_date: dict[str, dict[str, object]] = {}
     for raw in _read_csv(path):
         row_date = str(raw.get("发布日期") or raw.get("日期") or "")[:10]
@@ -212,7 +224,14 @@ def _sw_crowding(path: Path, market_history: list[dict[str, object]], target_dat
         share = share_raw / 100 if share_raw is not None else None
         turnover = turnover_raw / 100 if turnover_raw is not None else None
         row = rows_by_date.setdefault(row_date, {"date": row_date, "targets": {}})
-        amount = denominator.get(row_date) * share if denominator.get(row_date) is not None and share is not None else None
+        # 新母表把东方财富板块成交额直接保存在同一行；旧申万行业表只作历史兼容。
+        amount = _num(raw.get("成交额"))
+        if amount is None:
+            amount = direct_amounts.get((row_date, code))
+        if amount is None and denominator.get(row_date) is not None and share is not None:
+            amount = denominator[row_date] * share
+        if share is None and amount is not None and denominator.get(row_date) not in (None, 0):
+            share = amount / denominator[row_date]
         row["targets"][label] = {
             "code": code,
             "amount_100m": amount,
@@ -276,7 +295,12 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
     hot_latest_date = max((row["date"] for row in hot_all), default=None)
     latest_hot = [row for row in hot_all if row["date"] == hot_latest_date]
     matrix = build_hot_stock_matrix(hot_all)
-    sw_crowding = _sw_crowding(root / "data/history/sw_analysis_daily_second.csv", market_history, target_date)
+    sw_crowding = _sw_crowding(
+        root / "data/history/sw_analysis_daily_second.csv",
+        root / "data/sw_industry_history.csv",
+        market_history,
+        target_date,
+    )
     innovation = _innovation(root / "data/history/innovation_drug_eastmoney.csv", market_history, target_date)
     gaps = scan_history_gaps(root, target_date)
 
@@ -321,6 +345,35 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
                 "expected_count": expected_hot,
                 "actual_count": len(latest_hot),
             },
+        })
+    if sw_latest != target_date:
+        blocking_reasons.append({
+            "module": "sw_industry_latest",
+            "detail": {"expected": target_date, "actual": sw_latest},
+        })
+    target_crowding = next((row for row in sw_crowding if row["date"] == target_date), None)
+    target_crowding_values = (target_crowding or {}).get("targets") or {}
+    crowding_complete = len(target_crowding_values) == len(TARGET_SW) and all(
+        target_crowding_values.get(name, {}).get("amount_100m") is not None
+        and target_crowding_values.get(name, {}).get("amount_share_of_a") is not None
+        for name in TARGET_SW
+    )
+    if crowd_latest != target_date or not crowding_complete:
+        blocking_reasons.append({
+            "module": "sw_crowding_amount_share",
+            "detail": {"expected": target_date, "actual": crowd_latest, "complete_targets": crowding_complete},
+        })
+    target_innovation = next((row for row in innovation if row["date"] == target_date), None)
+    innovation_direct = bool(
+        target_innovation
+        and target_innovation.get("amount_100m") is not None
+        and target_innovation.get("turnover") is not None
+        and "东方财富创新药BK1106" in str(target_innovation.get("source") or "")
+    )
+    if innovation_latest != target_date or not innovation_direct:
+        blocking_reasons.append({
+            "module": "innovation_direct",
+            "detail": {"expected": target_date, "actual": innovation_latest, "direct_complete": innovation_direct},
         })
     if canonical_validation.get("status") == "FAIL":
         unresolved.append({

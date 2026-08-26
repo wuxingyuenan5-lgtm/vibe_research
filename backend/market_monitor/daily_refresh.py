@@ -13,22 +13,24 @@ indices.csv（行业/指数强弱）本轮不刷新，仅刷新股票池。
 """
 import argparse
 import csv
-import io
 import json
 import re
 import time
 import urllib.request
-from datetime import datetime, timedelta
+from datetime import datetime, time as dt_time, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 BASE = Path(__file__).resolve().parent.parent
-POOL_PATH = BASE / "data" / "stock-pool" / "pool.json"
-SNAPSHOT_DIR = BASE / "data" / "market-monitor" / "stock-pool"
-OUT_DIR = BASE / "data" / "market-monitor" / "output" / "stock-pool"
+PROJECT_ROOT = BASE.parent
+POOL_PATH = PROJECT_ROOT / "data" / "stock-pool" / "pool.json"
+SNAPSHOT_DIR = PROJECT_ROOT / "data" / "stock-pool"
+OUT_DIR = SNAPSHOT_DIR
 STOCKS_CSV = SNAPSHOT_DIR / "stocks.csv"
 INDICES_CSV = SNAPSHOT_DIR / "indices.csv"
-HISTORY_CSV = SNAPSHOT_DIR / "stocks_history.csv"           # 追加式行情母表（本地副本）
-GITHUB_HISTORY_PATH = "data/stock-pool/stocks_history.csv"   # GitHub 真源路径（与 pool.json 同目录）
+LATEST_BUNDLE = SNAPSHOT_DIR / "latest_stock_pool.json"
+LEGACY_SNAPSHOT_DIR = BASE / "data" / "market-monitor" / "stock-pool"
+CLOSE_READY_TIME = dt_time(15, 20)
 
 INDICES_FIELDS = [
     "code", "name", "price", "change", "change_5d", "change_20d", "change_60d", "ytd",
@@ -57,7 +59,7 @@ HEADERS = {
 }
 ULIST_URL = "https://push2delay.eastmoney.com/api/qt/ulist.np/get"
 KLINE_URL = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
-ULIST_FIELDS = "f12,f14,f2,f3,f6,f8,f9,f20,f23,f109"
+ULIST_FIELDS = "f12,f14,f2,f3,f6,f8,f9,f20,f23,f109,f124"
 KLINE_FIELDS = "f51,f53"
 
 
@@ -69,6 +71,31 @@ def _get(url: str) -> dict:
     req = urllib.request.Request(url, headers=HEADERS)
     with _no_proxy_opener.open(req, timeout=12) as resp:
         return json.loads(resp.read().decode("utf-8"))
+
+
+def require_current_close_window(target_date: str, now: datetime | None = None) -> datetime:
+    current = now or datetime.now(ZoneInfo("Asia/Shanghai"))
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=ZoneInfo("Asia/Shanghai"))
+    else:
+        current = current.astimezone(ZoneInfo("Asia/Shanghai"))
+    if current.strftime("%Y-%m-%d") != target_date:
+        raise RuntimeError(
+            f"股票池当前快照不能写成 {target_date}; 当前日期为 {current:%Y-%m-%d}"
+        )
+    if current.time() < CLOSE_READY_TIME:
+        raise RuntimeError(f"股票池收盘快照尚未就绪: {current.isoformat(timespec='seconds')}")
+    return current
+
+
+def seed_single_source_files() -> None:
+    """One-time migration from the retired backend mirror into the root mother-table directory."""
+    SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+    for name in ("stocks.csv", "indices.csv"):
+        target = SNAPSHOT_DIR / name
+        legacy = LEGACY_SNAPSHOT_DIR / name
+        if not target.exists() and legacy.exists():
+            target.write_bytes(legacy.read_bytes())
 
 
 def secid_of(code: str) -> str:
@@ -317,55 +344,12 @@ def _refill_pool_from_quote(stocks: list[dict]) -> int:
     return filled
 
 
-def append_history(rows: list[list[str]], report_date: str) -> int:
-    """把当日快照追加进 stocks_history.csv 母表并推 GitHub。
-
-    - 每行带 date 前缀（date + CSV_FIELDS），追加式**全量累积**（不裁剪，保留全部历史）
-    - 按 (date, instrument_id) 去重：同日重跑以最新为准
-    - GitHub 推送失败仅告警，不阻断主流程
-    返回当日写入行数。
-    """
-    import market_monitor.stock_pool as sp
-
-    new_rows = [[report_date, *r] for r in rows]
-    old: list[list[str]] = []
-    if HISTORY_CSV.exists():
-        with HISTORY_CSV.open("r", encoding="utf-8", newline="") as f:
-            old = [r for r in csv.reader(f) if r and r[0] != "date"]
-
-    kept = [r for r in old if r[0] != report_date] + new_rows
-    kept.sort(key=lambda r: (r[0], r[1]))
-
-    header = ["date", *CSV_FIELDS]
-    # 本地原子写（csv 模块正确转义名称里的逗号）
-    HISTORY_CSV.parent.mkdir(parents=True, exist_ok=True)
-    tmp = HISTORY_CSV.with_suffix(".csv.tmp")
-    with tmp.open("w", encoding="utf-8", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(header)
-        w.writerows(kept)
-    tmp.replace(HISTORY_CSV)
-
-    # 推 GitHub（内容与本地完全一致）
-    buf = io.StringIO()
-    w = csv.writer(buf)
-    w.writerow(header)
-    w.writerows(kept)
-    try:
-        sp._push_github(
-            GITHUB_HISTORY_PATH,
-            buf.getvalue(),
-            f"chore(data): 追加股票池行情快照 {report_date}（{len(new_rows)} 行）",
-        )
-    except Exception as e:  # noqa: BLE001
-        print(f"[warn] GitHub 母表推送失败（本地已保存）：{e}")
-    return len(new_rows)
-
-
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", default=datetime.now().strftime("%Y-%m-%d"), help="报告日（默认今天）")
     args = ap.parse_args()
+    close_time = require_current_close_window(args.date)
+    seed_single_source_files()
 
     pool = json.loads(POOL_PATH.read_text("utf-8"))
     stocks = pool.get("stocks", [])
@@ -376,6 +360,15 @@ def main() -> None:
     secids = [secid_of(s["code"]) for s in coded]
     snap = fetch_snapshot(secids)
     print(f"快照拉到 {len(snap)} 只")
+    missing_codes = sorted({str(s["code"]) for s in coded} - set(snap))
+    quote_dates = {
+        datetime.fromtimestamp(float(v["f124"]), ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d")
+        for v in snap.values() if v.get("f124")
+    }
+    if missing_codes:
+        raise RuntimeError(f"股票池快照覆盖不完整: missing={missing_codes}")
+    if quote_dates != {args.date}:
+        raise RuntimeError(f"股票池行情日期不匹配: expected={args.date}, actual={sorted(quote_dates)}")
 
     # 2) kline 算 20日/YTD
     trends: dict[str, tuple[float | None, float | None]] = {}
@@ -417,15 +410,13 @@ def main() -> None:
         }
         rows.append([row[f] for f in CSV_FIELDS])
 
+    if missing:
+        raise RuntimeError(f"股票池存在空行情，拒绝写入母表: {missing[:10]}")
     STOCKS_CSV.write_text("\n".join(",".join(r) for r in rows), encoding="utf-8")
-    print(f"stocks.csv 已更新（{len(rows) - 1} 行），拉取失败 {len(missing)} 只: {missing[:10]}")
+    print(f"stocks.csv 已更新（{len(rows) - 1} 行），拉取失败 0 只")
 
-    # 3.1) 追加行情母表（stocks_history.csv + 推 GitHub，全量累积不裁剪）
-    try:
-        n_hist = append_history(rows[1:], args.date)
-        print(f"stocks_history.csv 已追加 {n_hist} 行（全量累积）→ GitHub")
-    except Exception as e:  # noqa: BLE001
-        print(f"[warn] 母表追加失败：{e}")
+    # 3.1) 自选股不维护逐日全量历史。stocks.csv 是覆盖式轻量缓存；
+    # 页面通过 /api/quote 批量覆盖今日字段并在浏览器内重新汇总。
 
     # 3.5) indices.csv 刷新（标准指数/ETF 刷新，申万/自定义保留旧值标 stale）
     n_ok, n_stale = refresh_indices()
@@ -446,8 +437,13 @@ def main() -> None:
     from market_monitor.stock_pool import build_stock_pool_payload  # noqa: PLC0415
     payload = build_stock_pool_payload()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    (OUT_DIR / "payload.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"payload.json 已重建 | report_date={payload['meta']['report_date']} | pending={payload['summary']['pending_refresh']}")
+    LATEST_BUNDLE.write_text(json.dumps({
+        "status": "published",
+        "data_date": args.date,
+        "published_at": close_time.isoformat(timespec="seconds"),
+        "payload": payload,
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"latest_stock_pool.json 已重建 | report_date={payload['meta']['report_date']} | pending={payload['summary']['pending_refresh']}")
     print("完成 ✅")
 
 

@@ -39,6 +39,11 @@ interface Payload {
   default_index_selfselect: string[];
 }
 
+type LiveQuote = {
+  price?: number; change_pct?: number; amount_wan?: number; mcap_yi?: number;
+  turnover_pct?: number; pe_ttm?: number; pb?: number;
+};
+
 const UP = "#f2503f", DOWN = "#2fbf71";
 const fmt = (v: number | null | undefined, d = 2) => (v == null || Number.isNaN(Number(v)) ? "--" : Number(v).toFixed(d));
 const pct = (v: number | null | undefined) => (v == null ? "--" : `${Number(v) >= 0 ? "+" : ""}${(Number(v) * 100).toFixed(2)}%`);
@@ -91,6 +96,56 @@ function sortRows<T extends Record<string, unknown>>(rows: T[], key: string | nu
     .map((x) => x.r);
 }
 
+function withLiveQuotes(base: Payload, quotes: Record<string, LiveQuote>): Payload {
+  const stocks = base.stocks.map((stock) => {
+    const quote = stock.code ? quotes[stock.code] : undefined;
+    if (!quote) return stock;
+    return {
+      ...stock,
+      price: quote.price ?? stock.price,
+      change: quote.change_pct == null ? stock.change : quote.change_pct / 100,
+      amount_yi: quote.amount_wan == null ? stock.amount_yi : quote.amount_wan / 10000,
+      mcap_yi: quote.mcap_yi ?? stock.mcap_yi,
+      turnover: quote.turnover_pct == null ? stock.turnover : quote.turnover_pct / 100,
+      pe_ttm: quote.pe_ttm ?? stock.pe_ttm,
+      pb: quote.pb ?? stock.pb,
+      data_status: "live",
+    };
+  });
+  const changes = stocks.map((s) => s.change).filter((v): v is number => typeof v === "number");
+  const ordered = [...changes].sort((a, b) => a - b);
+  const top = (field: "change" | "change_5d" | "change_20d", descending: boolean) =>
+    stocks.filter((s) => typeof s[field] === "number")
+      .sort((a, b) => descending ? (b[field] as number) - (a[field] as number) : (a[field] as number) - (b[field] as number))
+      .slice(0, 8);
+  const today = { up: top("change", true), down: top("change", false) };
+  const five = { up: top("change_5d", true), down: top("change_5d", false) };
+  const twenty = { up: top("change_20d", true), down: top("change_20d", false) };
+  return {
+    ...base,
+    stocks,
+    summary: {
+      ...base.summary,
+      tracked_count: stocks.length,
+      breadth: {
+        count: changes.length,
+        up: changes.filter((v) => v > 0).length,
+        down: changes.filter((v) => v < 0).length,
+        flat: changes.filter((v) => v === 0).length,
+        median: ordered.length ? ordered[Math.floor(ordered.length / 2)] : null,
+      },
+      avg_change: changes.length ? changes.reduce((sum, v) => sum + v, 0) / changes.length : null,
+      total_amount_yi: stocks.reduce((sum, s) => sum + (s.amount_yi ?? 0), 0),
+    },
+    heatmap: stocks.filter((s) => s.change != null).map((s) => ({
+      instrument_id: s.instrument_id, name: s.name, industry: s.industry,
+      change: s.change, change_5d: s.change_5d, change_20d: s.change_20d,
+      ytd: s.ytd, weight: s.mcap_yi || 1,
+    })),
+    leaders: { up: today.up, down: today.down, today, "5d": five, "20d": twenty },
+  };
+}
+
 function useStockPool() {
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +153,21 @@ function useStockPool() {
   const load = useCallback(() => {
     fetch("/api/stock-pool")
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then((b) => { setData(b.data); setError(null); })
+      .then(async (b) => {
+        const base = b.data as Payload;
+        const codes = base.stocks.map((s) => s.code).filter((code): code is string => Boolean(code && /^\d{6}$/.test(code)));
+        if (!codes.length) return base;
+        try {
+          const response = await fetch(`/api/quote?codes=${codes.join(",")}`);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const live = await response.json();
+          return withLiveQuotes(base, live.data || {});
+        } catch (e) {
+          console.warn("[stock-pool] 实时行情覆盖失败，显示最近收盘缓存:", e);
+          return base;
+        }
+      })
+      .then((payload) => { setData(payload); setError(null); })
       .catch((e) => setError(e instanceof Error ? e.message : "加载失败"))
       .finally(() => setLoading(false));
   }, []);

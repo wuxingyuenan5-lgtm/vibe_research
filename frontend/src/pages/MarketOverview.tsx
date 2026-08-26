@@ -41,6 +41,7 @@ function buildReviewData(d: {
 }): string {
   const L: string[] = [];
   const { indices, globalIdx, sentiment, emotion, turnover, sectors, reportData, assets, usSectors, macroChina, headlines } = d;
+  const moduleLatest = reportData?.quality?.module_latest_dates ?? {};
 
   // 盘后快照最新交易日（早上未开盘时实时接口可能为空，用它兜底 + 标注数据日期）
   const lastDay = reportData?.market_history?.[reportData.market_history.length - 1];
@@ -85,7 +86,7 @@ function buildReviewData(d: {
   const latest = reportData?.market_history?.[reportData.market_history.length - 1];
   if (latest) {
     const bw = latest.market_breadth;
-    L.push(`【市场概况】全A成交额 ${latest.total_amount_100m == null ? "—" : `${latest.total_amount_100m.toLocaleString()}亿`}；市场宽度 ${bw == null ? "—" : `${(bw * 100).toFixed(1)}%`}；百亿成交股 ${reportData?.hot_stocks_latest?.length ?? 0} 只`);
+    L.push(`【市场概况】全A成交额 ${latest.total_amount_100m == null ? "—" : `${latest.total_amount_100m.toLocaleString()}亿`}；市场宽度 ${bw == null ? "—" : `${(bw * 100).toFixed(1)}%`}；百亿成交股 ${moduleLatest.hot_stocks === latest.date ? (reportData?.hot_stocks_latest?.length ?? 0) : "—"} 只`);
   }
 
   // 实时大类资产（来自资产总览表：黄金/原油/汇率/美债/国债/国内期货等），喂给 AI 复盘分析外围环境
@@ -631,12 +632,13 @@ export function MarketOverview() {
             <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border/40 pt-3">
               {(() => {
                 const latest = reportData.market_history[reportData.market_history.length - 1];
+                const moduleLatest = reportData.quality?.module_latest_dates ?? {};
                 const aAmt = latest?.total_amount_100m;
-                const hotN = reportData.hot_stocks_latest.length;
+                const hotN = moduleLatest.hot_stocks === latest?.date ? reportData.hot_stocks_latest.length : null;
                 const bw = latest?.market_breadth;
                 const cells = [
                   { k: "全A成交额", v: aAmt == null ? "—" : `${aAmt.toLocaleString()} 亿`, c: "text-foreground", click: null as null | (() => void) },
-                  { k: "百亿成交股", v: `${hotN} 只`, c: "text-foreground", click: () => setHotMatrixOpen(true) },
+                  { k: "百亿成交股", v: hotN == null ? "—" : `${hotN} 只`, c: "text-foreground", click: () => setHotMatrixOpen(true) },
                   { k: "市场宽度", v: bw == null ? "—" : `${(bw * 100).toFixed(1)}%`, c: bw > 0 ? "text-danger" : bw < 0 ? "text-success" : "text-foreground", click: null },
                 ];
                 return cells.map((m) => (

@@ -13,7 +13,7 @@ from . import pipeline
 from .collectors import fetch_indices as fetch_indices_legacy
 from .common import retry
 from .fast_market import fetch_a_share_spot_fast
-from .sw_cache import load_sw_cache
+from .sector_eastmoney import BOARD_DEFINITIONS
 
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
@@ -27,7 +27,7 @@ EM_CONCEPT_QUOTE_URL = "https://push2delay.eastmoney.com/api/qt/stock/get"
 EM_MARKET_ACTIVITY_URL = "https://push2delay.eastmoney.com/api/qt/ulist.np/get"
 EM_UT = "bd1d9ddb04089700cf9c27f6f7426281"
 INNOVATION_SECID = "90.BK1106"
-CLOSE_READY_TIME = time(15, 30)
+CLOSE_READY_TIME = time(15, 20)
 
 
 def _require_close_ready(target_date: str, timestamp: object, label: str) -> datetime:
@@ -190,6 +190,46 @@ def fetch_innovation_current_reliable(target_date: str):
     }
 
 
+def fetch_four_sector_current_reliable(target_date: str) -> list[dict[str, object]]:
+    """Read the four board close snapshots from Eastmoney's delayed endpoint."""
+    def fetch_one(item: tuple[str, tuple[str, str]]) -> dict[str, object]:
+        logical_code, (name, board_code) = item
+        payload = _request_json(
+            EM_CONCEPT_QUOTE_URL,
+            {
+                "secid": f"90.{board_code}",
+                "fields": "f43,f47,f48,f86,f168,f170",
+                "mpi": "1000",
+                "invt": "2",
+                "fltt": "2",
+            },
+        )
+        data = payload["data"]
+        amount = _number(data.get("f48"))
+        close = _number(data.get("f43"))
+        volume = _number(data.get("f47"))
+        timestamp = _number(data.get("f86"))
+        turnover = _number(data.get("f168"))
+        return_pct = _number(data.get("f170"))
+        if None in (amount, close, volume, timestamp, turnover, return_pct):
+            raise RuntimeError(f"sector quote fields incomplete: {name}/{board_code}")
+        quote_time = _require_close_ready(target_date, timestamp, f"sector {name}")
+        return {
+            "logical_code": logical_code,
+            "board_code": board_code,
+            "date": quote_time.strftime("%Y-%m-%d"),
+            "quote_time": quote_time.isoformat(timespec="seconds"),
+            "close": close,
+            "volume": volume / 1_000_000.0,
+            "amount_100m": amount / 1e8,
+            "turnover_pct": turnover,
+            "return_pct": return_pct,
+        }
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        return list(pool.map(fetch_one, BOARD_DEFINITIONS.items()))
+
+
 def run(
     target_date: str,
     config_path: Path = Path("config/market_monitor.json"),
@@ -200,11 +240,8 @@ def run(
     root = Path(root).resolve()
     pipeline.fetch_a_share_spot = fetch_a_share_spot_fast
     pipeline.fetch_market_activity_summary = fetch_market_activity_summary
-    pipeline.fetch_sw_analysis = lambda date: load_sw_cache(
-        date,
-        root / "data/cache/sw_analysis_daily_second.csv",
-    )
     pipeline.fetch_indices = fetch_indices_resilient
+    pipeline.fetch_four_sector_current = fetch_four_sector_current_reliable
     # 当日创新药是正式母表的一部分；抓取失败必须让生产失败，不能静默沿用旧日。
     pipeline.fetch_innovation_current_em = fetch_innovation_current_reliable
     return pipeline.run(

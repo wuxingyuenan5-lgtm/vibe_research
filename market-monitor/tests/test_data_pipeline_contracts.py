@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from unittest.mock import patch
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -9,39 +10,193 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 
 from market_monitor.collectors import update_limit_pool_history, upsert_innovation_direct_quote
-from market_monitor.pipeline import _normalize_sw_targets, _upsert_current_sw_amounts
+from market_monitor.pipeline import _normalize_sw_targets
 from market_monitor.production import _require_close_ready
+from market_monitor.sector_eastmoney import (
+    BOARD_DEFINITIONS,
+    CURRENT_SOURCE,
+    SOURCE,
+    build_analysis,
+    refresh_eastmoney_sector_mother_table,
+    upsert_eastmoney_sector_current,
+)
+from update_sw_industry_fast import calculate_metrics, require_current_close_window
+from build_report_data import _sw_crowding
+from run_daily import _restore_mother_tables, _snapshot_mother_tables
 
 
 class DataPipelineContractTests(unittest.TestCase):
-    def test_close_quote_gate_rejects_partial_1520_value(self):
-        partial = datetime(2026, 8, 25, 15, 20, tzinfo=ZoneInfo("Asia/Shanghai")).timestamp()
-        ready = datetime(2026, 8, 25, 15, 35, tzinfo=ZoneInfo("Asia/Shanghai")).timestamp()
-        with self.assertRaises(RuntimeError):
-            _require_close_ready("2026-08-25", partial, "innovation")
-        self.assertEqual(_require_close_ready("2026-08-25", ready, "innovation").minute, 35)
+    @staticmethod
+    def _eastmoney_rows():
+        rows = []
+        for date in ("2026-08-24", "2026-08-25"):
+            for code, (name, board) in BOARD_DEFINITIONS.items():
+                rows.append({
+                    "指数代码": code, "指数名称": name, "东方财富板块代码": board,
+                    "发布日期": date, "收盘指数": 1000.0, "成交量": 10.0,
+                    "成交额": 1000.0, "涨跌幅": 1.0, "换手率": 5.0,
+                })
+        return pd.DataFrame(rows)
 
-    def test_current_sw_amount_fallback_does_not_fake_turnover(self):
+    def test_eastmoney_rebuild_replaces_full_four_sector_history(self):
+        raw = self._eastmoney_rows()
+
+        with tempfile.TemporaryDirectory() as directory:
+            data_dir = Path(directory)
+            (data_dir / "history").mkdir(parents=True)
+            pd.DataFrame([
+                {"date": "2026-08-24", "total_amount_100m": 20_000.0},
+                {"date": "2026-08-25", "total_amount_100m": 25_000.0},
+            ]).to_csv(data_dir / "history/market_core.csv", index=False, encoding="utf-8-sig")
+            pd.DataFrame([{
+                "指数代码": code, "指数名称": name, "发布日期": "2026-08-24",
+                "换手率": 99.0, "成交额占比": 99.0, "数据源": "旧申万口径",
+            } for code, (name, _) in BOARD_DEFINITIONS.items()]).to_csv(
+                data_dir / "history/sw_analysis_daily_second.csv", index=False, encoding="utf-8-sig"
+            )
+            with patch(
+                "market_monitor.sector_eastmoney.fetch_eastmoney_sector_history",
+                return_value=raw,
+            ):
+                refresh_eastmoney_sector_mother_table("2026-08-25", data_dir)
+
+            analysis = pd.read_csv(
+                data_dir / "history/sw_analysis_daily_second.csv", encoding="utf-8-sig"
+            )
+            self.assertEqual(len(analysis[analysis["发布日期"] == "2026-08-24"]), 4)
+            self.assertEqual(len(analysis[analysis["发布日期"] == "2026-08-25"]), 4)
+            self.assertEqual(set(analysis["数据源"]), {SOURCE})
+            self.assertAlmostEqual(float(analysis.iloc[0]["换手率"]), 5.0)
+
+    def test_eastmoney_build_uses_direct_amount_turnover_and_market_denominator(self):
+        result = build_analysis(
+            self._eastmoney_rows(),
+            pd.DataFrame([
+                {"date": "2026-08-24", "total_amount_100m": 20_000.0},
+                {"date": "2026-08-25", "total_amount_100m": 25_000.0},
+            ]),
+        )
+
+        communication = result[result["指数代码"] == "801102"].iloc[0]
+        self.assertAlmostEqual(float(communication["成交额"]), 1000.0)
+        self.assertAlmostEqual(float(communication["成交额占比"]), 5.0)
+        self.assertAlmostEqual(float(communication["换手率"]), 5.0)
+        self.assertEqual(communication["数据源"], SOURCE)
+
+    def test_eastmoney_daily_upsert_replaces_only_target_date(self):
+        with tempfile.TemporaryDirectory() as directory:
+            data_dir = Path(directory)
+            (data_dir / "history").mkdir(parents=True)
+            pd.DataFrame([{
+                "指数代码": code,
+                "指数名称": name,
+                "发布日期": "2026-08-24",
+                "成交额": 1.0,
+                "换手率": 1.0,
+                "成交额占比": 1.0,
+                "数据源": "历史保留行",
+            } for code, (name, _) in BOARD_DEFINITIONS.items()]).to_csv(
+                data_dir / "history/sw_analysis_daily_second.csv",
+                index=False,
+                encoding="utf-8-sig",
+            )
+            preserved_line = (data_dir / "history/sw_analysis_daily_second.csv").read_text(
+                encoding="utf-8-sig"
+            ).splitlines()[1]
+            quotes = [{
+                "logical_code": code,
+                "date": "2026-08-25",
+                "close": 1000.0,
+                "volume": 10.0,
+                "amount_100m": 500.0,
+                "return_pct": 2.0,
+                "turnover_pct": 4.0,
+            } for code in BOARD_DEFINITIONS]
+            result = upsert_eastmoney_sector_current(
+                "2026-08-25", data_dir, quotes, market_amount_100m=20_000.0
+            )
+
+            previous = result[result["发布日期"] == "2026-08-24"]
+            current = result[result["发布日期"] == "2026-08-25"]
+            self.assertEqual(len(previous), 4)
+            self.assertEqual(len(current), 4)
+            self.assertEqual(set(current["数据源"]), {CURRENT_SOURCE})
+            self.assertTrue((current["成交额占比"].astype(float) == 2.5).all())
+            self.assertTrue((current["换手率"].astype(float) == 4.0).all())
+            self.assertIn(
+                preserved_line,
+                (data_dir / "history/sw_analysis_daily_second.csv").read_text(encoding="utf-8-sig").splitlines(),
+            )
+
+    def test_failed_run_snapshot_restores_mother_table_bytes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            industry = root / "sw_industry_history.csv"
-            crowding = root / "sw_analysis_daily_second.csv"
+            path = root / "data/history/market_core.csv"
+            path.parent.mkdir(parents=True)
+            original = b"date,value\n2026-08-25,1\n"
+            path.write_bytes(original)
+            snapshot = _snapshot_mother_tables(root)
+            path.write_bytes(b"partial-write")
+            _restore_mother_tables(snapshot)
+            self.assertEqual(path.read_bytes(), original)
+
+    def test_sw_current_return_uses_api_previous_close_across_history_gap(self):
+        frame = pd.DataFrame([
+            {
+                "date": pd.Timestamp("2026-08-21"),
+                "index_code": "801102",
+                "close": 9921.45,
+                "daily_return": 0.0298,
+            },
+            {
+                "date": pd.Timestamp("2026-08-25"),
+                "index_code": "801102",
+                "close": 9366.85,
+                "daily_return": 9366.85 / 9404.81 - 1,
+            },
+        ])
+
+        result = calculate_metrics(frame)
+
+        actual = result.loc[
+            result["date"] == pd.Timestamp("2026-08-25"), "daily_return"
+        ].iloc[0]
+        self.assertAlmostEqual(actual, 9366.85 / 9404.81 - 1)
+
+    def test_shenwan_current_snapshot_cannot_run_before_1520(self):
+        partial = datetime(2026, 8, 25, 15, 19, tzinfo=ZoneInfo("Asia/Shanghai"))
+        ready = datetime(2026, 8, 25, 15, 20, tzinfo=ZoneInfo("Asia/Shanghai"))
+        with self.assertRaises(RuntimeError):
+            require_current_close_window("2026-08-25", partial)
+        self.assertEqual(require_current_close_window("2026-08-25", ready).minute, 20)
+
+    def test_four_sector_report_uses_amount_from_same_mother_table(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            analysis = root / "analysis.csv"
+            industry = root / "industry.csv"
             pd.DataFrame([{
-                "日期": "2026-08-25", "指数代码": code, "指数名称": name,
-                "收盘价": 100, "成交额": amount, "日收益率": 0.01,
-            } for name, code, amount in (
-                ("通信设备", "801102", 1000), ("计算机设备", "801101", 200),
-                ("元件", "801083", 800), ("半导体", "801081", 2000),
-            )]).to_csv(industry, index=False, encoding="utf-8-sig")
-            result = _upsert_current_sw_amounts(
-                industry, crowding,
-                {"通信设备": "801102", "计算机设备": "801101", "元件": "801083", "半导体": "801081"},
-                "2026-08-25", 20_000,
+                "指数代码": code, "指数名称": name, "发布日期": "2026-08-07",
+                "换手率": turnover, "成交额占比": share, "成交额": amount,
+            } for name, code, turnover, share, amount in (
+                ("通信设备", "801102", 9.44, 9.94, 2218.03927039),
+                ("计算机设备", "801101", 5.31, 1.67, 372.32508411),
+                ("元件", "801083", 13.61, 7.36, 1642.51484070),
+                ("半导体", "801081", 8.21, 17.71, 3952.40804900),
+            )]).to_csv(analysis, index=False, encoding="utf-8-sig")
+            pd.DataFrame(columns=["日期", "指数代码", "成交额"]).to_csv(
+                industry, index=False, encoding="utf-8-sig"
             )
-            current = result[result["发布日期"] == "2026-08-25"]
-            self.assertEqual(len(current), 4)
-            self.assertTrue(current["换手率"].isna().all())
-            self.assertAlmostEqual(float(current["成交额占比"].sum()), 20.0)
+            result = _sw_crowding(analysis, industry, [], "2026-08-25")
+            self.assertAlmostEqual(result[0]["combined"]["amount_100m"], 8185.2872442)
+            self.assertAlmostEqual(result[0]["combined"]["amount_share_of_a"], 0.3668)
+
+    def test_close_quote_gate_rejects_partial_1520_value(self):
+        partial = datetime(2026, 8, 25, 15, 19, tzinfo=ZoneInfo("Asia/Shanghai")).timestamp()
+        ready = datetime(2026, 8, 25, 15, 20, tzinfo=ZoneInfo("Asia/Shanghai")).timestamp()
+        with self.assertRaises(RuntimeError):
+            _require_close_ready("2026-08-25", partial, "innovation")
+        self.assertEqual(_require_close_ready("2026-08-25", ready, "innovation").minute, 20)
 
     def test_sw_targets_use_official_percent_fields(self):
         frame = pd.DataFrame([{

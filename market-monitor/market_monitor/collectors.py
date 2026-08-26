@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import os
-import math
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -25,8 +23,6 @@ INNOVATION_EM_SECID = "90.BK1106"
 TENCENT_QUOTE_URL = "https://qt.gtimg.cn/q={code}"
 EM_LIMIT_POOL_URL = "https://push2ex.eastmoney.com/{endpoint}"
 EM_LIMIT_POOL_UT = "7eea3edcaed734bea9cbfc24409ed989"
-SWS_ANALYSIS_URL = "https://www.swsresearch.com/institute-sw/api/index_analysis/index_analysis_report/"
-SWS_ANALYSIS_REFERER = "https://www.swsresearch.com/institute_sw/allIndex/analysisIndex"
 
 
 def _fetch_tencent_index(secid: str) -> dict[str, float | None] | None:
@@ -301,73 +297,6 @@ def fetch_indices(target_date: str, definitions: list[dict[str, str]]) -> list[d
             record = future.result()
             results[str(record["name"])] = record
     return [results[item["name"]] for item in definitions]
-
-
-def fetch_sw_analysis(target_date: str) -> pd.DataFrame:
-    """申万官网日度分析直连；补齐 AKShare 缺少 Referer/超时导致的 508 问题。"""
-    target = datetime.strptime(target_date, "%Y-%m-%d")
-    start = (target - timedelta(days=10)).strftime("%Y%m%d")
-    end = target.strftime("%Y%m%d")
-    start_iso = f"{start[:4]}-{start[4:6]}-{start[6:]}"
-    end_iso = f"{end[:4]}-{end[4:6]}-{end[6:]}"
-    base = {
-        "page_size": "50",
-        "index_type": "二级行业",
-        "start_date": start_iso,
-        "end_date": end_iso,
-        "type": "DAY",
-        "swindexcode": "all",
-    }
-
-    def request_page(page: int) -> tuple[int, list[dict]]:
-        session = requests.Session()
-        session.trust_env = False
-        response = session.get(
-            SWS_ANALYSIS_URL,
-            params={**base, "page": str(page)},
-            headers={"User-Agent": UA, "Referer": SWS_ANALYSIS_REFERER},
-            timeout=(4, 15),
-            verify=False,  # 申万证书链在部分 Python/GitHub 环境不完整；仅公开只读数据。
-        )
-        response.raise_for_status()
-        data = response.json().get("data") or {}
-        return int(data.get("count") or 0), list(data.get("results") or [])
-
-    import urllib3
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-    total, first = retry(lambda: request_page(1), attempts=3, delay=1.0)
-    rows = list(first)
-    for page in range(2, math.ceil(total / 50) + 1):
-        _, page_rows = retry(lambda page=page: request_page(page), attempts=3, delay=1.0)
-        rows.extend(page_rows)
-    if len(rows) != total:
-        raise RuntimeError(f"SWS analysis pagination incomplete: {len(rows)}/{total}")
-    frame = pd.DataFrame(rows).rename(columns={
-        "swindexcode": "指数代码",
-        "swindexname": "指数名称",
-        "bargaindate": "发布日期",
-        "closeindex": "收盘指数",
-        "bargainamount": "成交量",
-        "markup": "涨跌幅",
-        "turnoverrate": "换手率",
-        "pe": "市盈率",
-        "pb": "市净率",
-        "meanprice": "均价",
-        "bargainsumrate": "成交额占比",
-        "negotiablessharesum1": "流通市值",
-        "negotiablessharesum2": "平均流通市值",
-        "dp": "股息率",
-    })
-    if frame.empty:
-        return frame
-    frame["发布日期"] = pd.to_datetime(frame["发布日期"], errors="coerce").dt.strftime("%Y-%m-%d")
-    numeric = [
-        "收盘指数", "成交量", "涨跌幅", "换手率", "市盈率", "市净率", "均价",
-        "成交额占比", "流通市值", "平均流通市值", "股息率",
-    ]
-    for column in numeric:
-        frame[column] = pd.to_numeric(frame[column], errors="coerce")
-    return frame.sort_values(["发布日期", "指数代码"]).reset_index(drop=True)
 
 
 def _innovation_em_frame(beg: str, end: str) -> pd.DataFrame:
