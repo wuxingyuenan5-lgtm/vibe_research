@@ -17,7 +17,7 @@ on:
         type: boolean
         default: false
       full_refresh_sw_industry:
-        description: "Run slow per-index Shenwan history refresh inside Canonical staging"
+        description: "Run slow per-index Shenwan history refresh on the mother tables"
         required: false
         type: boolean
         default: false
@@ -59,7 +59,7 @@ defaults:
 jobs:
   produce:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     env:
       TZ: Asia/Shanghai
 
@@ -151,7 +151,19 @@ jobs:
           if [ "${{ inputs.force_hot_snapshot }}" = "true" ]; then
             args="$args --force-hot-snapshot"
           fi
-          python run_daily.py --target-date "${{ steps.date.outputs.value }}" $args
+          # 15:20 启动；延迟行情节点尚未形成完整收盘快照时，每 5 分钟重试。
+          # run_daily 直接按日期 upsert 唯一母表；校验失败时工作流退出且不会提交。
+          for attempt in 1 2 3 4 5; do
+            if python run_daily.py --target-date "${{ steps.date.outputs.value }}" $args; then
+              break
+            fi
+            if [ "$attempt" = "5" ]; then
+              echo "收盘数据在 5 次检查后仍未完整" >&2
+              exit 1
+            fi
+            echo "收盘数据尚未完整，5 分钟后重试（$attempt/5）"
+            sleep 300
+          done
 
       - name: Validate Canonical data
         if: github.event_name != 'pull_request'

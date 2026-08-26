@@ -106,19 +106,12 @@ def last_good() -> dict | None:
 
 
 def load_bundled_fallback(project_root: Path) -> dict | None:
-    candidates = (
-        project_root / "market-monitor" / "data" / "published" / "latest_market_monitor.json",
-        project_root / "backend" / "data" / "market-monitor" / "data" / "published" / "latest_market_monitor.json",
-    )
-    best: dict | None = None
-    for path in candidates:
-        if not path.exists():
-            continue
-        try:
-            bundle = validate_bundle(json.loads(path.read_text(encoding="utf-8")))
-            best = newer_bundle(best, bundle)
-        except Exception:
-            continue
-    if best is not None:
-        remember(best)
-    return best
+    path = project_root / "market-monitor" / "data" / "published" / "latest_market_monitor.json"
+    if not path.exists():
+        return None
+    try:
+        bundle = validate_bundle(json.loads(path.read_text(encoding="utf-8")))
+    except Exception:
+        return None
+    remember(bundle)
+    return bundle

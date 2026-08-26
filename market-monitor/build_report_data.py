@@ -40,6 +40,17 @@ def _int(value):
     return None if number is None else int(round(number))
 
 
+def _latest_date(rows: list[dict[str, object]], key: str = "date") -> str | None:
+    dates = [str(row.get(key) or "")[:10] for row in rows if str(row.get(key) or "")[:10]]
+    return max(dates, default=None)
+
+
+def _filter_rows(rows: list[dict[str, object]], cutoff_date: str | None, key: str = "date") -> list[dict[str, object]]:
+    if not cutoff_date:
+        return []
+    return [row for row in rows if str(row.get(key) or "")[:10] <= cutoff_date]
+
+
 def append_hot_stock_history(path: Path, target_date: str, rows: Iterable[dict[str, object]]) -> list[dict[str, object]]:
     path.parent.mkdir(parents=True, exist_ok=True)
     merged: dict[tuple[str, str], dict[str, object]] = {}
@@ -105,10 +116,21 @@ def _indices_history(path: Path, target_date: str) -> list[dict[str, object]]:
     return [row for row in read_index_history(path) if str(row["date"]) <= target_date]
 
 
-def _sw_industry(path: Path) -> list[dict[str, object]]:
+def _sw_industry(path: Path, target_date: str) -> list[dict[str, object]]:
     numeric = {"收盘价", "成交额", "日收益率", "20日年化波动率"}
+    raw_rows = _read_csv(path)
+    available_dates = sorted({
+        str(raw.get("日期") or "")[:10]
+        for raw in raw_rows
+        if str(raw.get("日期") or "")[:10] and str(raw.get("日期") or "")[:10] <= target_date
+    })
+    if not available_dates:
+        return []
+    snapshot_date = available_dates[-1]
     rows = []
-    for raw in _read_csv(path):
+    for raw in raw_rows:
+        if str(raw.get("日期") or "")[:10] != snapshot_date:
+            continue
         row = {}
         for key, value in raw.items():
             row[key] = _num(value) if key in numeric else value
@@ -133,16 +155,8 @@ def _hot_rows(path: Path, target_date: str) -> list[dict[str, object]]:
             "sw_level1": str(raw.get("sw_level1") or "未匹配"),
             "sw_level2": str(raw.get("sw_level2") or "未匹配"),
         })
-    # 旧文件曾逐日归档。读取时每个 ISO 周只保留最后一个有记录交易日，
-    # 既不破坏原始历史，也让新旧数据统一成周度口径（节假日周也适用）。
-    latest_date_by_week: dict[tuple[int, int], str] = {}
-    for row in rows:
-        day = datetime.strptime(str(row["date"]), "%Y-%m-%d").date()
-        key = (day.isocalendar()[0], day.isocalendar()[1])
-        latest_date_by_week[key] = max(latest_date_by_week.get(key, ""), str(row["date"]))
-    weekly_dates = set(latest_date_by_week.values())
     return sorted(
-        [row for row in rows if str(row["date"]) in weekly_dates],
+        rows,
         key=lambda row: (row["date"], row["rank"] if row["rank"] is not None else 9999),
     )
 
@@ -190,12 +204,7 @@ def _sw_crowding(path: Path, market_history: list[dict[str, object]], target_dat
     for raw in _read_csv(path):
         row_date = str(raw.get("发布日期") or raw.get("日期") or "")[:10]
         code = str(raw.get("指数代码") or "").replace(".0", "")
-        if (
-            not row_date
-            or row_date > target_date
-            or row_date not in denominator
-            or code not in TARGET_SW.values()
-        ):
+        if not row_date or row_date > target_date or code not in TARGET_SW.values():
             continue
         label = next(name for name, target_code in TARGET_SW.items() if target_code == code)
         share_raw = _num(raw.get("成交额占比"))
@@ -232,7 +241,7 @@ def _innovation(path: Path, market_history: list[dict[str, object]], target_date
     rows = []
     for raw in _read_csv(path):
         row_date = str(raw.get("日期") or raw.get("date") or "")[:10]
-        if not row_date or row_date > target_date or row_date not in denominator:
+        if not row_date or row_date > target_date:
             continue
         raw_amount = _num(raw.get("成交额"))
         amount = raw_amount / 1e8 if raw_amount is not None else _num(raw.get("amount_100m"))
@@ -259,9 +268,10 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
         else {"status": "UNKNOWN", "failures": [], "warnings": [], "tables": {}}
     )
 
+    # 所有展示数据都来自同一套滚动母表；target_date 只是读取截止日，不会选择另一套母表。
     market_history = _market_history(root, target_date)
     indices_history = _indices_history(root / "data/history/indices_history.csv", target_date)
-    sw_industry = _sw_industry(root / "data/sw_industry_latest.csv")
+    sw_industry = _sw_industry(root / "data/sw_industry_history.csv", target_date)
     hot_all = _hot_rows(root / "data/history/hot_stocks.csv", target_date)
     hot_latest_date = max((row["date"] for row in hot_all), default=None)
     latest_hot = [row for row in hot_all if row["date"] == hot_latest_date]
@@ -271,19 +281,46 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
     gaps = scan_history_gaps(root, target_date)
 
     latest_market = market_history[-1]["date"] if market_history else None
-    latest_market_row = market_history[-1] if market_history and latest_market == target_date else {}
+    sw_latest = max((str(row.get("日期") or "")[:10] for row in sw_industry if row.get("日期")), default=None)
+    crowd_latest = _latest_date(sw_crowding)
+    crowd_turnover_latest = _latest_date([
+        row for row in sw_crowding
+        if len(row.get("targets") or {}) == len(TARGET_SW)
+        and all((row.get("targets") or {}).get(name, {}).get("turnover") is not None for name in TARGET_SW)
+    ])
+    innovation_latest = _latest_date(innovation)
+    module_latest_dates = {
+        "market": latest_market,
+        "indices": _latest_date(indices_history),
+        "sw_industry": sw_latest,
+        "sw_crowding": crowd_latest,
+        "sw_crowding_turnover": crowd_turnover_latest,
+        "innovation": innovation_latest,
+        "hot_stocks": hot_latest_date,
+    }
+
     unresolved: list[dict[str, object]] = []
+    blocking_reasons: list[dict[str, object]] = []
+    if latest_market != target_date:
+        blocking_reasons.append({
+            "module": "market",
+            "detail": {"expected": target_date, "actual": latest_market},
+        })
     if gaps["indices"]:
         unresolved.append({"module": "indices_history", "level": "WARN", "detail": gaps["indices"]})
     if gaps["market_denominator_dates"]:
         unresolved.append({"module": "market_denominator", "level": "WARN", "detail": gaps["market_denominator_dates"]})
-    hot_market_row = next((row for row in market_history if row["date"] == hot_latest_date), {})
-    expected_hot = int(hot_market_row.get("hot_count") or 0)
-    if len(latest_hot) != expected_hot:
-        unresolved.append({
+    target_market_row = next((row for row in market_history if row["date"] == target_date), {})
+    expected_hot = int(target_market_row.get("hot_count") or 0)
+    if hot_latest_date != target_date or len(latest_hot) != expected_hot:
+        blocking_reasons.append({
             "module": "hot_stocks_latest",
-            "level": "FAIL",
-            "detail": {"expected": expected_hot, "actual": len(latest_hot)},
+            "detail": {
+                "expected_date": target_date,
+                "actual_date": hot_latest_date,
+                "expected_count": expected_hot,
+                "actual_count": len(latest_hot),
+            },
         })
     if canonical_validation.get("status") == "FAIL":
         unresolved.append({
@@ -297,11 +334,28 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
             "level": "WARN",
             "detail": canonical_validation.get("warnings") or ["canonical validation status unknown"],
         })
+    if blocking_reasons:
+        unresolved.append({
+            "module": "publication_gate",
+            "level": "FAIL",
+            "detail": blocking_reasons,
+        })
 
-    sw_latest = max((str(row.get("日期") or "")[:10] for row in sw_industry if row.get("日期")), default=None)
-    crowd_latest = sw_crowding[-1]["date"] if sw_crowding else None
-    innovation_latest = innovation[-1]["date"] if innovation else None
+    for module_name, latest in module_latest_dates.items():
+        if latest_market and latest and latest < latest_market:
+            unresolved.append({
+                "module": f"{module_name}_latest",
+                "level": "WARN",
+                "detail": {"latest": latest, "report_date": latest_market},
+            })
+
     status = "FAIL" if any(item["level"] == "FAIL" for item in unresolved) else ("WARN" if unresolved else "PASS")
+    publication = {
+        "target_date": target_date,
+        "can_publish_target_date": not blocking_reasons and canonical_validation.get("status") != "FAIL",
+        "blocking_reasons": blocking_reasons,
+        "module_latest_dates": module_latest_dates,
+    }
 
     return {
         "meta": {
@@ -323,15 +377,9 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
         "quality": {
             "status": status,
             "unresolved": unresolved,
-            "module_latest_dates": {
-                "market": latest_market,
-                "indices": max((row["date"] for row in indices_history), default=None),
-                "sw_industry": sw_latest,
-                "sw_crowding": crowd_latest,
-                "innovation": innovation_latest,
-                "hot_stocks": hot_latest_date,
-            },
+            "module_latest_dates": module_latest_dates,
             "history_gaps": gaps,
+            "publication": publication,
             "canonical_validation": {
                 "status": canonical_validation.get("status"),
                 "failures": canonical_validation.get("failures") or [],

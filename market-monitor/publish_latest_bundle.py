@@ -38,6 +38,9 @@ def build_bundle(root: Path, target_date: str) -> dict[str, object]:
     meta = report.get("meta") or {}
     if meta.get("status") == "FAIL":
         raise RuntimeError("report_data status is FAIL")
+    publication = (report.get("quality") or {}).get("publication") or {}
+    if not publication.get("can_publish_target_date"):
+        raise RuntimeError(f"target-date publication blocked: {publication.get('blocking_reasons') or []}")
     if str(meta.get("report_date") or "") != target_date:
         raise RuntimeError(f"report date mismatch: {meta.get('report_date')} != {target_date}")
     if str(meta.get("latest_market_date") or "") != target_date:

@@ -55,7 +55,11 @@ function useReportData() {
   useEffect(() => {
     fetch("/api/market-monitor")
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then((b) => { setData(b.data); setPublication(b.publication || null); })
+      .then((b) => {
+        const publication = b.publication || null;
+        setData(b.data);
+        setPublication(publication);
+      })
       .catch((e) => setError(e instanceof Error ? e.message : "加载失败"))
       .finally(() => setLoading(false));
   }, []);
@@ -271,7 +275,7 @@ function TimeChart({ cfg, initialRange = "all" }: { cfg: ChartConfig; initialRan
 export function AStockMonitor({ embed = false }: { embed?: boolean } = {}) {
   const { data, publication, error, loading } = useReportData();
   const [swQuery, setSwQuery] = useState("");
-  const [swLevel, setSwLevel] = useState(""); // 全部层级 / 一级行业 / 二级行业
+  const [swLevel, setSwLevel] = useState("一级行业"); // 默认一级行业
   const [swSort, setSwSort] = useState<{ key: "成交额" | "日收益率" | "20日年化波动率" | null; state: "original" | "desc" | "asc" }>({ key: null, state: "original" });
 
   const crowdChart = useMemo(() => {
@@ -372,7 +376,6 @@ export function AStockMonitor({ embed = false }: { embed?: boolean } = {}) {
   const sortInd = (key: "成交额" | "日收益率" | "20日年化波动率") =>
     swSort.key === key ? (swSort.state === "desc" ? "↓" : "↑") : "↕";
 
-  const crowdLatest = data?.sw_crowding_history[data.sw_crowding_history.length - 1];
   const innovLatest = data?.innovation_history[data.innovation_history.length - 1];
   const quality = data?.quality;
   const moduleLatest = quality?.module_latest_dates ?? {};
@@ -400,12 +403,13 @@ export function AStockMonitor({ embed = false }: { embed?: boolean } = {}) {
         <section className="section">
           <div className="section-title">申万行业</div>
           <div className="card">
+            <div className="subnote">默认展示一级行业；当前快照日期：{moduleLatest.sw_industry ?? "—"}</div>
             <div className="toolbar">
               <input id="swSearch" type="search" placeholder="搜索行业/指数代码…" value={swQuery} onChange={(e) => setSwQuery(e.target.value)} />
               <select id="swLevel" value={swLevel} onChange={(e) => setSwLevel(e.target.value)}>
-                <option value="">全部层级</option>
                 <option value="一级行业">一级行业</option>
                 <option value="二级行业">二级行业</option>
+                <option value="">全部层级</option>
               </select>
             </div>
             <div className="table-wrap sw-table">
@@ -445,7 +449,7 @@ export function AStockMonitor({ embed = false }: { embed?: boolean } = {}) {
         <section className="section">
           <div className="section-title">四行业资金拥挤度</div>
           <div className="card">
-            <div className="subnote">{crowdLatest ? `最新官方有效日：${crowdLatest.date}` : "暂无拥挤度数据"}</div>
+            <div className="subnote">成交额/占全A最新：{moduleLatest.sw_crowding ?? "—"}；供应商直接换手率最新：{moduleLatest.sw_crowding_turnover ?? moduleLatest.sw_crowding ?? "—"}</div>
             {commChart && <TimeChart cfg={commChart} />}
             {fourChart && <TimeChart cfg={fourChart} />}
           </div>
@@ -455,7 +459,7 @@ export function AStockMonitor({ embed = false }: { embed?: boolean } = {}) {
         <section className="section">
           <div className="section-title">创新药交易拥挤度</div>
           <div className="card">
-            <div className="subnote">成交额占全A使用面积图；换手率仅使用供应商直接板块换手率。</div>
+            <div className="subnote">展示截止日：{data.meta.report_date}；创新药真实最新有效日：{moduleLatest.innovation ?? "—"}。成交额占全A使用面积图；换手率仅使用供应商直接板块换手率。</div>
             <div className="table-wrap">
               <table>
                 <thead>

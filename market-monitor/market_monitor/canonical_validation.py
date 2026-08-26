@@ -22,6 +22,7 @@ def validate_candidate(
     candidate_root: Path,
     canonical_root: Path,
     target_date: str,
+    baseline_rows: dict[str, list[dict[str, str]]] | None = None,
 ) -> dict[str, object]:
     failures: list[str] = []
     warnings: list[str] = []
@@ -30,7 +31,11 @@ def validate_candidate(
     for name, spec in CANONICAL_TABLES.items():
         candidate_path = candidate_root / spec.path
         canonical_path = canonical_root / spec.path
-        before = read_csv_rows(canonical_path)
+        before = (
+            baseline_rows.get(name, [])
+            if baseline_rows is not None
+            else read_csv_rows(canonical_path)
+        )
         after = read_csv_rows(candidate_path)
         before_map = {row_key(row, spec): row for row in before}
         after_map = {row_key(row, spec): row for row in after}
@@ -100,8 +105,11 @@ def validate_candidate(
         if row_date == target_date:
             if "东方财富沪深京A股" not in str(row.get("snapshot_source") or ""):
                 failures.append(f"market_snapshot_not_direct_eastmoney:{row_date}")
-            if str(row.get("limit_source") or "") != "东方财富涨跌停池直接接口":
-                failures.append(f"limit_counts_not_direct_pool:{row_date}")
+            if str(row.get("limit_source") or "") not in {
+                "东方财富涨跌停池直接接口",
+                "乐咕市场活跃度 API（网页主源）",
+            }:
+                failures.append(f"limit_counts_not_fixed_api:{row_date}")
 
     target_market = next(
         (row for row in reversed(market_rows) if str(row.get("date") or "")[:10] == target_date),
@@ -111,7 +119,7 @@ def validate_candidate(
         row for row in read_csv_rows(candidate_root / CANONICAL_TABLES["limit_pool"].path)
         if str(row.get("date") or "")[:10] == target_date
     ]
-    if target_market is not None:
+    if target_market is not None and str(target_market.get("limit_source") or "") == "东方财富涨跌停池直接接口":
         direct_up = sum(1 for row in limit_rows if row.get("direction") == "limit_up")
         direct_down = sum(1 for row in limit_rows if row.get("direction") == "limit_down")
         if direct_up != int(_num(target_market.get("limit_up")) or 0):

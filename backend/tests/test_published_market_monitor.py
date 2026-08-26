@@ -48,18 +48,5 @@ class PublishedMarketMonitorTests(unittest.TestCase):
             loaded = load_bundled_fallback(root)
             self.assertEqual(loaded["data_date"], "2026-08-21")
 
-    def test_loads_newer_bundled_copy_when_backend_copy_is_stale(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            newer = root / "market-monitor/data/published/latest_market_monitor.json"
-            older = root / "backend/data/market-monitor/data/published/latest_market_monitor.json"
-            newer.parent.mkdir(parents=True)
-            older.parent.mkdir(parents=True)
-            newer.write_text(json.dumps(valid_bundle("2026-08-25")), encoding="utf-8")
-            older.write_text(json.dumps(valid_bundle("2026-08-21")), encoding="utf-8")
-            loaded = load_bundled_fallback(root)
-            self.assertEqual(loaded["data_date"], "2026-08-25")
-
-
 if __name__ == "__main__":
     unittest.main()

@@ -11,8 +11,7 @@ from zoneinfo import ZoneInfo
 
 from market_monitor.production import run
 from market_monitor.history_preflight import append_index_history
-from market_monitor.canonical_promotion import prepare_stage, promote_candidate
-from market_monitor.canonical_store import normalize_candidate
+from market_monitor.canonical_store import CANONICAL_TABLES, normalize_candidate, read_csv_rows
 from market_monitor.canonical_validation import validate_candidate
 from market_monitor.sw_cache import refresh_sw_cache
 from market_monitor.collectors import update_limit_pool_history
@@ -35,21 +34,17 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def refresh_stage_sources(
-    stage_root: Path,
+def refresh_sources(
+    root: Path,
     target_date: str,
     full_refresh_sw_industry: bool = False,
     crowding_refresh_fn: Callable = refresh_sw_cache,
     fast_industry_refresh_fn: Callable = update_sw_industry_fast,
     full_industry_refresh_fn: Callable = update_sw_industry_full,
 ) -> dict[str, object]:
-    """Refresh mutable Shenwan sources only inside the Canonical candidate root.
-
-    Network failures preserve the staged copy of the previously validated files
-    and become warnings; they never cause direct writes to the live Canonical root.
-    """
-    stage_root = Path(stage_root).resolve()
-    data_dir = stage_root / "data"
+    """Refresh mutable sources in the one canonical data directory."""
+    root = Path(root).resolve()
+    data_dir = root / "data"
     result: dict[str, object] = {"warnings": []}
 
     try:
@@ -82,16 +77,20 @@ def refresh_stage_sources(
     return result
 
 
-def _copy_raw_outputs(stage_output: Path, output_dir: Path) -> None:
+def _archive_raw_outputs(output_dir: Path) -> None:
     raw_dir = output_dir / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
-    for path in stage_output.iterdir():
+    for path in output_dir.iterdir():
         if not path.is_file():
             continue
         shutil.copy2(path, raw_dir / path.name)
-        # Keep acquisition evidence available for audit/source manifests. Business
-        # display data is built only from promoted Canonical histories.
-        shutil.copy2(path, output_dir / path.name)
+
+
+def _baseline_rows(root: Path) -> dict[str, list[dict[str, str]]]:
+    return {
+        name: read_csv_rows(root / spec.path)
+        for name, spec in CANONICAL_TABLES.items()
+    }
 
 
 def main() -> None:
@@ -105,9 +104,9 @@ def main() -> None:
 
     repo_root = Path(".").resolve()
     config_path = (repo_root / args.config).resolve()
-    stage_root = prepare_stage(repo_root, args.target_date)
-    source_refresh = refresh_stage_sources(
-        stage_root=stage_root,
+    baseline_rows = _baseline_rows(repo_root)
+    source_refresh = refresh_sources(
+        root=repo_root,
         target_date=args.target_date,
         full_refresh_sw_industry=args.full_refresh_sw_industry,
     )
@@ -115,33 +114,37 @@ def main() -> None:
     result = run(
         target_date=args.target_date,
         config_path=config_path,
-        root=stage_root,
+        root=repo_root,
         refresh_mapping=args.refresh_mapping,
     )
     payload = result["payload"]
     append_index_history(
-        stage_root / "data/history/indices_history.csv",
+        repo_root / "data/history/indices_history.csv",
         list((payload.get("indices") or {}).values()),
     )
-    hot_snapshot_due = datetime.strptime(args.target_date, "%Y-%m-%d").weekday() == 4
-    if hot_snapshot_due or args.force_hot_snapshot:
-        append_hot_stock_history(
-            stage_root / "data/history/hot_stocks.csv",
-            args.target_date,
-            payload.get("hot_stocks") or [],
-        )
+    # 百亿成交股是每日母表，不是周五快照。每天按 date+stock_code upsert。
+    append_hot_stock_history(
+        repo_root / "data/history/hot_stocks.csv",
+        args.target_date,
+        payload.get("hot_stocks") or [],
+    )
     update_limit_pool_history(
-        stage_root / "data/history/limit_pool.csv",
+        repo_root / "data/history/limit_pool.csv",
         args.target_date,
         payload.get("limit_pool") or [],
     )
 
     output_dir = repo_root / "output" / args.target_date
     output_dir.mkdir(parents=True, exist_ok=True)
-    _copy_raw_outputs(Path(result["output_dir"]), output_dir)
+    _archive_raw_outputs(output_dir)
 
-    normalization = normalize_candidate(stage_root)
-    canonical_validation = validate_candidate(stage_root, repo_root, args.target_date)
+    normalization = normalize_candidate(repo_root)
+    canonical_validation = validate_candidate(
+        repo_root,
+        repo_root,
+        args.target_date,
+        baseline_rows=baseline_rows,
+    )
     canonical_validation["normalization"] = normalization
     canonical_validation["source_refresh"] = source_refresh
     canonical_validation["warnings"] = list(dict.fromkeys(
@@ -155,7 +158,9 @@ def main() -> None:
         json.dumps(canonical_validation, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    promote_candidate(stage_root, repo_root, args.target_date, canonical_validation)
+    if canonical_validation["status"] == "FAIL":
+        failures = "; ".join(canonical_validation.get("failures") or [])
+        raise RuntimeError(f"canonical validation failed; GitHub mother tables will not be committed: {failures}")
 
     payload_validation = result["validation"]
     removed = sum(int(item.get("removed_identical_rows") or 0) for item in normalization.values())

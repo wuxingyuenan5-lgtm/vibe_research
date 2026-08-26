@@ -9,17 +9,34 @@ from publish_latest_bundle import publish
 
 
 class PublishLatestBundleTests(unittest.TestCase):
-    def _fixture(self, root: Path, *, canonical_status: str = "PASS") -> tuple[str, Path]:
+    def _fixture(
+        self,
+        root: Path,
+        *,
+        canonical_status: str = "PASS",
+        report_date: str | None = None,
+        latest_market_date: str | None = None,
+        publication: dict[str, object] | None = None,
+    ) -> tuple[str, Path]:
         target = "2026-08-21"
         output_dir = root / "output" / target
         output_dir.mkdir(parents=True)
+        report_date = report_date or target
+        latest_market_date = latest_market_date or report_date
         report = {
             "meta": {
-                "report_date": target,
-                "latest_market_date": target,
+                "report_date": report_date,
+                "latest_market_date": latest_market_date,
                 "status": "PASS",
             },
-            "market_history": [{"date": target}],
+            "market_history": [{"date": latest_market_date}],
+            "quality": {
+                "publication": publication or {
+                    "target_date": target,
+                    "can_publish_target_date": report_date == target and latest_market_date == target,
+                    "blocking_reasons": [],
+                }
+            },
         }
         (output_dir / "report_data.json").write_text(json.dumps(report), encoding="utf-8")
         (output_dir / "canonical_validation.json").write_text(
@@ -49,6 +66,22 @@ class PublishLatestBundleTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 publish(root, target, output)
             self.assertEqual(json.loads(output.read_text(encoding="utf-8")), {"last": "good"})
+
+    def test_publish_rejects_previous_report_date(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target, output = self._fixture(
+                root,
+                report_date="2026-08-20",
+                latest_market_date="2026-08-20",
+                publication={
+                    "target_date": "2026-08-21",
+                    "can_publish_target_date": False,
+                    "blocking_reasons": [{"module": "market_history", "detail": "missing 2026-08-21"}],
+                },
+            )
+            with self.assertRaises(RuntimeError):
+                publish(root, target, output)
 
 
 if __name__ == "__main__":

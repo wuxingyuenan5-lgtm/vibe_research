@@ -21,6 +21,11 @@ from .common import ensure_dir, load_json, write_json
 from .sw_mapping import load_or_refresh_mapping
 
 
+def fetch_market_activity_summary(target_date: str) -> dict[str, int] | None:
+    """Optional current-day aggregate source; production overrides this with the webpage API."""
+    return None
+
+
 @dataclass(frozen=True)
 class PipelinePaths:
     root: Path
@@ -100,7 +105,9 @@ def _normalize_sw_targets(
             "amount_100m": amount,
             "amount_share_of_a": share,
             "turnover": turnover,
-            "share_source": "申万官方成交额占比" if share_raw is not None else "derived",
+            "share_source": str(row.get("数据源") or "") or (
+                "申万官方成交额占比" if share_raw is not None else "derived"
+            ),
         }
     return out
 
@@ -114,6 +121,62 @@ def _combine_sw_targets(sw_targets: dict[str, dict[str, object]]) -> dict[str, o
         "amount_100m": sum(float(value) for value in amounts if value is not None) if complete_amounts else None,
         "amount_share_of_a": sum(valid_shares) if valid_shares else None,
     }
+
+
+def _upsert_current_sw_amounts(
+    industry_history_path: Path,
+    crowding_history_path: Path,
+    target_codes: dict[str, str],
+    target_date: str,
+    market_amount_100m: float,
+) -> pd.DataFrame:
+    """Use the same-day SWS aggregate snapshot for amount/share when daily analysis is not published yet.
+
+    The current endpoint does not provide turnover, so turnover remains empty instead of being copied
+    from an older day. A later official daily-analysis refresh overwrites the same date+code rows.
+    """
+    if not industry_history_path.exists():
+        return pd.DataFrame()
+    industry = pd.read_csv(industry_history_path, encoding="utf-8-sig")
+    date_values = industry.get("日期", pd.Series(dtype=str)).astype(str).str[:10]
+    code_values = industry.get("指数代码", pd.Series(dtype=str)).astype(str).str.replace(r"\.0$", "", regex=True)
+    selected = industry[(date_values == target_date) & code_values.isin(target_codes.values())].copy()
+    if len(selected) != len(target_codes):
+        return pd.DataFrame()
+
+    rows: list[dict[str, object]] = []
+    for label, code in target_codes.items():
+        row = selected[code_values.loc[selected.index] == code].iloc[-1]
+        amount = _number(row.get("成交额"))
+        if amount is None:
+            return pd.DataFrame()
+        rows.append({
+            "指数代码": code,
+            "指数名称": label,
+            "发布日期": target_date,
+            "收盘指数": _number(row.get("收盘价")),
+            "成交量": None,
+            "涨跌幅": (_number(row.get("日收益率")) or 0) * 100,
+            "换手率": None,
+            "市盈率": None,
+            "市净率": None,
+            "均价": None,
+            "成交额占比": amount / market_amount_100m * 100 if market_amount_100m else None,
+            "流通市值": None,
+            "平均流通市值": None,
+            "股息率": None,
+            "数据源": "申万 current 聚合接口（当日成交额；换手率待官方日度分析）",
+        })
+
+    fresh = pd.DataFrame(rows)
+    existing = pd.read_csv(crowding_history_path, encoding="utf-8-sig") if crowding_history_path.exists() else pd.DataFrame()
+    if not existing.empty:
+        dates = existing["发布日期"].astype(str).str[:10]
+        codes = existing["指数代码"].astype(str).str.replace(r"\.0$", "", regex=True)
+        existing = existing[~((dates == target_date) & codes.isin(target_codes.values()))]
+    combined = pd.concat([existing, fresh], ignore_index=True, sort=False)
+    combined.to_csv(crowding_history_path, index=False, encoding="utf-8-sig")
+    return combined
 
 
 def _validation(
@@ -211,9 +274,13 @@ def run(
     if snapshot_dates != [target_date]:
         raise RuntimeError(f"all-A snapshot date mismatch: expected={target_date}, actual={snapshot_dates}")
     limit_up, limit_down, limit_pool = fetch_limit_pools(target_date)
-    advance = int((spot["return"] > 0).sum())
-    decline = int((spot["return"] < 0).sum())
-    flat = int((spot["return"] == 0).sum())
+    activity = fetch_market_activity_summary(target_date)
+    advance = int(activity["advance"]) if activity else int((spot["return"] > 0).sum())
+    decline = int(activity["decline"]) if activity else int((spot["return"] < 0).sum())
+    flat = int(activity["flat"]) if activity else int((spot["return"] == 0).sum())
+    if activity:
+        limit_up = int(activity["limit_up"])
+        limit_down = int(activity["limit_down"])
     total_amount = float(spot["amount_100m"].sum())
 
     mapping, mapping_refreshed = load_or_refresh_mapping(
@@ -237,14 +304,17 @@ def run(
         "flat": flat,
         "limit_up": int(limit_up),
         "limit_down": int(limit_down),
-        "effective_stocks": int(len(spot)),
+        "effective_stocks": advance + decline + flat,
         "total_amount_100m": total_amount,
         "hot_count": int(len(hot_frame)),
         "hot_amount_100m": hot_amount,
         "hot_concentration": hot_amount / total_amount if total_amount else None,
         "market_breadth": (advance - decline) / (advance + decline) if advance + decline else None,
-        "snapshot_source": spot_source,
-        "limit_source": "东方财富涨跌停池直接接口",
+        "snapshot_source": (
+            f"{spot_source}; 乐咕市场活跃度 API（与网页 overview-v2 同源）"
+            if activity else spot_source
+        ),
+        "limit_source": "乐咕市场活跃度 API（网页主源）" if activity else "东方财富涨跌停池直接接口",
     }
     market_history = update_market_history(paths.history_dir / "market_core.csv", market)
 
@@ -259,6 +329,16 @@ def run(
     sw_raw.to_csv(paths.output_dir / "sw_analysis_daily_second.csv", index=False, encoding="utf-8-sig")
     sw_targets = _normalize_sw_targets(sw_raw, config["sw_crowding_codes"], target_date, total_amount)
     sw_date = _sw_latest_date(sw_raw)
+    if sw_date != target_date or len(sw_targets) != len(config["sw_crowding_codes"]):
+        sw_raw = _upsert_current_sw_amounts(
+            paths.data_dir / "sw_industry_history.csv",
+            paths.history_dir / "sw_analysis_daily_second.csv",
+            config["sw_crowding_codes"],
+            target_date,
+            total_amount,
+        )
+        sw_targets = _normalize_sw_targets(sw_raw, config["sw_crowding_codes"], target_date, total_amount)
+        sw_date = _sw_latest_date(sw_raw)
 
     t0 = time.perf_counter()
     em_path = paths.history_dir / "innovation_drug_eastmoney.csv"

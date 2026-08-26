@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
+import akshare as ak
 
 from . import pipeline
 from .collectors import fetch_indices as fetch_indices_legacy
@@ -23,8 +24,43 @@ UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Sa
 # 指数与板块实时一律走 push2delay；历史 K 线（push2his）被拒时由同花顺历史 backfill 兜底。
 EM_INDEX_QUOTE_URL = "https://push2delay.eastmoney.com/api/qt/stock/get"
 EM_CONCEPT_QUOTE_URL = "https://push2delay.eastmoney.com/api/qt/stock/get"
+EM_MARKET_ACTIVITY_URL = "https://push2delay.eastmoney.com/api/qt/ulist.np/get"
 EM_UT = "bd1d9ddb04089700cf9c27f6f7426281"
 INNOVATION_SECID = "90.BK1106"
+CLOSE_READY_TIME = time(15, 30)
+
+
+def _require_close_ready(target_date: str, timestamp: object, label: str) -> datetime:
+    value = _number(timestamp)
+    if value is None:
+        raise RuntimeError(f"{label} quote timestamp missing")
+    quote_time = datetime.fromtimestamp(value, ZoneInfo("Asia/Shanghai"))
+    if quote_time.strftime("%Y-%m-%d") != target_date or quote_time.time() < CLOSE_READY_TIME:
+        raise RuntimeError(
+            f"{label} close quote not ready: {quote_time.isoformat(timespec='seconds')}"
+        )
+    return quote_time
+
+
+def fetch_market_activity_summary(target_date: str) -> dict[str, int]:
+    """复用网页 `/api/market/overview-v2` 的乐咕市场活跃度主 API。"""
+    frame = retry(ak.stock_market_activity_legu, attempts=3, delay=0.8)
+    if frame is None or frame.empty or not {"item", "value"}.issubset(frame.columns):
+        raise RuntimeError("empty Legu market activity payload")
+    values = {str(row["item"]): row["value"] for _, row in frame.iterrows()}
+    source_date = str(values.get("统计日期") or "")[:10]
+    if source_date != target_date:
+        raise RuntimeError(f"Legu market activity date mismatch: {source_date} != {target_date}")
+    result = {
+        "advance": int(float(values.get("上涨") or 0)),
+        "decline": int(float(values.get("下跌") or 0)),
+        "flat": int(float(values.get("平盘") or 0)),
+        "limit_up": int(float(values.get("涨停") or 0)),
+        "limit_down": int(float(values.get("跌停") or 0)),
+    }
+    if result["advance"] + result["decline"] + result["flat"] < 4500:
+        raise RuntimeError(f"Legu market activity coverage too small: {result}")
+    return result
 
 
 def _number(value):
@@ -64,6 +100,7 @@ def _index_current_quote(target_date: str, definition: dict[str, str]) -> dict[s
     close = _number(data.get("f43"))
     amount = _number(data.get("f48"))
     pct = _number(data.get("f170"))
+    _require_close_ready(target_date, data.get("f86"), definition["name"])
     if close is None or amount is None or pct is None:
         raise RuntimeError(f"current quote missing fields: {definition['name']}")
     return {
@@ -137,7 +174,7 @@ def fetch_innovation_current_reliable(target_date: str):
     return_raw = _number(data.get("f170"))
     if None in (amount, close, volume, quote_timestamp, turnover_raw, return_raw):
         raise RuntimeError("innovation quote missing close/volume/amount/time/turnover/return")
-    quote_time = datetime.fromtimestamp(quote_timestamp, ZoneInfo("Asia/Shanghai"))
+    quote_time = _require_close_ready(target_date, quote_timestamp, "innovation")
     quote_date = quote_time.strftime("%Y-%m-%d")
     if quote_date != target_date:
         raise RuntimeError(f"innovation quote date mismatch: {quote_date} != {target_date}")
@@ -162,11 +199,13 @@ def run(
     """Production entrypoint with all mutable data scoped to the supplied root."""
     root = Path(root).resolve()
     pipeline.fetch_a_share_spot = fetch_a_share_spot_fast
+    pipeline.fetch_market_activity_summary = fetch_market_activity_summary
     pipeline.fetch_sw_analysis = lambda date: load_sw_cache(
         date,
         root / "data/cache/sw_analysis_daily_second.csv",
     )
     pipeline.fetch_indices = fetch_indices_resilient
+    # 当日创新药是正式母表的一部分；抓取失败必须让生产失败，不能静默沿用旧日。
     pipeline.fetch_innovation_current_em = fetch_innovation_current_reliable
     return pipeline.run(
         target_date=target_date,

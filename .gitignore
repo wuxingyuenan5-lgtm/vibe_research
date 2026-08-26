@@ -21,12 +21,15 @@ public/user-data/
 
 # ── 依赖 / 构建产物 ───────────────────────────────────────────────
 **/.venv/
+**/.venv*/
 **/node_modules/
 **/__pycache__/
 **/.pytest_cache/
 *.pyc
 dist/
 build/
+output/
+**/_backfill_checkpoints/
 frontend/tsconfig.tsbuildinfo
 
 # ── 编辑器 / 系统 / 工具 ──────────────────────────────────────────

@@ -2,15 +2,47 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
 from market_monitor.collectors import update_limit_pool_history, upsert_innovation_direct_quote
-from market_monitor.pipeline import _normalize_sw_targets
+from market_monitor.pipeline import _normalize_sw_targets, _upsert_current_sw_amounts
+from market_monitor.production import _require_close_ready
 
 
 class DataPipelineContractTests(unittest.TestCase):
+    def test_close_quote_gate_rejects_partial_1520_value(self):
+        partial = datetime(2026, 8, 25, 15, 20, tzinfo=ZoneInfo("Asia/Shanghai")).timestamp()
+        ready = datetime(2026, 8, 25, 15, 35, tzinfo=ZoneInfo("Asia/Shanghai")).timestamp()
+        with self.assertRaises(RuntimeError):
+            _require_close_ready("2026-08-25", partial, "innovation")
+        self.assertEqual(_require_close_ready("2026-08-25", ready, "innovation").minute, 35)
+
+    def test_current_sw_amount_fallback_does_not_fake_turnover(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            industry = root / "sw_industry_history.csv"
+            crowding = root / "sw_analysis_daily_second.csv"
+            pd.DataFrame([{
+                "日期": "2026-08-25", "指数代码": code, "指数名称": name,
+                "收盘价": 100, "成交额": amount, "日收益率": 0.01,
+            } for name, code, amount in (
+                ("通信设备", "801102", 1000), ("计算机设备", "801101", 200),
+                ("元件", "801083", 800), ("半导体", "801081", 2000),
+            )]).to_csv(industry, index=False, encoding="utf-8-sig")
+            result = _upsert_current_sw_amounts(
+                industry, crowding,
+                {"通信设备": "801102", "计算机设备": "801101", "元件": "801083", "半导体": "801081"},
+                "2026-08-25", 20_000,
+            )
+            current = result[result["发布日期"] == "2026-08-25"]
+            self.assertEqual(len(current), 4)
+            self.assertTrue(current["换手率"].isna().all())
+            self.assertAlmostEqual(float(current["成交额占比"].sum()), 20.0)
+
     def test_sw_targets_use_official_percent_fields(self):
         frame = pd.DataFrame([{
             "指数代码": "801102",

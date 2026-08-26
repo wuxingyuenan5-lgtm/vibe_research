@@ -7,8 +7,7 @@ from pathlib import Path
 from typing import Callable
 
 from market_monitor.history_preflight import preflight_history
-from market_monitor.canonical_promotion import prepare_stage, promote_candidate
-from market_monitor.canonical_store import normalize_candidate
+from market_monitor.canonical_store import CANONICAL_TABLES, normalize_candidate, read_csv_rows
 from market_monitor.canonical_validation import validate_candidate
 
 
@@ -20,15 +19,23 @@ def execute_preflight_with_gate(
     repair_fn: Callable = preflight_history,
 ) -> dict[str, object]:
     repo_root = root.resolve()
-    stage_root = prepare_stage(repo_root, target_date)
+    baseline_rows = {
+        name: read_csv_rows(repo_root / spec.path)
+        for name, spec in CANONICAL_TABLES.items()
+    }
     result = repair_fn(
-        stage_root,
+        repo_root,
         target_date,
         definitions,
         repair_indices=repair_indices,
     )
-    normalization = normalize_candidate(stage_root)
-    canonical_validation = validate_candidate(stage_root, repo_root, target_date)
+    normalization = normalize_candidate(repo_root)
+    canonical_validation = validate_candidate(
+        repo_root,
+        repo_root,
+        target_date,
+        baseline_rows=baseline_rows,
+    )
     canonical_validation["normalization"] = normalization
 
     output = repo_root / "output" / target_date / "history_preflight.json"
@@ -40,9 +47,9 @@ def execute_preflight_with_gate(
     }
     output.write_text(json.dumps(combined, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    manifest = promote_candidate(stage_root, repo_root, target_date, canonical_validation)
-    combined["canonical_promotion"] = manifest
-    output.write_text(json.dumps(combined, ensure_ascii=False, indent=2), encoding="utf-8")
+    if canonical_validation["status"] == "FAIL":
+        failures = "; ".join(canonical_validation.get("failures") or [])
+        raise RuntimeError(f"canonical validation failed; GitHub mother tables will not be committed: {failures}")
     return combined
 
 

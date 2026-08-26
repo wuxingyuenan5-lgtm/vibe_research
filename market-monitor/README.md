@@ -13,7 +13,7 @@ A股每日市场监控 HTML v1.1 生产链 —— Vibe-Research 项目的数据�
 
 ```text
 run_history_preflight.py  (历史缺口预检/回填)
-→ run_daily.py             (Raw/Stage 采集 → Canonical staging → 验证 → Promote 到 data/history)
+→ run_daily.py             (API 采集 → 按日期 upsert 唯一母表 → 验证)
 → validate_canonical_data.py (冗余复核)
 → build_report_data.py     (只读 Canonical → report_data.json)
 → render_market_monitor_html.py (HTML v1.1 单文件渲染)
@@ -27,8 +27,8 @@ run_history_preflight.py  (历史缺口预检/回填)
 
 | 路径 | 职责 |
 |---|---|
-| `market_monitor/` | Canonical 存储/验证/Promote、采集器、HTML v1.1 渲染器、历史预检 |
-| `run_daily.py` | 一键每日生产（采集 + 标准化 + 验证 + Promote） |
+| `market_monitor/` | 母表存储/验证、采集器、HTML v1.1 渲染器、历史预检 |
+| `run_daily.py` | 一键每日生产（采集 + 母表 upsert + 标准化 + 验证） |
 | `build_report_data.py` | 生成展示层唯一业务数据合同 |
 | `render_market_monitor_html.py` | 渲染单文件离线 HTML（内嵌 CSS/JS，无 CDN） |
 | `validate_market_monitor_html.py` | HTML 校验（无外部依赖、报告日一致等） |
@@ -64,6 +64,7 @@ python validate_market_monitor_html.py --target-date <最新历史日>
 - 创新药换手率只接受供应商直接板块字段；「20日成交量活跃度代理」永久禁止进入 Canonical/report_data/HTML；
 - 指数历史只能用历史 K 线补，不用当前报价倒填；
 - Canonical Validator FAIL 时不允许生成 report_data.json 与 HTML。
+- 母表永远只有 `data/` 下这一套滚动表；`output/YYYY-MM-DD/` 是日报审计产物，后端目录不保存母表镜像。
 
 ## 上游溯源
 
