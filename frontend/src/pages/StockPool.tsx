@@ -103,7 +103,7 @@ function useStockPool() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const load = useCallback(() => {
-    fetch("/api/stock-pool")
+    fetch(`/api/stock-pool?_ts=${Date.now()}`, { cache: "no-store" })
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then((b) => {
         setData(b.data as Payload);

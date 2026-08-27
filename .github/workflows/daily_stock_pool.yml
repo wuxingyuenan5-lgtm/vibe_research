@@ -5,6 +5,11 @@ on:
     # 上海时间工作日 15:20；若市场母表任务仍在写入，会因共用写锁自动排队。
     - cron: "20 7 * * 1-5"
   workflow_dispatch:
+    inputs:
+      target_date:
+        description: "Trading date, YYYY-MM-DD; blank uses Asia/Shanghai today"
+        required: false
+        default: ""
 
 concurrency:
   group: vibe-research-data-writer
@@ -26,13 +31,24 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Resolve date
+        id: date
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.target_date }}" ]; then
+            target="${{ inputs.target_date }}"
+          else
+            target="$(date +%F)"
+          fi
+          echo "value=$target" >> "$GITHUB_OUTPUT"
+
       - name: Install backend dependencies
         working-directory: backend
         run: pip install -r requirements.txt
 
       - name: Refresh overwrite-only cache
         working-directory: backend
-        run: python -m market_monitor.daily_refresh --date "$(date +%F)"
+        run: python -m market_monitor.daily_refresh --date "${{ steps.date.outputs.value }}"
 
       - name: Persist compact cache
         shell: bash
@@ -45,7 +61,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No stock-pool cache changes"
           else
-            git commit -m "data: refresh stock-pool compact cache $(date +%F)"
+            git commit -m "data: refresh stock-pool compact cache ${{ steps.date.outputs.value }}"
             git pull --rebase origin main
             git push
           fi

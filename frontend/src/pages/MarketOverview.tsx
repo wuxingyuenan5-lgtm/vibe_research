@@ -5,12 +5,11 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw, Loader2, Gauge, Flame, TrendingUp, TrendingDown, ArrowDownUp, Wallet, AlertCircle, Sparkles, X } from "lucide-react";
-import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { TrendCharts, type MarketPublication, type ReportData } from "@/pages/AStockMonitor";
+import { AStockMonitor, TrendCharts, type MarketPublication, type ReportData } from "@/pages/AStockMonitor";
 import { AssetOverviewTable, BRIEF_CODE_MAP, type AssetRow } from "@/components/ui/AssetOverviewTable";
 import { SectorTrendTable, FundRotation, TurnoverTopTable, LianbanTable, HotStockMatrixTable } from "@/components/ui/marketPanels";
 import { hasLlm, chatStream } from "@/lib/llm";
@@ -339,7 +338,7 @@ export function MarketOverview() {
     // 实时层聚合为 1 个请求；快照层（market-monitor）独立（盘后固定，不随实时刷新反复拉）；宏观/要闻独立
     const [agg, mon, mb] = await Promise.all([
       safe(fetch("/api/market/overview-v2").then((r) => (r.ok ? r.json() : null)), null),
-      fetch("/api/market-monitor").then((r) => (r.ok ? r.json() : {})).catch((e) => { console.warn("[overview] market-monitor 失败:", e); return {}; }),
+      fetch(`/api/market-monitor?_ts=${Date.now()}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : {})).catch((e) => { console.warn("[overview] market-monitor 失败:", e); return {}; }),
       safe(fetch("/api/macro-brief").then((r) => (r.ok ? r.json() : null)), null),
     ]);
     if (rid !== runIdRef.current) return;
@@ -389,7 +388,7 @@ export function MarketOverview() {
       const minute = now.getHours() * 60 + now.getMinutes();
       if (day === 0 || day === 6 || minute < 15 * 60 + 20 || minute > 16 * 60 + 20) return;
       try {
-        const response = await fetch("/api/market-monitor", { cache: "no-store" });
+        const response = await fetch(`/api/market-monitor?_ts=${Date.now()}`, { cache: "no-store" });
         if (!response.ok) return;
         const payload = await response.json() as { data?: ReportData; publication?: MarketPublication };
         if (payload.data) setReportData(payload.data);
@@ -744,22 +743,9 @@ export function MarketOverview() {
         )}
       </GlassCard>
 
-      <GlassCard className="mt-6 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-semibold">市场监控详情</h3>
-            <p className="mt-1 text-xs text-muted-foreground/70">
-              申万行业、四行业拥挤度、创新药、母表质量与历史完整性已拆回独立页面，避免市场总览加载过慢和样式串扰。
-            </p>
-          </div>
-          <Link
-            to="/a-stock-monitor"
-            className="rounded-lg border border-border/60 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/5"
-          >
-            打开市场监控页
-          </Link>
-        </div>
-      </GlassCard>
+      <div className="mt-6">
+        <AStockMonitor embed />
+      </div>
 
       {/* 连板股弹窗（内容 = 每日复盘同款表格） */}
       {ladderOpen && <LadderModal emotion={emotion} onClose={() => setLadderOpen(false)} />}

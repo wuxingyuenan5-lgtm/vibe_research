@@ -112,6 +112,32 @@ def _module_health_rows(module_latest_dates: dict[str, str | None], benchmark_da
     return rows
 
 
+def _unresolved_message(module: str, detail: object, benchmark_date: str | None = None) -> str:
+    if module == "indices_history":
+        dates = sorted({
+            str(item.get("date") or "")[:10]
+            for item in (detail or [])
+            if isinstance(item, dict) and str(item.get("date") or "")[:10]
+        })
+        return f"监控页指数历史仍有缺口，涉及日期：{', '.join(dates) if dates else '待核对'}。"
+    if module == "market_denominator":
+        dates = [str(item)[:10] for item in (detail or []) if str(item)[:10]]
+        return f"全A成交额分母仍缺日期：{', '.join(dates) if dates else '待核对'}，会影响占全A类指标。"
+    if module == "hot_stocks_latest" and isinstance(detail, dict):
+        expected = detail.get("expected")
+        actual = detail.get("actual")
+        return f"百亿成交母表当日明细数量不一致：应为 {expected} 只，当前 {actual} 只。"
+    if module == "canonical_validation":
+        return "离线审计还没有完全通过，当前页面可以继续直读母表，但底层体检结果还不完整。"
+    if module == "publication_gate":
+        return "当前还有发布门禁未通过，建议先补齐母表后再把这版当成稳定产物。"
+    if module.endswith("_latest") and isinstance(detail, dict):
+        latest = detail.get("latest")
+        report_date = detail.get("report_date") or benchmark_date
+        return f"{QUALITY_MODULE_LABELS.get(module.replace('_latest', ''), module)} 最新只到 {latest}，落后于页面基准日 {report_date}。"
+    return f"{QUALITY_MODULE_LABELS.get(module, module)} 仍需继续核对。"
+
+
 def _build_quality_summary(
     report_date: str,
     module_latest_dates: dict[str, str | None],
@@ -155,7 +181,7 @@ def _build_quality_summary(
             "key": "indices",
             "label": "监控页三项指数正常显示",
             "status": _check_status(indices_ok, warn=bool(latest_indices)),
-            "detail": "要求上证50/中证2000/中证全指在页面基准日同时具备涨跌幅和成交额",
+            "detail": "监控页指数区块在页面基准日需同时具备涨跌幅和成交额",
         },
         {
             "key": "sw_industry",
@@ -193,11 +219,11 @@ def _build_quality_summary(
     if denominator_gap_dates:
         history_notes.append(f"创新药 / 四行业占全A分母仍缺 {', '.join(denominator_gap_dates)}")
     if canonical_status == "FAIL":
-        history_notes.append("底层 Canonical 审计未通过，仍需继续修复后再作为完全稳定版本使用")
+        history_notes.append("离线审计未通过，说明底层母表还有问题，当前版本不建议当成最终稳定版。")
     elif canonical_status == "WARN":
-        history_notes.append("底层 Canonical 审计仍有提醒项，但当前页面依赖的母表和展示检查已通过")
-    elif canonical_status == "UNKNOWN":
-        history_notes.append("尚未读取到 Canonical 审计结果，建议补跑一次离线审计")
+        history_notes.append("离线审计仍有提醒项，但当前页面依赖的母表和展示检查已通过。")
+    elif canonical_status in {"UNKNOWN", "SKIPPED"}:
+        history_notes.append("离线审计这次没有跑出结果；当前页面仍直接读取母表，但这里暂时不能给出完整底层体检。")
     history_status = "PASS" if not history_notes else ("FAIL" if canonical_status == "FAIL" else "WARN")
     if not history_notes:
         history_notes.append("未发现历史缺口")
@@ -553,9 +579,9 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
 
     unresolved: list[dict[str, object]] = []
     if gaps["indices"]:
-        unresolved.append({"module": "indices_history", "level": "WARN", "detail": gaps["indices"]})
+        unresolved.append({"module": "indices_history", "level": "WARN", "detail": gaps["indices"], "message": _unresolved_message("indices_history", gaps["indices"], latest_market)})
     if gaps["market_denominator_dates"]:
-        unresolved.append({"module": "market_denominator", "level": "WARN", "detail": gaps["market_denominator_dates"]})
+        unresolved.append({"module": "market_denominator", "level": "WARN", "detail": gaps["market_denominator_dates"], "message": _unresolved_message("market_denominator", gaps["market_denominator_dates"], latest_market)})
     hot_market_row = next((row for row in market_history if row["date"] == hot_latest_date), {})
     expected_hot = int(hot_market_row.get("hot_count") or 0)
     if len(latest_hot) != expected_hot:
@@ -563,24 +589,28 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
             "module": "hot_stocks_latest",
             "level": "FAIL",
             "detail": {"expected": expected_hot, "actual": len(latest_hot)},
+            "message": _unresolved_message("hot_stocks_latest", {"expected": expected_hot, "actual": len(latest_hot)}, latest_market),
         })
     if canonical_validation.get("status") == "FAIL":
         unresolved.append({
             "module": "canonical_validation",
             "level": "FAIL",
             "detail": canonical_validation.get("failures") or [],
+            "message": _unresolved_message("canonical_validation", canonical_validation.get("failures") or [], latest_market),
         })
     elif canonical_validation.get("status") == "WARN":
         unresolved.append({
             "module": "canonical_validation",
             "level": "WARN",
             "detail": canonical_validation.get("warnings") or ["canonical validation status unknown"],
+            "message": _unresolved_message("canonical_validation", canonical_validation.get("warnings") or [], latest_market),
         })
     if publication["blocking_reasons"]:
         unresolved.append({
             "module": "publication_gate",
             "level": "WARN",
             "detail": publication["blocking_reasons"],
+            "message": _unresolved_message("publication_gate", publication["blocking_reasons"], latest_market),
         })
 
     for module_name, latest in module_latest_dates.items():
@@ -589,6 +619,7 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
                 "module": f"{module_name}_latest",
                 "level": "WARN",
                 "detail": {"latest": latest, "report_date": latest_market},
+                "message": _unresolved_message(f"{module_name}_latest", {"latest": latest, "report_date": latest_market}, latest_market),
             })
 
     status = "FAIL" if any(item["level"] == "FAIL" for item in unresolved) else ("WARN" if unresolved else "PASS")

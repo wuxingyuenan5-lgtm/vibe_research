@@ -79,11 +79,12 @@ def require_current_close_window(target_date: str, now: datetime | None = None) 
         current = current.replace(tzinfo=ZoneInfo("Asia/Shanghai"))
     else:
         current = current.astimezone(ZoneInfo("Asia/Shanghai"))
-    if current.strftime("%Y-%m-%d") != target_date:
+    current_date = current.strftime("%Y-%m-%d")
+    if current_date < target_date:
         raise RuntimeError(
-            f"股票池当前快照不能写成 {target_date}; 当前日期为 {current:%Y-%m-%d}"
+            f"股票池当前快照不能写成未来日期 {target_date}; 当前日期为 {current_date}"
         )
-    if current.time() < CLOSE_READY_TIME:
+    if current_date == target_date and current.time() < CLOSE_READY_TIME:
         raise RuntimeError(f"股票池收盘快照尚未就绪: {current.isoformat(timespec='seconds')}")
     return current
 

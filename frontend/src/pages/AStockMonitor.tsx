@@ -28,7 +28,7 @@ export interface ReportData {
   innovation_history: { date: string; amount_100m: number | null; amount_share_of_a: number | null; turnover: number | null; return: number | null; volume: number | null }[];
   quality: {
     status: string;
-    unresolved?: { module: string; level: string; detail: unknown }[];
+    unresolved?: { module: string; level: string; detail: unknown; message?: string }[];
     module_latest_dates?: Record<string, string>;
     canonical_validation?: { status?: string };
     summary?: {
@@ -68,17 +68,9 @@ const upDownCls = (v: number | null | undefined) => (v == null ? "neutral" : v >
 const qualityCls = (status: string | null | undefined) => status === "PASS" ? "quality-ok" : status === "WARN" ? "quality-pending" : "quality-bad";
 const canonicalDisplay = (status: string | null | undefined) => {
   const value = String(status || "").trim().toUpperCase();
-  if (!value || value === "UNKNOWN") return "SKIPPED（未生成离线审计）";
-  if (value === "SKIPPED") return "SKIPPED（未生成离线审计）";
+  if (!value || value === "UNKNOWN" || value === "SKIPPED") return "未运行离线审计（当前页面仍直接读取母表）";
   return value;
 };
-const qualityModuleLabel = (name: string) => ({
-  indices_history: "监控页三项指数历史",
-  market_denominator: "全A成交额分母",
-  hot_stocks_latest: "百亿成交榜",
-  canonical_validation: "底层 Canonical 审计",
-  publication_gate: "发布门禁",
-}[name] ?? name);
 
 function useReportData() {
   const [data, setData] = useState<ReportData | null>(null);
@@ -86,7 +78,7 @@ function useReportData() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    fetch("/api/market-monitor")
+    fetch(`/api/market-monitor?_ts=${Date.now()}`, { cache: "no-store" })
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then((b) => {
         const publication = b.publication || null;
@@ -574,7 +566,7 @@ export function AStockMonitor({ embed = false }: { embed?: boolean } = {}) {
                 <b>未解决事项</b>
                 <ul>
                   {quality.unresolved.map((u, i) => (
-                    <li key={i}><b>{qualityModuleLabel(u.module)}</b>：请查看母表审计结果并继续修复该模块</li>
+                    <li key={i}>{u.message || "仍有待核对问题"}</li>
                   ))}
                 </ul>
               </div>
