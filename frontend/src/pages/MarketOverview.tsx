@@ -417,19 +417,6 @@ export function MarketOverview() {
   const [sectorsOpen, setSectorsOpen] = useState(false); // 板块资金全表弹窗
   const [helpOpen, setHelpOpen] = useState(false);       // 情绪等级说明弹窗
   const [hotMatrixOpen, setHotMatrixOpen] = useState(false); // 百亿成交·行业分布弹窗
-  const openHotMatrix = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/market-monitor?_ts=${Date.now()}`, { cache: "no-store" });
-      if (response.ok) {
-        const payload = await response.json() as { data?: ReportData; publication?: MarketPublication };
-        if (payload.data) setReportData(payload.data);
-        if (payload.publication) setPublication(payload.publication);
-      }
-    } catch (error) {
-      console.warn("[overview] 打开百亿成交弹窗时刷新 market-monitor 失败:", error);
-    }
-    setHotMatrixOpen(true);
-  }, []);
   const runReview = async () => {
     setReviewErr(null); setNeedConfig(false);
     if (!hasLlm()) { setNeedConfig(true); return; }
@@ -656,7 +643,7 @@ export function MarketOverview() {
                 const bw = latest?.market_breadth;
                 const cells = [
                   { k: "全A成交额", v: aAmt == null ? "—" : `${aAmt.toLocaleString()} 亿`, c: "text-foreground", click: null as null | (() => void) },
-                  { k: "百亿成交股", v: hotN == null ? "—" : `${hotN} 只`, c: "text-foreground", click: openHotMatrix },
+                  { k: "百亿成交股", v: hotN == null ? "—" : `${hotN} 只`, c: "text-foreground", click: () => setHotMatrixOpen(true) },
                   { k: "市场宽度", v: bw == null ? "—" : `${(bw * 100).toFixed(1)}%`, c: bw > 0 ? "text-danger" : bw < 0 ? "text-success" : "text-foreground", click: null },
                 ];
                 return cells.map((m) => (
