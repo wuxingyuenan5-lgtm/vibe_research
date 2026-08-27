@@ -880,7 +880,7 @@ function HotMatrixModal({ matrix, historyRows, onClose }: {
             </button>
           </div>
           <div className="max-h-[60vh] overflow-x-auto overflow-y-auto pr-1">
-            <HotStockMatrixTable matrix={matrix} historyRows={historyRows} />
+            <HotStockMatrixTable matrix={matrix} />
           </div>
         </div>
       </GlassCard>

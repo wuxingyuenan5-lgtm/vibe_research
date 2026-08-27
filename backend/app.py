@@ -337,14 +337,27 @@ def market_monitor():
 
 @app.get("/api/stock-pool")
 def stock_pool():
-    """核心股票池直接读取根目录唯一母表；不经过 GitHub 发布包或内存回退。"""
+    """核心股票池只读取 GitHub 已发布的日更 bundle；网络失败时回退仓库内最后成功版本。"""
     try:
-        payload = stock_pool_builder.build_stock_pool_payload()
-        return {"data": payload, "publication": {
-            "data_date": (payload.get("meta") or {}).get("report_date"),
-            "published_at": (payload.get("meta") or {}).get("generated_at"),
-            "source": "canonical-mother-tables",
-            "using_fallback": False,
+        try:
+            bundle = _ds_get(
+                "stock-pool:published:main",
+                TTL["minute"],
+                stock_pool_builder.fetch_remote_latest,
+                valid=lambda value: bool(value and value.get("status") == "published"),
+                provider="github-stock-pool",
+            )
+            source = "github"
+        except Exception:
+            bundle = stock_pool_builder.load_bundled_latest()
+            source = "bundled-last-good"
+        if bundle is None:
+            raise RuntimeError("没有可用的已验证股票池发布包")
+        return {"data": bundle["payload"], "publication": {
+            "data_date": bundle["data_date"],
+            "published_at": bundle.get("published_at"),
+            "source": source,
+            "using_fallback": source != "github",
         }}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"股票池数据异常：{e}") from e
