@@ -38,11 +38,12 @@ interface Payload {
   };
   default_index_selfselect: string[];
 }
-
-type LiveQuote = {
-  price?: number; change_pct?: number; amount_wan?: number; mcap_yi?: number;
-  turnover_pct?: number; pe_ttm?: number; pb?: number;
-};
+interface StockPoolPublication {
+  data_date: string;
+  published_at?: string;
+  source?: string;
+  using_fallback?: boolean;
+}
 
 const UP = "#f2503f", DOWN = "#2fbf71";
 const fmt = (v: number | null | undefined, d = 2) => (v == null || Number.isNaN(Number(v)) ? "--" : Number(v).toFixed(d));
@@ -96,87 +97,28 @@ function sortRows<T extends Record<string, unknown>>(rows: T[], key: string | nu
     .map((x) => x.r);
 }
 
-function withLiveQuotes(base: Payload, quotes: Record<string, LiveQuote>): Payload {
-  const stocks = base.stocks.map((stock) => {
-    const quote = stock.code ? quotes[stock.code] : undefined;
-    if (!quote) return stock;
-    return {
-      ...stock,
-      price: quote.price ?? stock.price,
-      change: quote.change_pct == null ? stock.change : quote.change_pct / 100,
-      amount_yi: quote.amount_wan == null ? stock.amount_yi : quote.amount_wan / 10000,
-      mcap_yi: quote.mcap_yi ?? stock.mcap_yi,
-      turnover: quote.turnover_pct == null ? stock.turnover : quote.turnover_pct / 100,
-      pe_ttm: quote.pe_ttm ?? stock.pe_ttm,
-      pb: quote.pb ?? stock.pb,
-      data_status: "live",
-    };
-  });
-  const changes = stocks.map((s) => s.change).filter((v): v is number => typeof v === "number");
-  const ordered = [...changes].sort((a, b) => a - b);
-  const top = (field: "change" | "change_5d" | "change_20d", descending: boolean) =>
-    stocks.filter((s) => typeof s[field] === "number")
-      .sort((a, b) => descending ? (b[field] as number) - (a[field] as number) : (a[field] as number) - (b[field] as number))
-      .slice(0, 8);
-  const today = { up: top("change", true), down: top("change", false) };
-  const five = { up: top("change_5d", true), down: top("change_5d", false) };
-  const twenty = { up: top("change_20d", true), down: top("change_20d", false) };
-  return {
-    ...base,
-    stocks,
-    summary: {
-      ...base.summary,
-      tracked_count: stocks.length,
-      breadth: {
-        count: changes.length,
-        up: changes.filter((v) => v > 0).length,
-        down: changes.filter((v) => v < 0).length,
-        flat: changes.filter((v) => v === 0).length,
-        median: ordered.length ? ordered[Math.floor(ordered.length / 2)] : null,
-      },
-      avg_change: changes.length ? changes.reduce((sum, v) => sum + v, 0) / changes.length : null,
-      total_amount_yi: stocks.reduce((sum, s) => sum + (s.amount_yi ?? 0), 0),
-    },
-    heatmap: stocks.filter((s) => s.change != null).map((s) => ({
-      instrument_id: s.instrument_id, name: s.name, industry: s.industry,
-      change: s.change, change_5d: s.change_5d, change_20d: s.change_20d,
-      ytd: s.ytd, weight: s.mcap_yi || 1,
-    })),
-    leaders: { up: today.up, down: today.down, today, "5d": five, "20d": twenty },
-  };
-}
-
 function useStockPool() {
   const [data, setData] = useState<Payload | null>(null);
+  const [publication, setPublication] = useState<StockPoolPublication | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const load = useCallback(() => {
     fetch("/api/stock-pool")
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then(async (b) => {
-        const base = b.data as Payload;
-        const codes = base.stocks.map((s) => s.code).filter((code): code is string => Boolean(code && /^\d{6}$/.test(code)));
-        if (!codes.length) return base;
-        try {
-          const response = await fetch(`/api/quote?codes=${codes.join(",")}`);
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const live = await response.json();
-          return withLiveQuotes(base, live.data || {});
-        } catch (e) {
-          console.warn("[stock-pool] 实时行情覆盖失败，显示最近收盘缓存:", e);
-          return base;
-        }
+      .then((b) => {
+        setData(b.data as Payload);
+        setPublication((b.publication as StockPoolPublication) || null);
+        setError(null);
       })
-      .then((payload) => { setData(payload); setError(null); })
       .catch((e) => setError(e instanceof Error ? e.message : "加载失败"))
       .finally(() => setLoading(false));
   }, []);
   useEffect(() => { load(); }, [load]);
-  return { data, error, loading, refresh: load };
+  return { data, publication, error, loading, refresh: load };
 }
 
 export function StockPool() {
-  const { data, error, loading, refresh: refreshAll } = useStockPool();
+  const { data, publication, error, loading, refresh: refreshAll } = useStockPool();
   const [period, setPeriod] = useState<"change" | "change_5d" | "change_20d" | "ytd">("change");
   // 热力图独立周期（不与「行业强弱」联动，各自可看不同维度）
   const [heatPeriod, setHeatPeriod] = useState<PeriodKey>("change");
@@ -213,17 +155,6 @@ export function StockPool() {
   const persistFocus = (codes: string[]) => {
     fetch("/api/stock-pool/focus", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codes }) }).catch((e) => console.warn("[stock-pool] focus 保存失败:", e));
   };
-  // 关注股行情：不在核心池里的代码也能显示明细数据（/api/quote 实时行情）
-  const [watchQuotes, setWatchQuotes] = useState<Record<string, Record<string, number | string | null>>>({});
-  useEffect(() => {
-    if (!watchCodes.length) { setWatchQuotes({}); return; }
-    let alive = true;
-    fetch(`/api/quote?codes=${watchCodes.join(",")}`)
-      .then((r) => r.json())
-      .then((b) => { if (alive) setWatchQuotes(b.data || {}); })
-      .catch((e) => { console.warn("[stock-pool] watchQuotes 失败:", e); if (alive) setWatchQuotes({}); });
-    return () => { alive = false; };
-  }, [watchCodes]);
   const addFocus = () => {
     const { next, added } = addCodes(watchCodes, focusInput);
     if (!added) { setFocusInput(""); return; }
@@ -346,29 +277,27 @@ export function StockPool() {
     const q = search.trim().toLowerCase();
     const focusMode = industry === "__focus__";
     if (focusMode) {
-      // 近期关注：合并池子数据 + /api/quote 实时行情（保证所有字段都有值，避免池子内股票数据残缺导致全"—"）
-      // 池子数据优先（含 5日/20日/YTD）；池子里缺字段或根本不在池子时，用 watchQuotes（来自 /api/quote）补全
+      // 近期关注也统一按日更缓存口径展示，不再混入实时 quote。
       const all: Stock[] = [];
       watchCodes.forEach((c) => {
         const s = data.stocks.find((x) => x.code === c);
-        const q = watchQuotes[c];
         all.push({
           instrument_id: s?.instrument_id || `watch:${c}`,
           code: c,
           exchange: s?.exchange || "",
-          name: s?.name || String(q?.name || c),
-          industry: s?.industry || "",   // 不再硬编码"近期关注"：保留池子真实行业；不在池子则空（"—"）
-          price: s?.price ?? (q ? Number(q.price) : null),
-          change: s?.change ?? (q ? Number(q.change_pct) / 100 : null),
+          name: s?.name || c,
+          industry: s?.industry || "",
+          price: s?.price ?? null,
+          change: s?.change ?? null,
           change_5d: s?.change_5d ?? null,
           change_20d: s?.change_20d ?? null,
           ytd: s?.ytd ?? null,
           amount_yi: s?.amount_yi ?? null,
           mcap_yi: s?.mcap_yi ?? null,
-          turnover: s?.turnover ?? (q ? Number(q.turnover_pct) / 100 : null),
-          pe_ttm: s?.pe_ttm ?? (q ? Number(q.pe_ttm) : null),
-          pb: s?.pb ?? (q ? Number(q.pb) : null),
-          data_status: s?.data_status || (q ? "ok" : ""),
+          turnover: s?.turnover ?? null,
+          pe_ttm: s?.pe_ttm ?? null,
+          pb: s?.pb ?? null,
+          data_status: s?.data_status || "no_snapshot",
         });
       });
       if (q) return all.filter((x) => (x.name || "").toLowerCase().includes(q) || (x.industry || "").toLowerCase().includes(q) || (x.code || "").toLowerCase().includes(q));
@@ -379,7 +308,7 @@ export function StockPool() {
         (!q || (x.name || "").toLowerCase().includes(q) || (x.industry || "").toLowerCase().includes(q) || (x.code || "").toLowerCase().includes(q)) &&
         (!industry || x.industry === industry),
     );
-  }, [data, search, industry, watchCodes, watchQuotes]);
+  }, [data, search, industry, watchCodes]);
 
   const stockRows = useMemo(() => sortRows(filteredStocks, stockSort.key, stockSort.dir), [filteredStocks, stockSort]);
 
@@ -410,7 +339,11 @@ export function StockPool() {
         {/* Hero */}
         <header className="hero">
           <h1>A股看板｜核心股票池</h1>
-          <div className="meta">报告日期 {data.meta.report_date}</div>
+          <div className="meta">
+            报告日期 {data.meta.report_date}
+            {publication?.published_at ? ` ｜ 缓存发布时间 ${publication.published_at.slice(0, 16).replace("T", " ")}` : ""}
+            {publication?.using_fallback ? " ｜ 当前为最后有效缓存" : " ｜ 本页仅展示日更缓存"}
+          </div>
         </header>
 
         {/* KPI */}

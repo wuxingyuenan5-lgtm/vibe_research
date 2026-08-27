@@ -15,13 +15,14 @@ interface MarketRow {
 }
 interface IndexRow { date: string; name: string; close: number | null; return: number | null; amount_100m: number | null }
 interface SwRow { 日期: string; 行业层级: string; 一级行业: string; 指数代码: string; 指数名称: string; 收盘价: number | null; 成交额: number | null; 日收益率: number | null; "20日年化波动率": number | null }
-interface HotRow { rank: number | null; stock_code: string; stock_name: string; close: number | null; return: number | null; amount_100m: number | null; sw_level1: string; sw_level2: string }
+interface HotRow { date: string; rank: number | null; stock_code: string; stock_name: string; close: number | null; return: number | null; amount_100m: number | null; sw_level1: string; sw_level2: string }
 export interface ReportData {
   meta: { report_date: string; status: string; latest_market_date: string };
   market_history: MarketRow[];
   indices_history: IndexRow[];
   sw_industry_latest: SwRow[];
   hot_stock_matrix: { dates: string[]; rows: { industry: string; counts: number[]; history_total: number }[] };
+  hot_stocks_history: HotRow[];
   hot_stocks_latest: HotRow[];
   sw_crowding_history: { date: string; targets: Record<string, { amount_100m: number | null; amount_share_of_a: number | null; turnover: number | null }> }[];
   innovation_history: { date: string; amount_100m: number | null; amount_share_of_a: number | null; turnover: number | null; return: number | null; volume: number | null }[];
@@ -65,6 +66,12 @@ const num2 = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleSt
 const num0 = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("zh-CN", { maximumFractionDigits: 0 }));
 const upDownCls = (v: number | null | undefined) => (v == null ? "neutral" : v > 0 ? "up" : v < 0 ? "down" : "neutral");
 const qualityCls = (status: string | null | undefined) => status === "PASS" ? "quality-ok" : status === "WARN" ? "quality-pending" : "quality-bad";
+const canonicalDisplay = (status: string | null | undefined) => {
+  const value = String(status || "").trim().toUpperCase();
+  if (!value || value === "UNKNOWN") return "SKIPPED（未生成离线审计）";
+  if (value === "SKIPPED") return "SKIPPED（未生成离线审计）";
+  return value;
+};
 const qualityModuleLabel = (name: string) => ({
   indices_history: "监控页三项指数历史",
   market_denominator: "全A成交额分母",
@@ -406,7 +413,7 @@ export function AStockMonitor({ embed = false }: { embed?: boolean } = {}) {
   const quality = data?.quality;
   const moduleLatest = quality?.module_latest_dates ?? {};
   const qualitySummary = quality?.summary;
-  const canonicalStatus = quality?.canonical_validation?.status ?? quality?.status ?? data?.meta.status ?? "";
+  const canonicalStatus = canonicalDisplay(quality?.canonical_validation?.status);
 
   if (loading) return <div className="asm-root"><div className="page"><div className="empty">正在加载市场监控数据…</div></div></div>;
   if (error || !data) return <div className="asm-root"><div className="page"><div className="empty" style={{ color: "#dc2626" }}>加载失败：{error ?? "无数据"}</div></div></div>;

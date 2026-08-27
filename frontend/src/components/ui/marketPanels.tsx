@@ -11,6 +11,44 @@ const yi = (v: number | null | undefined) => (v == null ? "—" : `${(v / 1e8).t
 const pctColor = (v: number | null | undefined) => (v != null && v > 0 ? "text-danger" : v != null && v < 0 ? "text-success" : "text-muted-foreground");
 const fmt = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
+type HotMatrix = { dates: string[]; rows: { industry: string; counts: number[]; history_total: number }[] };
+type HotHistoryRow = { date: string; sw_level2?: string | null };
+
+function buildHotStockMatrixFromHistory(
+  rows: HotHistoryRow[],
+  recentDates = 10,
+  namedMax = 13,
+): HotMatrix | null {
+  if (!rows.length) return null;
+  const dates = [...new Set(rows.map((row) => String(row.date || "").slice(0, 10)).filter(Boolean))].sort().slice(-recentDates).reverse();
+  if (!dates.length) return null;
+  const cumulative: Record<string, number> = {};
+  const counts = Object.fromEntries(dates.map((date) => [date, {} as Record<string, number>]));
+  for (const row of rows) {
+    const rowDate = String(row.date || "").slice(0, 10);
+    if (!rowDate) continue;
+    let industry = String(row.sw_level2 || "").trim();
+    if (!industry || industry === "未匹配") industry = "待申万映射";
+    cumulative[industry] = (cumulative[industry] || 0) + 1;
+    if (rowDate in counts) counts[rowDate][industry] = (counts[rowDate][industry] || 0) + 1;
+  }
+  const named = Object.keys(cumulative).sort((a, b) => (cumulative[b] - cumulative[a]) || a.localeCompare(b, "zh-CN")).slice(0, namedMax);
+  const overflow = new Set(Object.keys(cumulative).filter((industry) => !named.includes(industry)));
+  const matrixRows = named.map((industry) => ({
+    industry,
+    counts: dates.map((date) => counts[date][industry] || 0),
+    history_total: cumulative[industry],
+  }));
+  if (overflow.size) {
+    matrixRows.push({
+      industry: "其他行业汇总",
+      counts: dates.map((date) => [...overflow].reduce((sum, industry) => sum + (counts[date][industry] || 0), 0)),
+      history_total: [...overflow].reduce((sum, industry) => sum + cumulative[industry], 0),
+    });
+  }
+  return { dates, rows: matrixRows };
+}
+
 /* ---------- 板块资金趋势榜（行业 · 按今日净流入排序，6 列） ---------- */
 export function SectorTrendTable({ sectors, max = 15 }: { sectors: SectorFlow[]; max?: number }) {
   if (sectors.length === 0) return <p className="text-xs text-muted-foreground/60">暂无板块资金数据</p>;
@@ -186,18 +224,19 @@ export function ShortTermEmotionCard({ emotion }: { emotion: ShortTermEmotion | 
 export { GlassCard };
 
 /* ---------- 百亿成交·行业分布（行业 × 日期计数 + 历史累计） ---------- */
-export function HotStockMatrixTable({ matrix }: { matrix: { dates: string[]; rows: { industry: string; counts: number[]; history_total: number }[] } | null }) {
-  if (!matrix || matrix.rows.length === 0) return <p className="text-xs text-muted-foreground/60">暂无百亿成交数据</p>;
+export function HotStockMatrixTable({ matrix, historyRows }: { matrix: HotMatrix | null; historyRows?: HotHistoryRow[] | null }) {
+  const effectiveMatrix = (historyRows && historyRows.length ? buildHotStockMatrixFromHistory(historyRows) : null) || matrix;
+  if (!effectiveMatrix || effectiveMatrix.rows.length === 0) return <p className="text-xs text-muted-foreground/60">暂无百亿成交数据</p>;
   // 当天总数：每个日期列按所有行业行求和，作为首行"合计"（与市场情绪卡"百亿成交股"同源校验）。
-  const dailyTotals = matrix.dates.map((_, i) => matrix.rows.reduce((sum, row) => sum + (row.counts[i] || 0), 0));
-  const historyTotalSum = matrix.rows.reduce((sum, row) => sum + (row.history_total || 0), 0);
+  const dailyTotals = effectiveMatrix.dates.map((_, i) => effectiveMatrix.rows.reduce((sum, row) => sum + (row.counts[i] || 0), 0));
+  const historyTotalSum = effectiveMatrix.rows.reduce((sum, row) => sum + (row.history_total || 0), 0);
   return (
     <div className="overflow-x-auto">
       <table className="data-table">
         <thead>
           <tr className="border-b border-border/50 text-left text-xs text-muted-foreground">
             <th className="whitespace-nowrap px-2 py-2 font-medium">行业</th>
-            {matrix.dates.map((d) => (
+            {effectiveMatrix.dates.map((d) => (
               <th key={d} className="whitespace-nowrap px-2 py-2 text-center font-medium">{d.slice(5)}</th>
             ))}
             <th className="whitespace-nowrap px-2 py-2 text-right font-medium">历史累计</th>
@@ -211,7 +250,7 @@ export function HotStockMatrixTable({ matrix }: { matrix: { dates: string[]; row
             ))}
             <td className="px-2 py-2 text-right font-mono font-semibold">{historyTotalSum}</td>
           </tr>
-          {matrix.rows.map((row) => (
+          {effectiveMatrix.rows.map((row) => (
             <tr key={row.industry} className="border-b border-border/30">
               <td className="px-2 py-2 font-medium">{row.industry}</td>
               {row.counts.map((c, i) => (

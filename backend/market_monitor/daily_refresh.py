@@ -143,6 +143,34 @@ def fetch_kline(symbol: str) -> list[tuple[str, float]]:
     return []
 
 
+def fetch_eastmoney_kline(code: str) -> list[tuple[str, float]]:
+    """日 K（东方财富复权日线）→ [(date, close)]。用于股票池日更缓存的 20日/YTD 计算。"""
+    secid = secid_of(code)
+    if not secid:
+        return []
+    url = (
+        f"{KLINE_URL}?secid={secid}"
+        "&klt=101&fqt=1&lmt=300&end=20500000"
+        "&fields1=f1,f2,f3,f4,f5,f6"
+        "&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61"
+    )
+    for attempt in range(3):
+        try:
+            d = _get(url)
+            rows_raw = (d.get("data") or {}).get("klines") or []
+            rows = []
+            for item in rows_raw:
+                parts = str(item).split(",")
+                if len(parts) >= 3:
+                    rows.append((parts[0], float(parts[2])))
+            if rows:
+                return rows
+        except Exception as e:  # noqa: BLE001
+            print(f"  [WARN] eastmoney kline {code} 重试 {attempt + 1}: {e}")
+        time.sleep(0.8 * (attempt + 1))
+    return []
+
+
 def compute_trends(klines: list[tuple[str, float]]) -> tuple[float | None, float | None]:
     """从日 K 算 (20日涨跌幅, YTD)，均为小数比例。"""
     if len(klines) < 2:
@@ -150,18 +178,21 @@ def compute_trends(klines: list[tuple[str, float]]) -> tuple[float | None, float
     closes = [c for _, c in klines]
     last = closes[-1]
     chg20 = (last - closes[-21]) / closes[-21] if len(closes) >= 21 else None
-    # YTD：优先取 2025-12-31 收盘；否则取 2026 年第一根之前一根
+    # YTD：优先取上一年最后一个交易日；否则取当年第一根之前一根。
     ytd = None
     dates = [d for d, _ in klines]
+    current_year = dates[-1][:4]
+    prev_year_close = f"{int(current_year) - 1}-12-31"
+    current_year_start = f"{current_year}-01-01"
     try:
-        idx = dates.index("2025-12-31")
+        idx = dates.index(prev_year_close)
         base = closes[idx]
     except ValueError:
-        idx2026 = next((i for i, d in enumerate(dates) if d >= "2026-01-01"), None)
-        if idx2026 is None or idx2026 == 0:
+        year_start_idx = next((i for i, d in enumerate(dates) if d >= current_year_start), None)
+        if year_start_idx is None or year_start_idx == 0:
             base = None
         else:
-            base = closes[idx2026 - 1]
+            base = closes[year_start_idx - 1]
     if base:
         ytd = (last - base) / base
     return chg20, ytd
@@ -374,7 +405,7 @@ def main() -> None:
     trends: dict[str, tuple[float | None, float | None]] = {}
     for s in coded:
         code = s["code"]
-        kl = fetch_kline(tx_symbol_of(code))
+        kl = fetch_eastmoney_kline(code)
         trends[code] = compute_trends(kl)
         time.sleep(0.1)
     ok_trends = sum(1 for s in coded if trends.get(s["code"], (None, None))[0] is not None)

@@ -217,7 +217,14 @@ def _quality(report):
         ] for item in frontend_checks]
         out += _table(["前端检查项","状态","说明"], frontend_rows)
     canonical = quality.get("canonical_validation", {})
-    out += f'<div class="quality-meta">Canonical：<b>{escape(str(canonical.get("status") or "UNKNOWN"))}</b></div>'
+    canonical_status = str(canonical.get("status") or "").strip().upper()
+    if not canonical_status or canonical_status == "UNKNOWN":
+        canonical_label = "SKIPPED（未生成离线审计）"
+    elif canonical_status == "SKIPPED":
+        canonical_label = "SKIPPED（未生成离线审计）"
+    else:
+        canonical_label = canonical_status
+    out += f'<div class="quality-meta">Canonical：<b>{escape(canonical_label)}</b></div>'
     history_integrity = summary.get("history_integrity") or {}
     notes = history_integrity.get("notes") or []
     if notes:

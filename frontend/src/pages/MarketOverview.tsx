@@ -756,7 +756,11 @@ export function MarketOverview() {
 
       {/* 百亿成交·行业分布弹窗（点击情绪卡的"百亿成交股"打开） */}
       {hotMatrixOpen && (
-        <HotMatrixModal matrix={reportData?.hot_stock_matrix || null} onClose={() => setHotMatrixOpen(false)} />
+        <HotMatrixModal
+          matrix={reportData?.hot_stock_matrix || null}
+          historyRows={reportData?.hot_stocks_history || null}
+          onClose={() => setHotMatrixOpen(false)}
+        />
       )}
 
       {/* 情绪等级定义弹窗 */}
@@ -860,8 +864,9 @@ function SectorsModal({ sectors, onClose }: { sectors: SectorFlow[]; onClose: ()
 }
 
 /* ---------- 百亿成交·行业分布弹窗（点击市场情绪卡的"百亿成交股"打开） ---------- */
-function HotMatrixModal({ matrix, onClose }: {
+function HotMatrixModal({ matrix, historyRows, onClose }: {
   matrix: { dates: string[]; rows: { industry: string; counts: number[]; history_total: number }[] } | null;
+  historyRows?: { date: string; sw_level2: string }[] | null;
   onClose: () => void;
 }) {
   return (
@@ -876,7 +881,7 @@ function HotMatrixModal({ matrix, onClose }: {
             </button>
           </div>
           <div className="max-h-[60vh] overflow-x-auto overflow-y-auto pr-1">
-            <HotStockMatrixTable matrix={matrix} />
+            <HotStockMatrixTable matrix={matrix} historyRows={historyRows} />
           </div>
         </div>
       </GlassCard>
