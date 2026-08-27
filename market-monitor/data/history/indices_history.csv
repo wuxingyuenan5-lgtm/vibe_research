@@ -38,3 +38,6 @@
 2026-08-26,上证50,1.000016,2905.08,0.0103,1401.52858404,东方财富轻量指数报价 / api/qt/stock/get,ok_current_quote_hard_timeout
 2026-08-26,中证2000,2.932000,3091.34,-0.001,3717.39585298,东方财富轻量指数报价 / api/qt/stock/get,ok_current_quote_hard_timeout
 2026-08-26,中证全指,1.000985,5867.44,0.0059,17507.98139763,东方财富轻量指数报价 / api/qt/stock/get,ok_current_quote_hard_timeout
+2026-08-27,上证50,1.000016,2930.31,0.0087,1583.68136507,东方财富轻量指数报价 / api/qt/stock/get,ok_current_quote_hard_timeout
+2026-08-27,中证2000,2.932000,3152.45,0.019799999999999998,4161.00053453,东方财富轻量指数报价 / api/qt/stock/get,ok_current_quote_hard_timeout
+2026-08-27,中证全指,1.000985,5958.93,0.015600000000000001,20594.74076911,东方财富轻量指数报价 / api/qt/stock/get,ok_current_quote_hard_timeout
