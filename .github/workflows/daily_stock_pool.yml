@@ -1,9 +1,11 @@
 name: Daily stock-pool compact cache
 
 on:
-  schedule:
-    # 上海时间工作日 15:20；若市场母表任务仍在写入，会因共用写锁自动排队。
-    - cron: "20 7 * * 1-5"
+  # Build the compact cache only after the post-close mother-table workflow
+  # has completed successfully. This removes the 15:20 same-minute race.
+  workflow_run:
+    workflows: ["Daily A-share Market Monitor"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       target_date:
@@ -20,6 +22,13 @@ permissions:
 
 jobs:
   refresh:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event != 'pull_request' &&
+        github.event.workflow_run.head_branch == 'main'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -31,15 +40,38 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Resolve date
+      - name: Resolve and validate snapshot date
         id: date
         shell: bash
         run: |
-          if [ -n "${{ inputs.target_date }}" ]; then
+          today="$(date +%F)"
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            # The upstream run is post-close and owns the production date.
+            target="$(date -d "${{ github.event.workflow_run.updated_at }}" +%F)"
+          elif [ -n "${{ inputs.target_date }}" ]; then
             target="${{ inputs.target_date }}"
           else
-            target="$(date +%F)"
+            target="$today"
           fi
+
+          if ! [[ "$target" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+            echo "Invalid target_date: $target (expected YYYY-MM-DD)" >&2
+            exit 1
+          fi
+
+          # This workflow reads a live quote snapshot; it cannot safely backfill
+          # a historical date or label intraday quotes as a close.
+          if [ "$target" != "$today" ]; then
+            echo "Compact cache only supports today's live close snapshot: target=$target today=$today" >&2
+            exit 1
+          fi
+
+          now_hm="$(date +%H%M)"
+          if [ "$now_hm" -lt 1520 ]; then
+            echo "Post-close snapshot is not ready: $(date --iso-8601=seconds). Retry at or after 15:20 Asia/Shanghai." >&2
+            exit 1
+          fi
+
           echo "value=$target" >> "$GITHUB_OUTPUT"
 
       - name: Install backend dependencies
