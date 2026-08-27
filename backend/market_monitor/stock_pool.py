@@ -62,17 +62,88 @@ def validate_published_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
     return bundle
 
 
+def _repair_missing_trend_fields(bundle: dict[str, Any]) -> dict[str, Any]:
+    """若最新发布包缺失 20日/YTD，则用最近成功缓存补齐这两个字段并重建相关榜单。"""
+    payload = bundle.get("payload")
+    if not isinstance(payload, dict):
+        return bundle
+    stocks = payload.get("stocks")
+    if not isinstance(stocks, list) or not stocks:
+        return bundle
+    if any(stock.get("change_20d") is not None or stock.get("ytd") is not None for stock in stocks if isinstance(stock, dict)):
+        return bundle
+
+    history_path = SNAPSHOT_DIR / "stocks_history.csv"
+    history_rows = _read_csv(history_path)
+    history_by_code: dict[str, dict[str, str]] = {}
+    for row in history_rows:
+        code = str(row.get("code") or "").strip()
+        row_date = str(row.get("date") or "")[:10]
+        if not code or not row_date or row_date.startswith("\ufeff"):
+            continue
+        prev = history_by_code.get(code)
+        if prev is None or str(prev.get("date") or "")[:10] < row_date:
+            history_by_code[code] = row
+
+    repaired = False
+    for stock in stocks:
+        if not isinstance(stock, dict):
+            continue
+        code = str(stock.get("code") or "").strip()
+        fallback = history_by_code.get(code)
+        if not fallback:
+            continue
+        if stock.get("change_20d") is None:
+            stock["change_20d"] = _num(fallback.get("change_20d"))
+            repaired = repaired or stock.get("change_20d") is not None
+        if stock.get("ytd") is None:
+            stock["ytd"] = _num(fallback.get("ytd"))
+            repaired = repaired or stock.get("ytd") is not None
+
+    if not repaired:
+        return bundle
+
+    heatmap = payload.get("heatmap")
+    if isinstance(heatmap, list):
+        for item in heatmap:
+            if not isinstance(item, dict):
+                continue
+            code = str(item.get("instrument_id") or "").strip()
+            stock = next((s for s in stocks if isinstance(s, dict) and str(s.get("instrument_id") or "").strip() == code), None)
+            if stock:
+                item["change_20d"] = stock.get("change_20d")
+                item["ytd"] = stock.get("ytd")
+
+    def _top(field: str, reverse: bool = True) -> list[dict[str, Any]]:
+        rows = [s for s in stocks if isinstance(s, dict) and isinstance(s.get(field), (int, float))]
+        rows.sort(key=lambda s: s[field], reverse=reverse)
+        return rows[:LEADER_COUNT]
+
+    leaders = payload.setdefault("leaders", {})
+    leaders["20d"] = {
+        "up": _top("change_20d", True),
+        "down": list(reversed(_top("change_20d", False))),
+    }
+    meta = payload.setdefault("meta", {})
+    note = "20日/YTD 已用最近成功缓存补齐"
+    meta["trend_fallback_note"] = note
+    publication_note = bundle.setdefault("publication_note", note)
+    return bundle
+
+
 def load_bundled_latest() -> dict[str, Any] | None:
     if not LATEST_BUNDLE_PATH.exists():
         return None
-    return validate_published_bundle(json.loads(LATEST_BUNDLE_PATH.read_text(encoding="utf-8")))
+    bundle = validate_published_bundle(json.loads(LATEST_BUNDLE_PATH.read_text(encoding="utf-8")))
+    return _repair_missing_trend_fields(bundle)
 
 
 def fetch_remote_latest(ref: str = "main") -> dict[str, Any]:
     url = f"https://raw.githubusercontent.com/{REPO}/{ref}/{GITHUB_LATEST_PATH}"
     request = urllib.request.Request(url, headers={"User-Agent": "Vibe-Research/stock-pool"})
     with urllib.request.urlopen(request, timeout=15) as response:
-        return validate_published_bundle(json.loads(response.read().decode("utf-8")))
+        bundle = validate_published_bundle(json.loads(response.read().decode("utf-8")))
+    return _repair_missing_trend_fields(bundle)
 
 
 def fetch_remote_json(github_path: str, ref: str = "main") -> dict[str, Any]:

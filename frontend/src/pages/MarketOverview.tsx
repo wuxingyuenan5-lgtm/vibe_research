@@ -335,32 +335,37 @@ export function MarketOverview() {
     const ok = <T,>(set: (v: T) => void) => (v: T) => { if (rid === runIdRef.current) set(v); };
     const safe = (p: Promise<unknown>, fallback: unknown = null) => p.catch((e) => { console.warn("[overview] 数据源失败:", e); return fallback; });
 
-    // 实时层聚合为 1 个请求；快照层（market-monitor）独立（盘后固定，不随实时刷新反复拉）；宏观/要闻独立
-    const [agg, mon, mb] = await Promise.all([
-      safe(fetch("/api/market/overview-v2").then((r) => (r.ok ? r.json() : null)), null),
-      fetch(`/api/market-monitor?_ts=${Date.now()}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : {})).catch((e) => { console.warn("[overview] market-monitor 失败:", e); return {}; }),
-      safe(fetch("/api/macro-brief").then((r) => (r.ok ? r.json() : null)), null),
-    ]);
+    // 首屏优先只等实时聚合，盘后监控与宏观/要闻异步补入，避免拖慢市场情绪卡。
+    const agg = await safe(fetch("/api/market/overview-v2").then((r) => (r.ok ? r.json() : null)), null);
     if (rid !== runIdRef.current) return;
 
     const d = (agg as { data?: MarketOverviewAggregate } | null)?.data ?? null;
-    const mbD = (mb as { data?: { china?: { indicator: string; period: string; release: string; value: string }[]; headlines?: { title: string; content: string; time: string; source: string }[] } } | null)?.data ?? null;
-    ok(setMacroLive)({
-      china: mbD?.china || [],
-      headlines: mbD?.headlines || [],
-    });
     ok(setIndices)(d?.indices || []);
     ok(setGlobalIdx)(d?.global_indices || []);
     ok(setOverview)(d ? { sentiment: d.sentiment ?? ({} as MarketSentiment), sectors: d.sectors ?? [], updated: d.updated ?? "" } : null);
     ok(setEmotion)(d?.emotion ?? null);
     ok(setTurnover)(d?.turnover_top ?? null);
-    const monitor = mon as { data?: ReportData; publication?: MarketPublication } | undefined;
-    ok(setReportData)(monitor?.data || null);
-    ok(setPublication)(monitor?.publication || null);
-
     ok(setUpdated)(d?.updated ?? "");
     ok(setLoading)(false);
     loadLiveQuotes();  // 实时资产（黄金/商品/汇率/国债）随「刷新」一起更新
+
+    safe(fetch(`/api/market-monitor?_ts=${Date.now()}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : {})), {})
+      .then((mon) => {
+        if (rid !== runIdRef.current) return;
+        const monitor = mon as { data?: ReportData; publication?: MarketPublication } | undefined;
+        ok(setReportData)(monitor?.data || null);
+        ok(setPublication)(monitor?.publication || null);
+      });
+
+    safe(fetch("/api/macro-brief").then((r) => (r.ok ? r.json() : null)), null)
+      .then((mb) => {
+        if (rid !== runIdRef.current) return;
+        const mbD = (mb as { data?: { china?: { indicator: string; period: string; release: string; value: string }[]; headlines?: { title: string; content: string; time: string; source: string }[] } } | null)?.data ?? null;
+        ok(setMacroLive)({
+          china: mbD?.china || [],
+          headlines: mbD?.headlines || [],
+        });
+      });
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
@@ -412,6 +417,19 @@ export function MarketOverview() {
   const [sectorsOpen, setSectorsOpen] = useState(false); // 板块资金全表弹窗
   const [helpOpen, setHelpOpen] = useState(false);       // 情绪等级说明弹窗
   const [hotMatrixOpen, setHotMatrixOpen] = useState(false); // 百亿成交·行业分布弹窗
+  const openHotMatrix = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/market-monitor?_ts=${Date.now()}`, { cache: "no-store" });
+      if (response.ok) {
+        const payload = await response.json() as { data?: ReportData; publication?: MarketPublication };
+        if (payload.data) setReportData(payload.data);
+        if (payload.publication) setPublication(payload.publication);
+      }
+    } catch (error) {
+      console.warn("[overview] 打开百亿成交弹窗时刷新 market-monitor 失败:", error);
+    }
+    setHotMatrixOpen(true);
+  }, []);
   const runReview = async () => {
     setReviewErr(null); setNeedConfig(false);
     if (!hasLlm()) { setNeedConfig(true); return; }
@@ -638,7 +656,7 @@ export function MarketOverview() {
                 const bw = latest?.market_breadth;
                 const cells = [
                   { k: "全A成交额", v: aAmt == null ? "—" : `${aAmt.toLocaleString()} 亿`, c: "text-foreground", click: null as null | (() => void) },
-                  { k: "百亿成交股", v: hotN == null ? "—" : `${hotN} 只`, c: "text-foreground", click: () => setHotMatrixOpen(true) },
+                  { k: "百亿成交股", v: hotN == null ? "—" : `${hotN} 只`, c: "text-foreground", click: openHotMatrix },
                   { k: "市场宽度", v: bw == null ? "—" : `${(bw * 100).toFixed(1)}%`, c: bw > 0 ? "text-danger" : bw < 0 ? "text-success" : "text-foreground", click: null },
                 ];
                 return cells.map((m) => (
@@ -757,7 +775,6 @@ export function MarketOverview() {
       {hotMatrixOpen && (
         <HotMatrixModal
           matrix={reportData?.hot_stock_matrix || null}
-          historyRows={reportData?.hot_stocks_history || null}
           onClose={() => setHotMatrixOpen(false)}
         />
       )}
@@ -863,9 +880,8 @@ function SectorsModal({ sectors, onClose }: { sectors: SectorFlow[]; onClose: ()
 }
 
 /* ---------- 百亿成交·行业分布弹窗（点击市场情绪卡的"百亿成交股"打开） ---------- */
-function HotMatrixModal({ matrix, historyRows, onClose }: {
+function HotMatrixModal({ matrix, onClose }: {
   matrix: { dates: string[]; rows: { industry: string; counts: number[]; history_total: number }[] } | null;
-  historyRows?: { date: string; sw_level2: string }[] | null;
   onClose: () => void;
 }) {
   return (
