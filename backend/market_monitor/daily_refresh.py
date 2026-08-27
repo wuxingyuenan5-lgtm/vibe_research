@@ -171,6 +171,20 @@ def fetch_eastmoney_kline(code: str) -> list[tuple[str, float]]:
     return []
 
 
+def fetch_daily_kline(code: str) -> tuple[list[tuple[str, float]], str]:
+    """股票池日 K 统一入口：东财优先，失败时回退腾讯，避免单一源失效导致整批 20日/YTD 为空。"""
+    eastmoney_rows = fetch_eastmoney_kline(code)
+    if eastmoney_rows:
+        return eastmoney_rows, "eastmoney"
+    symbol = tx_symbol_of(code)
+    if not symbol:
+        return [], "unavailable"
+    tencent_rows = fetch_kline(symbol)
+    if tencent_rows:
+        return tencent_rows, "tencent"
+    return [], "unavailable"
+
+
 def compute_trends(klines: list[tuple[str, float]]) -> tuple[float | None, float | None]:
     """从日 K 算 (20日涨跌幅, YTD)，均为小数比例。"""
     if len(klines) < 2:
@@ -403,13 +417,21 @@ def main() -> None:
 
     # 2) kline 算 20日/YTD
     trends: dict[str, tuple[float | None, float | None]] = {}
+    trend_sources = {"eastmoney": 0, "tencent": 0, "unavailable": 0}
     for s in coded:
         code = s["code"]
-        kl = fetch_eastmoney_kline(code)
+        kl, source = fetch_daily_kline(code)
+        trend_sources[source] = trend_sources.get(source, 0) + 1
         trends[code] = compute_trends(kl)
         time.sleep(0.1)
     ok_trends = sum(1 for s in coded if trends.get(s["code"], (None, None))[0] is not None)
-    print(f"20日/YTD 计算完成（有 20日: {ok_trends}/{len(coded)}）")
+    print(
+        "20日/YTD 计算完成"
+        f"（有 20日: {ok_trends}/{len(coded)}"
+        f" | 东财 {trend_sources['eastmoney']} 只"
+        f" | 腾讯兜底 {trend_sources['tencent']} 只"
+        f" | 仍失败 {trend_sources['unavailable']} 只）"
+    )
 
     # 3) 组装 stocks.csv 行
     rows: list[list[str]] = [CSV_FIELDS]
