@@ -135,9 +135,9 @@ def _sectors_fallback() -> list[dict]:
             out.append({
                 "name": str(x.get("f14") or ""),
                 "pct": round(float(x.get("f3") or 0), 2),
-                "net": round(net, 2),
-                "inflow": round(max(net, 0), 2),
-                "outflow": round(-min(net, 0), 2),
+                "net": round(net / 1e8, 2),
+                "inflow": round(max(net, 0) / 1e8, 2),
+                "outflow": round(-min(net, 0) / 1e8, 2),
                 "firms": 0,
             })
         record_provider("eastmoney", True)
@@ -159,12 +159,15 @@ def _sectors() -> list[dict]:
     record_provider("akshare", True, latency_ms=(time.time() - start) * 1000)
     out = []
     for _, row in f.iterrows():
+        net = float(row.get("净额", 0) or 0)
+        inflow = float(row.get("流入资金", 0) or 0)
+        outflow = float(row.get("流出资金", 0) or 0)
         out.append({
             "name": str(row["行业"]),
             "pct": round(float(row.get("行业-涨跌幅", 0) or 0), 2),
-            "net": round(float(row.get("净额", 0) or 0), 2),
-            "inflow": round(float(row.get("流入资金", 0) or 0), 2),
-            "outflow": round(float(row.get("流出资金", 0) or 0), 2),
+            "net": round(net / 1e8, 2),
+            "inflow": round(inflow / 1e8, 2),
+            "outflow": round(outflow / 1e8, 2),
             "firms": _num(row.get("公司家数")),
         })
     return out

@@ -5,11 +5,12 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw, Loader2, Gauge, Flame, TrendingUp, TrendingDown, ArrowDownUp, Wallet, AlertCircle, Sparkles, X } from "lucide-react";
+import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { AStockMonitor, TrendCharts, type MarketPublication, type ReportData } from "@/pages/AStockMonitor";
+import { TrendCharts, type MarketPublication, type ReportData } from "@/pages/AStockMonitor";
 import { AssetOverviewTable, BRIEF_CODE_MAP, type AssetRow } from "@/components/ui/AssetOverviewTable";
 import { SectorTrendTable, FundRotation, TurnoverTopTable, LianbanTable, HotStockMatrixTable } from "@/components/ui/marketPanels";
 import { hasLlm, chatStream } from "@/lib/llm";
@@ -743,10 +744,22 @@ export function MarketOverview() {
         )}
       </GlassCard>
 
-      {/* ⑥ 监控板完整内容（embed 模式：无重复标题，直接融入市场总览） */}
-      <div className="mt-6">
-        <AStockMonitor embed />
-      </div>
+      <GlassCard className="mt-6 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold">市场监控详情</h3>
+            <p className="mt-1 text-xs text-muted-foreground/70">
+              申万行业、四行业拥挤度、创新药、母表质量与历史完整性已拆回独立页面，避免市场总览加载过慢和样式串扰。
+            </p>
+          </div>
+          <Link
+            to="/a-stock-monitor"
+            className="rounded-lg border border-border/60 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/5"
+          >
+            打开市场监控页
+          </Link>
+        </div>
+      </GlassCard>
 
       {/* 连板股弹窗（内容 = 每日复盘同款表格） */}
       {ladderOpen && <LadderModal emotion={emotion} onClose={() => setLadderOpen(false)} />}
