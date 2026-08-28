@@ -14,6 +14,7 @@ import sys
 import time
 import signal
 import subprocess
+from typing import Iterable
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.join(BASE, "frontend")
@@ -34,6 +35,8 @@ LOG_DIR = "/tmp"
 LOG_DAEMON = os.path.join(LOG_DIR, "vibe-daemon.log")
 LOG_FRONT = os.path.join(LOG_DIR, "vibe-frontend.log")
 LOG_BACK = os.path.join(LOG_DIR, "vibe-backend.log")
+FRONTEND_PORT = 5899
+BACKEND_PORT = 8900
 
 # 干净环境：显式清空系统/launchd 继承的随机代理变量（代理进程常没启动 → Connection refused），
 # 并固定 VR_* 开关让后端 requests 默认直连（见 backend/astock.py monkey patch）。
@@ -95,8 +98,78 @@ def spawn(cmd, cwd, logfile):
     )
 
 
+def _run_capture(cmd: list[str]) -> list[str]:
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    except Exception:
+        return []
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def _kill_pid(pid: int, sig: int = signal.SIGTERM) -> None:
+    try:
+        os.kill(pid, sig)
+    except OSError:
+        return
+
+
+def _kill_group(pid: int, sig: int = signal.SIGTERM) -> None:
+    try:
+        os.killpg(pid, sig)
+    except OSError:
+        _kill_pid(pid, sig)
+
+
+def _listening_pids(port: int) -> list[int]:
+    pids: list[int] = []
+    for line in _run_capture(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"]):
+        try:
+            pids.append(int(line))
+        except ValueError:
+            continue
+    return pids
+
+
+def _managed_process_lines() -> list[str]:
+    return _run_capture(["ps", "-axo", "pid=,command="])
+
+
+def _matches_managed(command: str) -> bool:
+    return (
+        "Vibe-Research/frontend/node_modules/.bin/vite" in command
+        or "uvicorn app:app --host 127.0.0.1 --port 8900" in command
+        or "tools/serve_daemon.py --start" in command
+    )
+
+
+def cleanup_orphans(exclude_pids: Iterable[int] = ()) -> None:
+    keep = {int(pid) for pid in exclude_pids}
+    targets: set[int] = set()
+    for line in _managed_process_lines():
+        parts = line.strip().split(None, 1)
+        if len(parts) != 2:
+            continue
+        try:
+            pid = int(parts[0])
+        except ValueError:
+            continue
+        if pid in keep:
+            continue
+        if _matches_managed(parts[1]):
+            targets.add(pid)
+    targets.update(pid for pid in _listening_pids(FRONTEND_PORT) if pid not in keep)
+    targets.update(pid for pid in _listening_pids(BACKEND_PORT) if pid not in keep)
+    for pid in sorted(targets):
+        _kill_group(pid, signal.SIGTERM)
+    if targets:
+        time.sleep(1)
+        for pid in sorted(targets):
+            _kill_group(pid, signal.SIGKILL)
+
+
 def run_forever():
     write_pid(os.getpid())
+    cleanup_orphans(exclude_pids=[os.getpid()])
     with open(LOG_DAEMON, "a") as dl:
         dl.write(f"[daemon] start pid={os.getpid()} at {time.strftime('%F %T')}\n")
     procs = {
@@ -135,6 +208,7 @@ def stop():
         print(f"daemon {pid} stopped")
     else:
         print("daemon not running")
+    cleanup_orphans()
     if os.path.exists(PID_FILE):
         os.remove(PID_FILE)
 
@@ -144,7 +218,7 @@ def status():
     print(f"daemon pid: {pid} (alive={is_alive(pid)})")
     import urllib.request
     import urllib.error
-    for port, name in ((5899, "frontend"), (8900, "backend")):
+    for port, name in ((FRONTEND_PORT, "frontend"), (BACKEND_PORT, "backend")):
         ok = False
         try:
             urllib.request.urlopen(f"http://localhost:{port}/", timeout=2)
