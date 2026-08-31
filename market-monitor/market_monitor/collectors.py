@@ -5,7 +5,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
-import akshare as ak
 import pandas as pd
 import requests
 
@@ -108,6 +107,8 @@ def _normalize_a_share_spot(raw: pd.DataFrame, source: str) -> pd.DataFrame:
 
 def fetch_a_share_spot() -> pd.DataFrame:
     """Use the already-validated Sina all-A snapshot on GitHub runners."""
+    import akshare as ak  # noqa: PLC0415
+
     raw = retry(ak.stock_zh_a_spot, attempts=3, delay=2.0)
     return _normalize_a_share_spot(raw, "AKShare stock_zh_a_spot / 新浪")
 

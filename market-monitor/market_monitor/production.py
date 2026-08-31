@@ -7,7 +7,6 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
-import akshare as ak
 
 from . import pipeline
 from .collectors import fetch_indices as fetch_indices_legacy
@@ -42,25 +41,33 @@ def _require_close_ready(target_date: str, timestamp: object, label: str) -> dat
     return quote_time
 
 
-def fetch_market_activity_summary(target_date: str) -> dict[str, int]:
-    """复用网页 `/api/market/overview-v2` 的乐咕市场活跃度主 API。"""
-    frame = retry(ak.stock_market_activity_legu, attempts=3, delay=0.8)
-    if frame is None or frame.empty or not {"item", "value"}.issubset(frame.columns):
-        raise RuntimeError("empty Legu market activity payload")
-    values = {str(row["item"]): row["value"] for _, row in frame.iterrows()}
-    source_date = str(values.get("统计日期") or "")[:10]
-    if source_date != target_date:
-        raise RuntimeError(f"Legu market activity date mismatch: {source_date} != {target_date}")
-    result = {
-        "advance": int(float(values.get("上涨") or 0)),
-        "decline": int(float(values.get("下跌") or 0)),
-        "flat": int(float(values.get("平盘") or 0)),
-        "limit_up": int(float(values.get("涨停") or 0)),
-        "limit_down": int(float(values.get("跌停") or 0)),
-    }
-    if result["advance"] + result["decline"] + result["flat"] < 4500:
-        raise RuntimeError(f"Legu market activity coverage too small: {result}")
-    return result
+def fetch_market_activity_summary(target_date: str) -> dict[str, int] | None:
+    """乐咕活跃度只作补充；不可用时回退全A快照自算，不阻断正式母表。"""
+    try:
+        import akshare as ak  # noqa: PLC0415
+    except Exception:
+        return None
+
+    try:
+        frame = retry(ak.stock_market_activity_legu, attempts=3, delay=0.8)
+        if frame is None or frame.empty or not {"item", "value"}.issubset(frame.columns):
+            return None
+        values = {str(row["item"]): row["value"] for _, row in frame.iterrows()}
+        source_date = str(values.get("统计日期") or "")[:10]
+        if source_date != target_date:
+            return None
+        result = {
+            "advance": int(float(values.get("上涨") or 0)),
+            "decline": int(float(values.get("下跌") or 0)),
+            "flat": int(float(values.get("平盘") or 0)),
+            "limit_up": int(float(values.get("涨停") or 0)),
+            "limit_down": int(float(values.get("跌停") or 0)),
+        }
+        if result["advance"] + result["decline"] + result["flat"] < 4500:
+            return None
+        return result
+    except Exception:
+        return None
 
 
 def _number(value):

@@ -22,7 +22,7 @@ from market_monitor.sector_eastmoney import (
 )
 from update_sw_industry_fast import calculate_metrics, require_current_close_window
 from build_report_data import _sw_crowding
-from run_daily import _restore_mother_tables, _snapshot_mother_tables
+from run_daily import _restore_mother_tables, _snapshot_mother_tables, refresh_sources
 
 
 class DataPipelineContractTests(unittest.TestCase):
@@ -139,6 +139,19 @@ class DataPipelineContractTests(unittest.TestCase):
             path.write_bytes(b"partial-write")
             _restore_mother_tables(snapshot)
             self.assertEqual(path.read_bytes(), original)
+
+    def test_refresh_sources_warns_instead_of_aborting_on_sw_refresh_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = refresh_sources(
+                root=Path(directory),
+                target_date="2026-08-28",
+                fast_industry_refresh_fn=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("sw timeout")),
+            )
+        self.assertEqual(result["sw_industry"], "warn_stale_previous_snapshot")
+        self.assertIn(
+            "sw_industry_refresh_failed:2026-08-28:sw timeout",
+            result["warnings"],
+        )
 
     def test_sw_current_return_uses_api_previous_close_across_history_gap(self):
         frame = pd.DataFrame([

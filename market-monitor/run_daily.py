@@ -46,17 +46,21 @@ def refresh_sources(
     data_dir = root / "data"
     result: dict[str, object] = {"warnings": []}
 
-    if full_refresh_sw_industry:
-        full_industry_refresh_fn(
-            history_rows=260,
-            sleep_seconds=0.15,
-            workers=4,
-            data_dir=data_dir,
-        )
-        result["sw_industry"] = "ok_full_sws"
-    else:
-        fast_industry_refresh_fn(target_date, data_dir=data_dir)
-        result["sw_industry"] = "ok_fast_sws"
+    try:
+        if full_refresh_sw_industry:
+            full_industry_refresh_fn(
+                history_rows=260,
+                sleep_seconds=0.15,
+                workers=4,
+                data_dir=data_dir,
+            )
+            result["sw_industry"] = "ok_full_sws"
+        else:
+            fast_industry_refresh_fn(target_date, data_dir=data_dir)
+            result["sw_industry"] = "ok_fast_sws"
+    except Exception as exc:
+        result["sw_industry"] = "warn_stale_previous_snapshot"
+        result["warnings"].append(f"sw_industry_refresh_failed:{target_date}:{exc}")
     # 四行业东方财富整表重建必须等 pipeline 写入当天全A分母后执行。
     result["four_sector_crowding"] = "scheduled_after_market_core"
 
