@@ -85,7 +85,12 @@ jobs:
           if [ -n "${{ inputs.target_date }}" ]; then
             target="${{ inputs.target_date }}"
           else
-            target="$(date +%F)"
+            now_hm="$(date +%H%M)"
+            if [ "$now_hm" -lt 1200 ]; then
+              target="$(date -d 'yesterday' +%F)"
+            else
+              target="$(date +%F)"
+            fi
           fi
           echo "value=$target" >> "$GITHUB_OUTPUT"
           echo "compact=${target//-/}" >> "$GITHUB_OUTPUT"

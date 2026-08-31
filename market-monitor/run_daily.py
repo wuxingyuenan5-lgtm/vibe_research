@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 import atexit
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 from pathlib import Path
 import shutil
@@ -22,6 +22,13 @@ from update_sw_industry import update as update_sw_industry_full
 
 def default_date() -> str:
     return datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d")
+
+
+def _allowed_scheduled_target_date() -> str:
+    now = datetime.now(ZoneInfo("Asia/Shanghai"))
+    if now.hour < 12:
+        return (now - timedelta(days=1)).strftime("%Y-%m-%d")
+    return now.strftime("%Y-%m-%d")
 
 
 def parse_args() -> argparse.Namespace:
@@ -109,11 +116,11 @@ def _restore_mother_tables(snapshot: dict[Path, bytes | None]) -> None:
 
 def main() -> None:
     args = parse_args()
-    today = default_date()
-    if args.target_date != today:
+    allowed_target_date = _allowed_scheduled_target_date()
+    if args.target_date != allowed_target_date:
         raise SystemExit(
-            f"daily pipeline uses a current-day stock snapshot, so target_date must be {today}; "
-            "use the historical backfill workflow for older dates"
+            "daily pipeline only accepts the post-close target date derived from Asia/Shanghai time; "
+            f"expected {allowed_target_date}, got {args.target_date}"
         )
 
     repo_root = Path(".").resolve()

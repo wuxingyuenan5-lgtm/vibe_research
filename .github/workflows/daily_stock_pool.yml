@@ -45,13 +45,18 @@ jobs:
         shell: bash
         run: |
           today="$(date +%F)"
+          now_hm="$(date +%H%M)"
+          if [ "$now_hm" -lt 1200 ]; then
+            expected_target="$(date -d 'yesterday' +%F)"
+          else
+            expected_target="$today"
+          fi
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            # The upstream run is post-close and owns the production date.
-            target="$(date -d "${{ github.event.workflow_run.updated_at }}" +%F)"
+            target="$expected_target"
           elif [ -n "${{ inputs.target_date }}" ]; then
             target="${{ inputs.target_date }}"
           else
-            target="$today"
+            target="$expected_target"
           fi
 
           if ! [[ "$target" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
@@ -59,15 +64,14 @@ jobs:
             exit 1
           fi
 
-          # This workflow reads a live quote snapshot; it cannot safely backfill
-          # a historical date or label intraday quotes as a close.
-          if [ "$target" != "$today" ]; then
-            echo "Compact cache only supports today's live close snapshot: target=$target today=$today" >&2
+          # This workflow reads the post-close live snapshot. If GitHub delays the
+          # trigger into early next morning, it must still rebuild yesterday's close.
+          if [ "$target" != "$expected_target" ]; then
+            echo "Compact cache target mismatch: target=$target expected=$expected_target now=$(date --iso-8601=seconds)" >&2
             exit 1
           fi
 
-          now_hm="$(date +%H%M)"
-          if [ "$now_hm" -lt 1520 ]; then
+          if [ "$target" = "$today" ] && [ "$now_hm" -lt 1520 ]; then
             echo "Post-close snapshot is not ready: $(date --iso-8601=seconds). Retry at or after 15:20 Asia/Shanghai." >&2
             exit 1
           fi
