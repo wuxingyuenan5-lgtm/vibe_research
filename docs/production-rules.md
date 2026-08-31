@@ -1,6 +1,6 @@
 # 生产规则总表
 
-最后更新：2026-08-28
+最后更新：2026-08-31
 
 这份文档是当前项目的正式生产规则。以后凡是改市场总览、市场监控、自选股、股票池、质量检查相关逻辑，都先改这份文档，再改代码。
 
@@ -29,7 +29,7 @@
 | 三项指数 / 申万行业 / 四行业拥挤度 / 创新药 | `GET /api/market-monitor` | `market-monitor/data/` | `daily_market_monitor.yml` | 交易日 15:20 后更新 | 只展示正式结果 | 不准页面层修数 |
 | 自选股 / 股票池展示 | `GET /api/stock-pool` | `data/stock-pool/latest_stock_pool.json` | `daily_stock_pool.yml` | 交易日 15:20 后更新一次 | 只展示当天 bundle | 不准读取时回填旧 20 日 / YTD |
 | 股票池标的定义 | 后端读写 `pool.json` | `data/stock-pool/pool.json` | 人工维护 + GitHub 同步 | 有增删时即时同步 | 提供增删入口 | 不把它当行情母表 |
-| 关注列表 | 后端读写 `focus.json` | `data/stock-pool/focus.json` | 实时保存 | 用户操作即更新 | 只管理关注代码 | 不承担行情结果生产 |
+| 关注列表 | 后端读写 `pool.json.focus` | `data/stock-pool/pool.json` | 实时保存 | 用户操作即更新 | 只管理关注代码 | 不承担行情结果生产 |
 | 数据质量模块 | `GET /api/market-monitor` 中的 quality | 母表状态 + 前端可显示性检查 | `daily_market_monitor.yml` | 盘后随 market monitor 一起更新 | 友好展示结果 | 不直接吐原始 JSON 给你看 |
 
 ## 3. 市场总览与市场监控
@@ -116,7 +116,10 @@
 ### 6.2 数据职责
 
 1. `data/stock-pool/pool.json` 只负责定义池子里有哪些标的。
-2. `data/stock-pool/focus.json` 只负责定义关注列表有哪些代码。
+2. `data/stock-pool/pool.json` 同时保存：
+   - 核心股票池定义
+   - 近期关注代码列表
+   - 研究篮子定义
 3. `data/stock-pool/latest_stock_pool.json` 才是自选股页面正式展示结果。
 
 ### 6.3 刷新规则
@@ -125,6 +128,7 @@
 2. 在交易日 `15:20` 后运行一次。
 3. 生产脚本通过 API 拉取当日需要的数据，生成当天 bundle。
 4. 前端和后端都读取当天 bundle 展示。
+5. `pool.json` 不回写日度行情字段，只维护定义层。
 
 ### 6.4 页面显示范围
 
@@ -139,7 +143,17 @@
 7. 强弱矩阵
 8. 最强最弱榜
 
-### 6.5 禁止事项
+### 6.5 分类规则
+
+1. 页面主筛选顺序固定为：
+   - 近期关注
+   - 研究篮子
+   - 行业分类
+2. 研究篮子是主要使用分类，不额外加表格列标签。
+3. 行业分类保留，但作为次级筛选入口。
+4. 研究篮子只属于定义层，不参与日度行情计算逻辑。
+
+### 6.6 禁止事项
 
 1. 不允许把自选股并入 market monitor 母表直读链路。
 2. 不允许在 `/api/stock-pool` 返回时用历史缓存补当天缺失字段。
@@ -199,7 +213,7 @@
 2. 百亿成交弹窗只显示后端生成好的 `hot_stock_matrix`。
 3. 自选股不并入 market monitor 母表。
 4. 自选股正式展示结果走 `daily_stock_pool.yml` 生成的 daily bundle。
-5. `pool.json` 和 `focus.json` 只管理标的和关注列表，不承担行情结果母表职责。
+5. `pool.json` 只管理标的、近期关注和研究篮子，不承担行情结果母表职责。
 6. 重点维护的是：
    - 正式母表
    - 正式日更 bundle

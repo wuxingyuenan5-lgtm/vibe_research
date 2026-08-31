@@ -1,4 +1,4 @@
-// 注意：自选股（近期关注 focus）的唯一真源已收敛到后端 `data/stock-pool/focus.json`
+// 注意：自选股（近期关注 focus）的定义层真源已收敛到后端 `data/stock-pool/pool.json`
 // （经 /api/stock-pool/focus 读写 + 同步 GitHub），不再使用 localStorage 兜底。
 // 本文件仅保留「代码解析」纯函数，供批量添加输入框使用。
 

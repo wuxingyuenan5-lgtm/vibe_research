@@ -423,7 +423,7 @@ def stock_pool_sync():
 
 @app.get("/api/stock-pool/focus")
 def stock_pool_focus_get():
-    """近期关注列表（独立于核心股票池，存 GitHub data/stock-pool/focus.json）。"""
+    """近期关注列表（定义层并入 pool.json，和核心股票池一起做 GitHub 备份）。"""
     try:
         try:
             codes = _ds_get(
@@ -442,7 +442,7 @@ def stock_pool_focus_get():
 
 @app.post("/api/stock-pool/focus")
 async def stock_pool_focus_save(request: Request):
-    """保存近期关注列表（本地 focus.json + 同步 GitHub 真源，独立于 pool.json）。"""
+    """保存近期关注列表（写回 pool.json 并同步 GitHub 真源）。"""
     try:
         body = await request.json()
         codes = body.get("codes", [])

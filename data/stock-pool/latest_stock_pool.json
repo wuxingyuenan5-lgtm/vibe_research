@@ -1,11 +1,11 @@
 {
   "status": "published",
   "data_date": "2026-08-27",
-  "published_at": "2026-08-27T16:20:13+08:00",
+  "published_at": "2026-08-31T11:52:55+08:00",
   "payload": {
     "meta": {
       "report_date": "2026-08-27",
-      "generated_at": "2026-08-27T16:46:43+08:00",
+      "generated_at": "2026-08-31T11:52:55+08:00",
       "version": "0.1.0",
       "percent_contract": "decimal_ratio",
       "pool": "核心股票池"
@@ -19,7 +19,7 @@
         "flat": 1,
         "median": 0.0247
       },
-      "avg_change": 0.030474691358024678,
+      "avg_change": 0.030474691358024688,
       "total_amount_yi": 5913.34,
       "pending_refresh": 0,
       "legacy_missing_code": 0
@@ -31,6 +31,9 @@
         "exchange": "SSE",
         "name": "贵州茅台",
         "industry": "白酒",
+        "research_baskets": [
+          "消费/互联网/出海"
+        ],
         "price": 1292.3,
         "change": -0.0081,
         "change_5d": 0.0006,
@@ -49,6 +52,9 @@
         "exchange": "SH",
         "name": "工商银行",
         "industry": "银行",
+        "research_baskets": [
+          "金融/红利/核心资产"
+        ],
         "price": 7.82,
         "change": -0.0126,
         "change_5d": 0.0051,
@@ -67,6 +73,9 @@
         "exchange": "SH",
         "name": "中国平安",
         "industry": "保险",
+        "research_baskets": [
+          "金融/红利/核心资产"
+        ],
         "price": 55.87,
         "change": -0.0046,
         "change_5d": 0.0715,
@@ -85,6 +94,9 @@
         "exchange": "HK",
         "name": "理想汽车-W",
         "industry": "汽车[HK]",
+        "research_baskets": [
+          "消费/互联网/出海"
+        ],
         "price": 48.6,
         "change": 0.0104,
         "change_5d": -0.0386,
@@ -103,6 +115,9 @@
         "exchange": "SH",
         "name": "中信证券",
         "industry": "证券",
+        "research_baskets": [
+          "金融/红利/核心资产"
+        ],
         "price": 27.93,
         "change": 0.0058,
         "change_5d": 0.0329,
@@ -121,6 +136,9 @@
         "exchange": "SH",
         "name": "中国移动",
         "industry": "通信服务",
+        "research_baskets": [
+          "金融/红利/核心资产"
+        ],
         "price": 98.04,
         "change": -0.0042,
         "change_5d": 0.0139,
@@ -139,6 +157,9 @@
         "exchange": "SH",
         "name": "兴发集团",
         "industry": "农化制品",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 31.15,
         "change": 0.0247,
         "change_5d": 0.0094,
@@ -157,6 +178,9 @@
         "exchange": "SH",
         "name": "华友钴业",
         "industry": "能源金属",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 40.18,
         "change": 0.0053,
         "change_5d": 0.0211,
@@ -175,6 +199,9 @@
         "exchange": "SH",
         "name": "新华保险",
         "industry": "保险",
+        "research_baskets": [
+          "金融/红利/核心资产"
+        ],
         "price": 60.59,
         "change": -0.0064,
         "change_5d": 0.0432,
@@ -193,6 +220,9 @@
         "exchange": "SH",
         "name": "通威股份",
         "industry": "光伏设备",
+        "research_baskets": [
+          "新能源"
+        ],
         "price": 11.9,
         "change": -0.0092,
         "change_5d": -0.0341,
@@ -211,6 +241,7 @@
         "exchange": "SZ",
         "name": "TCL科技",
         "industry": "光学光电子",
+        "research_baskets": [],
         "price": 4.97,
         "change": 0.0122,
         "change_5d": -0.0119,
@@ -229,6 +260,7 @@
         "exchange": "SZ",
         "name": "京东方Ａ",
         "industry": "光学光电子",
+        "research_baskets": [],
         "price": 5.94,
         "change": 0.0385,
         "change_5d": 0.0068,
@@ -247,6 +279,9 @@
         "exchange": "SH",
         "name": "海尔智家",
         "industry": "白色家电",
+        "research_baskets": [
+          "消费/互联网/出海"
+        ],
         "price": 21.12,
         "change": -0.0014,
         "change_5d": 0.0105,
@@ -265,6 +300,9 @@
         "exchange": "SH",
         "name": "恒力石化",
         "industry": "石油加工贸易",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 18.9,
         "change": 0.0334,
         "change_5d": 0.0032,
@@ -283,6 +321,9 @@
         "exchange": "SH",
         "name": "中国海油",
         "industry": "油气开采及服务",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 33.82,
         "change": 0.0147,
         "change_5d": 0.0156,
@@ -301,6 +342,9 @@
         "exchange": "SH",
         "name": "圆通速递",
         "industry": "物流",
+        "research_baskets": [
+          "金融/红利/核心资产"
+        ],
         "price": 16.95,
         "change": 0.0,
         "change_5d": -0.0314,
@@ -319,6 +363,9 @@
         "exchange": "SH",
         "name": "中国人寿",
         "industry": "保险",
+        "research_baskets": [
+          "金融/红利/核心资产"
+        ],
         "price": 38.61,
         "change": 0.0008,
         "change_5d": 0.0466,
@@ -337,6 +384,9 @@
         "exchange": "HK",
         "name": "阿里巴巴-W",
         "industry": "多品类零售Ⅲ[HK]",
+        "research_baskets": [
+          "消费/互联网/出海"
+        ],
         "price": 115.5,
         "change": -0.0094,
         "change_5d": -0.0848,
@@ -355,6 +405,9 @@
         "exchange": "SH",
         "name": "赛轮轮胎",
         "industry": "汽车零部件",
+        "research_baskets": [
+          "金融/红利/核心资产"
+        ],
         "price": 13.99,
         "change": 0.0036,
         "change_5d": -0.0113,
@@ -373,6 +426,9 @@
         "exchange": "SH",
         "name": "东方电气",
         "industry": "其他电源设备",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 25.95,
         "change": 0.0074,
         "change_5d": 0.0105,
@@ -391,6 +447,9 @@
         "exchange": "SH",
         "name": "三一重工",
         "industry": "工程机械",
+        "research_baskets": [
+          "金融/红利/核心资产"
+        ],
         "price": 19.06,
         "change": 0.0106,
         "change_5d": 0.0005,
@@ -409,6 +468,9 @@
         "exchange": "SH",
         "name": "万华化学",
         "industry": "化学制品",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 75.92,
         "change": 0.0192,
         "change_5d": 0.0101,
@@ -427,6 +489,9 @@
         "exchange": "SZ",
         "name": "大金重工",
         "industry": "风电设备",
+        "research_baskets": [
+          "新能源"
+        ],
         "price": 35.41,
         "change": 0.0043,
         "change_5d": -0.0965,
@@ -445,6 +510,7 @@
         "exchange": "SZ",
         "name": "中兴通讯",
         "industry": "通信设备",
+        "research_baskets": [],
         "price": 33.96,
         "change": 0.0125,
         "change_5d": 0.0035,
@@ -463,6 +529,9 @@
         "exchange": "HK",
         "name": "小米集团-W",
         "industry": "消费电子[HK]",
+        "research_baskets": [
+          "消费/互联网/出海"
+        ],
         "price": 27.48,
         "change": -0.0344,
         "change_5d": -0.0101,
@@ -481,6 +550,9 @@
         "exchange": "SH",
         "name": "陕西煤业",
         "industry": "煤炭开采加工",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 27.0,
         "change": 0.0247,
         "change_5d": 0.0568,
@@ -499,6 +571,9 @@
         "exchange": "SZ",
         "name": "卫星化学",
         "industry": "化学制品",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 27.39,
         "change": 0.0391,
         "change_5d": 0.0107,
@@ -517,6 +592,9 @@
         "exchange": "SH",
         "name": "厦钨新能",
         "industry": "电池",
+        "research_baskets": [
+          "新能源"
+        ],
         "price": 47.02,
         "change": 0.0047,
         "change_5d": 0.0235,
@@ -535,6 +613,9 @@
         "exchange": "SZ",
         "name": "比音勒芬",
         "industry": "服装家纺",
+        "research_baskets": [
+          "消费/互联网/出海"
+        ],
         "price": 24.03,
         "change": -0.0046,
         "change_5d": -0.0376,
@@ -553,6 +634,9 @@
         "exchange": "SZ",
         "name": "牧原股份",
         "industry": "养殖业",
+        "research_baskets": [
+          "金融/红利/核心资产"
+        ],
         "price": 40.8,
         "change": 0.0203,
         "change_5d": 0.0246,
@@ -571,6 +655,9 @@
         "exchange": "SZ",
         "name": "云铝股份",
         "industry": "工业金属",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 26.69,
         "change": 0.0129,
         "change_5d": 0.0566,
@@ -589,6 +676,9 @@
         "exchange": "SZ",
         "name": "湖南裕能",
         "industry": "电池",
+        "research_baskets": [
+          "新能源"
+        ],
         "price": 62.48,
         "change": -0.0145,
         "change_5d": -0.0382,
@@ -607,6 +697,9 @@
         "exchange": "SZ",
         "name": "潍柴动力",
         "industry": "汽车零部件",
+        "research_baskets": [
+          "金融/红利/核心资产"
+        ],
         "price": 26.99,
         "change": -0.0015,
         "change_5d": -0.0463,
@@ -625,6 +718,9 @@
         "exchange": "SH",
         "name": "兖矿能源",
         "industry": "煤炭开采加工",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 22.68,
         "change": 0.05,
         "change_5d": 0.0618,
@@ -643,6 +739,9 @@
         "exchange": "SZ",
         "name": "美的集团",
         "industry": "白色家电",
+        "research_baskets": [
+          "消费/互联网/出海"
+        ],
         "price": 86.18,
         "change": -0.0024,
         "change_5d": 0.0094,
@@ -661,6 +760,9 @@
         "exchange": "HK",
         "name": "安踏体育",
         "industry": "纺织服饰[HK]",
+        "research_baskets": [
+          "消费/互联网/出海"
+        ],
         "price": 77.8,
         "change": -0.0121,
         "change_5d": 0.0387,
@@ -679,6 +781,9 @@
         "exchange": "HK",
         "name": "晶泰控股",
         "industry": "医疗服务[HK]",
+        "research_baskets": [
+          "创新药/CXO/AI医疗"
+        ],
         "price": 7.46,
         "change": -0.0119,
         "change_5d": -0.0727,
@@ -697,6 +802,9 @@
         "exchange": "SH",
         "name": "长江电力",
         "industry": "电力",
+        "research_baskets": [
+          "金融/红利/核心资产"
+        ],
         "price": 28.1,
         "change": -0.005,
         "change_5d": -0.0021,
@@ -715,6 +823,9 @@
         "exchange": "SZ",
         "name": "亚钾国际",
         "industry": "农化制品",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 48.28,
         "change": -0.0002,
         "change_5d": 0.0096,
@@ -733,6 +844,9 @@
         "exchange": "HK",
         "name": "药明生物",
         "industry": "医疗服务[HK]",
+        "research_baskets": [
+          "创新药/CXO/AI医疗"
+        ],
         "price": 50.5,
         "change": -0.0049,
         "change_5d": 0.0173,
@@ -751,6 +865,9 @@
         "exchange": "SZ",
         "name": "先导智能",
         "industry": "电池",
+        "research_baskets": [
+          "新能源"
+        ],
         "price": 33.77,
         "change": 0.0051,
         "change_5d": 0.0132,
@@ -769,6 +886,9 @@
         "exchange": "SH",
         "name": "宝丰能源",
         "industry": "化学原料",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 24.0,
         "change": 0.0385,
         "change_5d": 0.0256,
@@ -787,6 +907,9 @@
         "exchange": "HK",
         "name": "中芯国际",
         "industry": "半导体[HK]",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 71.3,
         "change": 0.023,
         "change_5d": -0.0111,
@@ -805,6 +928,9 @@
         "exchange": "SZ",
         "name": "东方财富",
         "industry": "证券",
+        "research_baskets": [
+          "金融/红利/核心资产"
+        ],
         "price": 19.62,
         "change": 0.0134,
         "change_5d": 0.0436,
@@ -823,6 +949,9 @@
         "exchange": "HK",
         "name": "腾讯控股",
         "industry": "互动媒体与服务Ⅲ[HK]",
+        "research_baskets": [
+          "消费/互联网/出海"
+        ],
         "price": 447.8,
         "change": 0.0054,
         "change_5d": -0.008,
@@ -841,6 +970,9 @@
         "exchange": "SH",
         "name": "天通股份",
         "industry": "电子化学品",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 29.15,
         "change": 0.1,
         "change_5d": 0.0452,
@@ -859,6 +991,9 @@
         "exchange": "SH",
         "name": "拓普集团",
         "industry": "汽车零部件",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 47.43,
         "change": 0.0178,
         "change_5d": 0.0266,
@@ -877,6 +1012,9 @@
         "exchange": "SZ",
         "name": "乖宝宠物",
         "industry": "农产品加工",
+        "research_baskets": [
+          "消费/互联网/出海"
+        ],
         "price": 38.64,
         "change": 0.0089,
         "change_5d": -0.0168,
@@ -895,6 +1033,7 @@
         "exchange": "SZ",
         "name": "立讯精密",
         "industry": "消费电子",
+        "research_baskets": [],
         "price": 57.18,
         "change": 0.0012,
         "change_5d": 0.072,
@@ -913,6 +1052,9 @@
         "exchange": "SH",
         "name": "九号公司-WD",
         "industry": "汽车服务及其他",
+        "research_baskets": [
+          "消费/互联网/出海"
+        ],
         "price": 43.95,
         "change": 0.0185,
         "change_5d": 0.0021,
@@ -931,6 +1073,9 @@
         "exchange": "SZ",
         "name": "安克创新",
         "industry": "消费电子",
+        "research_baskets": [
+          "消费/互联网/出海"
+        ],
         "price": 126.2,
         "change": 0.0105,
         "change_5d": 0.0919,
@@ -949,6 +1094,9 @@
         "exchange": "SZ",
         "name": "天赐材料",
         "industry": "电池",
+        "research_baskets": [
+          "新能源"
+        ],
         "price": 37.27,
         "change": 0.0133,
         "change_5d": 0.0051,
@@ -967,6 +1115,9 @@
         "exchange": "SH",
         "name": "西部矿业",
         "industry": "工业金属",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 38.67,
         "change": -0.015,
         "change_5d": 0.0548,
@@ -985,6 +1136,9 @@
         "exchange": "SH",
         "name": "亨通光电",
         "industry": "通信设备",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 71.3,
         "change": 0.0998,
         "change_5d": 0.1496,
@@ -1003,6 +1157,9 @@
         "exchange": "SH",
         "name": "宇通客车",
         "industry": "汽车整车",
+        "research_baskets": [
+          "金融/红利/核心资产"
+        ],
         "price": 29.91,
         "change": -0.0161,
         "change_5d": -0.0047,
@@ -1021,6 +1178,9 @@
         "exchange": "SZ",
         "name": "阳光电源",
         "industry": "光伏设备",
+        "research_baskets": [
+          "新能源"
+        ],
         "price": 98.84,
         "change": -0.1224,
         "change_5d": -0.1087,
@@ -1039,6 +1199,9 @@
         "exchange": "SH",
         "name": "东鹏饮料",
         "industry": "饮料制造",
+        "research_baskets": [
+          "消费/互联网/出海"
+        ],
         "price": 120.38,
         "change": -0.0076,
         "change_5d": -0.0219,
@@ -1057,6 +1220,9 @@
         "exchange": "SZ",
         "name": "大族激光",
         "industry": "自动化设备",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 90.0,
         "change": 0.0504,
         "change_5d": -0.017,
@@ -1075,6 +1241,9 @@
         "exchange": "SH",
         "name": "紫金矿业",
         "industry": "贵金属",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 34.57,
         "change": 0.0029,
         "change_5d": 0.0219,
@@ -1093,6 +1262,9 @@
         "exchange": "SH",
         "name": "长电科技",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 76.54,
         "change": 0.0397,
         "change_5d": -0.037,
@@ -1111,6 +1283,9 @@
         "exchange": "SZ",
         "name": "宁德时代",
         "industry": "电池",
+        "research_baskets": [
+          "新能源"
+        ],
         "price": 373.0,
         "change": -0.0158,
         "change_5d": -0.0312,
@@ -1129,6 +1304,9 @@
         "exchange": "SH",
         "name": "伟测科技",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 127.83,
         "change": 0.0583,
         "change_5d": 0.0167,
@@ -1147,6 +1325,9 @@
         "exchange": "SH",
         "name": "洛阳钼业",
         "industry": "工业金属",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 19.51,
         "change": -0.0041,
         "change_5d": 0.0679,
@@ -1165,6 +1346,9 @@
         "exchange": "SH",
         "name": "厦门钨业",
         "industry": "小金属",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 54.8,
         "change": 0.0414,
         "change_5d": 0.0283,
@@ -1183,6 +1367,9 @@
         "exchange": "SZ",
         "name": "三花智控",
         "industry": "白色家电",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 36.82,
         "change": 0.0188,
         "change_5d": 0.0188,
@@ -1201,6 +1388,7 @@
         "exchange": "SH",
         "name": "中国巨石",
         "industry": "建筑材料",
+        "research_baskets": [],
         "price": 42.64,
         "change": 0.0795,
         "change_5d": 0.0295,
@@ -1219,6 +1407,9 @@
         "exchange": "SH",
         "name": "药明康德",
         "industry": "医疗服务",
+        "research_baskets": [
+          "创新药/CXO/AI医疗"
+        ],
         "price": 159.94,
         "change": 0.0043,
         "change_5d": -0.0474,
@@ -1237,6 +1428,9 @@
         "exchange": "SZ",
         "name": "扬杰科技",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 96.93,
         "change": 0.0588,
         "change_5d": 0.0066,
@@ -1255,6 +1449,7 @@
         "exchange": "SZ",
         "name": "风华高科",
         "industry": "元件",
+        "research_baskets": [],
         "price": 54.11,
         "change": 0.0608,
         "change_5d": 0.0192,
@@ -1273,6 +1468,9 @@
         "exchange": "HK",
         "name": "优必选",
         "industry": "机械设备Ⅲ[HK]",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 82.95,
         "change": 0.0153,
         "change_5d": 0.0209,
@@ -1291,6 +1489,9 @@
         "exchange": "SH",
         "name": "巨化股份",
         "industry": "化学制品",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 39.54,
         "change": 0.0364,
         "change_5d": 0.0217,
@@ -1309,6 +1510,9 @@
         "exchange": "SH",
         "name": "赤峰黄金",
         "industry": "贵金属",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 48.22,
         "change": 0.0292,
         "change_5d": 0.046,
@@ -1327,6 +1531,9 @@
         "exchange": "SH",
         "name": "爱旭股份",
         "industry": "光伏设备",
+        "research_baskets": [
+          "新能源"
+        ],
         "price": 11.4,
         "change": -0.0009,
         "change_5d": -0.0306,
@@ -1345,6 +1552,9 @@
         "exchange": "SZ",
         "name": "大中矿业",
         "industry": "钢铁",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 27.58,
         "change": 0.0084,
         "change_5d": 0.0427,
@@ -1363,6 +1573,9 @@
         "exchange": "HK",
         "name": "地平线机器人-W",
         "industry": "汽车零部件Ⅲ[HK]",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 4.75,
         "change": 0.0021,
         "change_5d": -0.0216,
@@ -1381,6 +1594,9 @@
         "exchange": "HK",
         "name": "药明合联",
         "industry": "医疗服务[HK]",
+        "research_baskets": [
+          "创新药/CXO/AI医疗"
+        ],
         "price": 75.5,
         "change": -0.0227,
         "change_5d": 0.0755,
@@ -1399,6 +1615,9 @@
         "exchange": "SZ",
         "name": "通富微电",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 63.73,
         "change": 0.0405,
         "change_5d": 0.0092,
@@ -1417,6 +1636,9 @@
         "exchange": "SH",
         "name": "金盘科技",
         "industry": "电网设备",
+        "research_baskets": [
+          "新能源"
+        ],
         "price": 66.77,
         "change": -0.0771,
         "change_5d": -0.008,
@@ -1435,6 +1657,9 @@
         "exchange": "SZ",
         "name": "兴业银锡",
         "industry": "贵金属",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 40.69,
         "change": 0.014,
         "change_5d": 0.0583,
@@ -1453,6 +1678,9 @@
         "exchange": "SH",
         "name": "华锡有色",
         "industry": "小金属",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 47.69,
         "change": 0.0197,
         "change_5d": 0.0074,
@@ -1471,6 +1699,7 @@
         "exchange": "SZ",
         "name": "杰瑞股份",
         "industry": "专用设备",
+        "research_baskets": [],
         "price": 136.24,
         "change": -0.0092,
         "change_5d": -0.111,
@@ -1489,6 +1718,9 @@
         "exchange": "SH",
         "name": "应流股份",
         "industry": "通用设备",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 45.05,
         "change": 0.025,
         "change_5d": 0.011,
@@ -1507,6 +1739,9 @@
         "exchange": "SH",
         "name": "天岳先进",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 109.56,
         "change": 0.0451,
         "change_5d": 0.0126,
@@ -1525,6 +1760,9 @@
         "exchange": "SZ",
         "name": "胜宏科技",
         "industry": "元件",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 263.05,
         "change": 0.0546,
         "change_5d": 0.0379,
@@ -1543,6 +1781,9 @@
         "exchange": "HK",
         "name": "建滔积层板",
         "industry": "电子设备和元件[HK]",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 43.94,
         "change": 0.1051,
         "change_5d": 0.2226,
@@ -1561,6 +1802,7 @@
         "exchange": "SZ",
         "name": "圣邦股份",
         "industry": "半导体",
+        "research_baskets": [],
         "price": 116.9,
         "change": 0.0299,
         "change_5d": 0.0027,
@@ -1579,6 +1821,9 @@
         "exchange": "HK",
         "name": "信达生物",
         "industry": "生物科技Ⅲ[HK]",
+        "research_baskets": [
+          "创新药/CXO/AI医疗"
+        ],
         "price": 107.6,
         "change": -0.02,
         "change_5d": 0.0632,
@@ -1597,6 +1842,7 @@
         "exchange": "SZ",
         "name": "中瓷电子",
         "industry": "通信设备",
+        "research_baskets": [],
         "price": 131.35,
         "change": 0.0349,
         "change_5d": 0.0172,
@@ -1615,6 +1861,9 @@
         "exchange": "HK",
         "name": "百济神州",
         "industry": "化学制药[HK]",
+        "research_baskets": [
+          "创新药/CXO/AI医疗"
+        ],
         "price": 226.0,
         "change": -0.0096,
         "change_5d": -0.0079,
@@ -1633,6 +1882,9 @@
         "exchange": "SZ",
         "name": "麦格米特",
         "industry": "其他电源设备",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 127.66,
         "change": 0.037,
         "change_5d": 0.0793,
@@ -1651,6 +1903,9 @@
         "exchange": "SH",
         "name": "恒立液压",
         "industry": "工程机械",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 103.0,
         "change": 0.0602,
         "change_5d": 0.0158,
@@ -1669,6 +1924,10 @@
         "exchange": "SZ",
         "name": "帝尔激光",
         "industry": "光伏设备",
+        "research_baskets": [
+          "机器人/自动化/数据中心",
+          "新能源"
+        ],
         "price": 115.81,
         "change": 0.0612,
         "change_5d": 0.0084,
@@ -1687,6 +1946,9 @@
         "exchange": "SH",
         "name": "中控技术",
         "industry": "自动化设备",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 91.7,
         "change": 0.0131,
         "change_5d": 0.0,
@@ -1705,6 +1967,9 @@
         "exchange": "HK",
         "name": "泡泡玛特",
         "industry": "休闲用品[HK]",
+        "research_baskets": [
+          "消费/互联网/出海"
+        ],
         "price": 154.0,
         "change": -0.0019,
         "change_5d": 0.002,
@@ -1723,6 +1988,7 @@
         "exchange": "SZ",
         "name": "菲利华",
         "industry": "军工装备",
+        "research_baskets": [],
         "price": 89.51,
         "change": 0.0095,
         "change_5d": 0.0055,
@@ -1741,6 +2007,9 @@
         "exchange": "HK",
         "name": "古茗",
         "industry": "休闲服务与设施[HK]",
+        "research_baskets": [
+          "消费/互联网/出海"
+        ],
         "price": 25.2,
         "change": 0.0008,
         "change_5d": 0.0145,
@@ -1759,6 +2028,9 @@
         "exchange": "SZ",
         "name": "江海股份",
         "industry": "元件",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 62.1,
         "change": 0.0421,
         "change_5d": 0.0355,
@@ -1777,6 +2049,9 @@
         "exchange": "SZ",
         "name": "三环集团",
         "industry": "元件",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 112.48,
         "change": 0.0349,
         "change_5d": 0.0087,
@@ -1795,6 +2070,9 @@
         "exchange": "HK",
         "name": "康方生物",
         "industry": "生物科技Ⅲ[HK]",
+        "research_baskets": [
+          "创新药/CXO/AI医疗"
+        ],
         "price": 101.2,
         "change": 0.0743,
         "change_5d": 0.0777,
@@ -1813,6 +2091,7 @@
         "exchange": "SH",
         "name": "彤程新材",
         "industry": "橡胶制品",
+        "research_baskets": [],
         "price": 63.98,
         "change": 0.0321,
         "change_5d": -0.0211,
@@ -1831,6 +2110,9 @@
         "exchange": "SH",
         "name": "德业股份",
         "industry": "光伏设备",
+        "research_baskets": [
+          "新能源"
+        ],
         "price": 96.78,
         "change": 0.0029,
         "change_5d": 0.0325,
@@ -1849,6 +2131,9 @@
         "exchange": "SH",
         "name": "影石创新",
         "industry": "消费电子",
+        "research_baskets": [
+          "消费/互联网/出海"
+        ],
         "price": 120.71,
         "change": 0.0127,
         "change_5d": 0.0131,
@@ -1867,6 +2152,9 @@
         "exchange": "SZ",
         "name": "江丰电子",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 248.18,
         "change": 0.0522,
         "change_5d": -0.0035,
@@ -1885,6 +2173,9 @@
         "exchange": "HK",
         "name": "华虹宏力",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 122.8,
         "change": 0.0451,
         "change_5d": 0.0974,
@@ -1903,6 +2194,9 @@
         "exchange": "SH",
         "name": "长盈通",
         "industry": "通信设备",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 173.3,
         "change": 0.0164,
         "change_5d": 0.1592,
@@ -1921,6 +2215,9 @@
         "exchange": "SH",
         "name": "芯碁微装",
         "industry": "专用设备",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 438.6,
         "change": 0.0186,
         "change_5d": 0.0129,
@@ -1939,6 +2236,9 @@
         "exchange": "SZ",
         "name": "光迅科技",
         "industry": "通信设备",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 176.38,
         "change": 0.0506,
         "change_5d": 0.0187,
@@ -1957,6 +2257,9 @@
         "exchange": "SH",
         "name": "兆易创新",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 411.2,
         "change": 0.0476,
         "change_5d": 0.0191,
@@ -1975,6 +2278,9 @@
         "exchange": "SZ",
         "name": "申菱环境",
         "industry": "通用设备",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 107.88,
         "change": 0.0515,
         "change_5d": 0.2472,
@@ -1993,6 +2299,7 @@
         "exchange": "SH",
         "name": "旭光电子",
         "industry": "其他电子",
+        "research_baskets": [],
         "price": 37.24,
         "change": 0.0779,
         "change_5d": 0.0701,
@@ -2011,6 +2318,9 @@
         "exchange": "SZ",
         "name": "大族数控",
         "industry": "自动化设备",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 282.4,
         "change": 0.0514,
         "change_5d": -0.0158,
@@ -2029,6 +2339,9 @@
         "exchange": "SZ",
         "name": "德福科技",
         "industry": "电池",
+        "research_baskets": [
+          "新能源"
+        ],
         "price": 86.89,
         "change": 0.0813,
         "change_5d": -0.0172,
@@ -2047,6 +2360,9 @@
         "exchange": "SZ",
         "name": "国城矿业",
         "industry": "小金属",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 31.01,
         "change": -0.0288,
         "change_5d": 0.0081,
@@ -2065,6 +2381,9 @@
         "exchange": "SH",
         "name": "澜起科技",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 221.22,
         "change": 0.1006,
         "change_5d": 0.111,
@@ -2083,6 +2402,9 @@
         "exchange": "SH",
         "name": "杰普特",
         "industry": "自动化设备",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 417.22,
         "change": 0.0622,
         "change_5d": 0.0203,
@@ -2101,6 +2423,9 @@
         "exchange": "SZ",
         "name": "欧陆通",
         "industry": "其他电源设备",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 220.25,
         "change": 0.034,
         "change_5d": 0.0285,
@@ -2119,6 +2444,9 @@
         "exchange": "SH",
         "name": "中微公司",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 376.01,
         "change": 0.0216,
         "change_5d": 0.0288,
@@ -2137,6 +2465,9 @@
         "exchange": "SH",
         "name": "盛合晶微",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 127.7,
         "change": 0.0501,
         "change_5d": -0.0022,
@@ -2155,6 +2486,9 @@
         "exchange": "SZ",
         "name": "深南电路",
         "industry": "元件",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 365.1,
         "change": 0.049,
         "change_5d": 0.0583,
@@ -2173,6 +2507,9 @@
         "exchange": "SZ",
         "name": "中钨高新",
         "industry": "小金属",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 67.54,
         "change": 0.0719,
         "change_5d": 0.0479,
@@ -2191,6 +2528,9 @@
         "exchange": "SZ",
         "name": "沪电股份",
         "industry": "元件",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 122.02,
         "change": 0.0235,
         "change_5d": 0.0674,
@@ -2209,6 +2549,9 @@
         "exchange": "SZ",
         "name": "中际旭创",
         "industry": "通信设备",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 866.12,
         "change": 0.0179,
         "change_5d": -0.0421,
@@ -2227,6 +2570,9 @@
         "exchange": "SH",
         "name": "生益电子",
         "industry": "元件",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 121.69,
         "change": 0.1432,
         "change_5d": 0.1656,
@@ -2245,6 +2591,9 @@
         "exchange": "SZ",
         "name": "铜冠铜箔",
         "industry": "电池",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 114.53,
         "change": 0.0622,
         "change_5d": 0.0118,
@@ -2263,6 +2612,9 @@
         "exchange": "SZ",
         "name": "东山精密",
         "industry": "元件",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 200.6,
         "change": 0.0321,
         "change_5d": 0.0148,
@@ -2281,6 +2633,9 @@
         "exchange": "SZ",
         "name": "科翔股份",
         "industry": "元件",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 90.72,
         "change": 0.1401,
         "change_5d": 0.151,
@@ -2299,6 +2654,9 @@
         "exchange": "SH",
         "name": "长光华芯",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 304.81,
         "change": 0.0548,
         "change_5d": 0.0097,
@@ -2317,6 +2675,9 @@
         "exchange": "SH",
         "name": "茂莱光学",
         "industry": "光学光电子",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 453.84,
         "change": 0.0691,
         "change_5d": -0.0025,
@@ -2335,6 +2696,9 @@
         "exchange": "SH",
         "name": "生益科技",
         "industry": "元件",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 140.97,
         "change": 0.0843,
         "change_5d": 0.1163,
@@ -2353,6 +2717,9 @@
         "exchange": "SH",
         "name": "绿的谐波",
         "industry": "自动化设备",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 299.3,
         "change": 0.022,
         "change_5d": -0.0345,
@@ -2371,6 +2738,7 @@
         "exchange": "SH",
         "name": "瑞芯微",
         "industry": "半导体",
+        "research_baskets": [],
         "price": 181.38,
         "change": 0.0295,
         "change_5d": -0.007,
@@ -2389,6 +2757,9 @@
         "exchange": "SH",
         "name": "联瑞新材",
         "industry": "非金属材料",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 186.24,
         "change": 0.2,
         "change_5d": 0.3063,
@@ -2407,6 +2778,9 @@
         "exchange": "SH",
         "name": "长飞光纤",
         "industry": "通信设备",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 426.82,
         "change": 0.1,
         "change_5d": 0.1932,
@@ -2425,6 +2799,9 @@
         "exchange": "SZ",
         "name": "英维克",
         "industry": "专用设备",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 65.97,
         "change": 0.0628,
         "change_5d": 0.2464,
@@ -2443,6 +2820,9 @@
         "exchange": "SH",
         "name": "芯源微",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 375.0,
         "change": 0.0058,
         "change_5d": 0.0202,
@@ -2461,6 +2841,9 @@
         "exchange": "SZ",
         "name": "长川科技",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 284.8,
         "change": 0.0311,
         "change_5d": 0.0329,
@@ -2479,6 +2862,9 @@
         "exchange": "HK",
         "name": "科伦博泰生物",
         "industry": "生物科技Ⅲ[HK]",
+        "research_baskets": [
+          "创新药/CXO/AI医疗"
+        ],
         "price": 524.5,
         "change": 0.0077,
         "change_5d": -0.0159,
@@ -2497,6 +2883,9 @@
         "exchange": "SZ",
         "name": "协创数据",
         "industry": "计算机设备",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 259.2,
         "change": 0.0972,
         "change_5d": 0.0478,
@@ -2515,6 +2904,9 @@
         "exchange": "SZ",
         "name": "长芯博创",
         "industry": "通信设备",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 216.01,
         "change": 0.12,
         "change_5d": 0.0589,
@@ -2533,6 +2925,9 @@
         "exchange": "SH",
         "name": "博迁新材",
         "industry": "能源金属",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 153.64,
         "change": 0.0483,
         "change_5d": 0.038,
@@ -2551,6 +2946,9 @@
         "exchange": "SH",
         "name": "长鑫科技",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 59.12,
         "change": 0.0538,
         "change_5d": 0.0269,
@@ -2569,6 +2967,9 @@
         "exchange": "SZ",
         "name": "鼎泰高科",
         "industry": "通用设备",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 416.97,
         "change": 0.0567,
         "change_5d": 0.0121,
@@ -2587,6 +2988,9 @@
         "exchange": "SH",
         "name": "中船特气",
         "industry": "电子化学品",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 258.5,
         "change": 0.0677,
         "change_5d": -0.0091,
@@ -2605,6 +3009,9 @@
         "exchange": "SH",
         "name": "海光信息",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 245.97,
         "change": 0.065,
         "change_5d": -0.0015,
@@ -2623,6 +3030,9 @@
         "exchange": "SZ",
         "name": "新易盛",
         "industry": "通信设备",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 409.1,
         "change": 0.0259,
         "change_5d": -0.0119,
@@ -2641,6 +3051,9 @@
         "exchange": "SZ",
         "name": "光库科技",
         "industry": "通信设备",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 300.9,
         "change": 0.0558,
         "change_5d": -0.0324,
@@ -2659,6 +3072,9 @@
         "exchange": "SH",
         "name": "仕佳光子",
         "industry": "通信设备",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 159.14,
         "change": 0.0644,
         "change_5d": -0.0296,
@@ -2677,6 +3093,9 @@
         "exchange": "SZ",
         "name": "行云科技",
         "industry": "互联网电商",
+        "research_baskets": [
+          "消费/互联网/出海"
+        ],
         "price": 35.48,
         "change": 0.016,
         "change_5d": 0.0778,
@@ -2695,6 +3114,7 @@
         "exchange": "SZ",
         "name": "宏景科技",
         "industry": "IT服务",
+        "research_baskets": [],
         "price": 181.38,
         "change": 0.0525,
         "change_5d": -0.0454,
@@ -2713,6 +3133,9 @@
         "exchange": "SH",
         "name": "芯原股份",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 193.7,
         "change": 0.0731,
         "change_5d": 0.0859,
@@ -2731,6 +3154,9 @@
         "exchange": "SZ",
         "name": "云南锗业",
         "industry": "小金属",
+        "research_baskets": [
+          "资源品/黄金/周期"
+        ],
         "price": 101.36,
         "change": 0.0844,
         "change_5d": -0.0212,
@@ -2749,6 +3175,9 @@
         "exchange": "SZ",
         "name": "天孚通信",
         "industry": "通信设备",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 267.16,
         "change": 0.0536,
         "change_5d": -0.0329,
@@ -2767,6 +3196,9 @@
         "exchange": "SH",
         "name": "杰华特",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 129.55,
         "change": 0.076,
         "change_5d": 0.0635,
@@ -2785,6 +3217,9 @@
         "exchange": "SZ",
         "name": "罗博特科",
         "industry": "自动化设备",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 552.11,
         "change": 0.0439,
         "change_5d": 0.0974,
@@ -2803,6 +3238,7 @@
         "exchange": "SH",
         "name": "宏和科技",
         "industry": "电子化学品",
+        "research_baskets": [],
         "price": 140.76,
         "change": 0.0511,
         "change_5d": 0.0245,
@@ -2821,6 +3257,7 @@
         "exchange": "SH",
         "name": "上纬新材",
         "industry": "塑料制品",
+        "research_baskets": [],
         "price": 159.88,
         "change": 0.1072,
         "change_5d": 0.1267,
@@ -2839,6 +3276,9 @@
         "exchange": "SH",
         "name": "寒武纪",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 1048.0,
         "change": 0.0275,
         "change_5d": 0.0367,
@@ -2857,6 +3297,9 @@
         "exchange": "SH",
         "name": "源杰科技",
         "industry": "半导体",
+        "research_baskets": [
+          "AI PCB/光通信"
+        ],
         "price": 1630.99,
         "change": 0.0591,
         "change_5d": 0.0557,
@@ -2875,6 +3318,9 @@
         "exchange": "SH",
         "name": "盛科通信-U",
         "industry": "半导体",
+        "research_baskets": [
+          "AI算力/半导体"
+        ],
         "price": 380.4,
         "change": 0.0304,
         "change_5d": 0.02,
@@ -2893,6 +3339,9 @@
         "exchange": "SH",
         "name": "联讯仪器",
         "industry": "通用设备",
+        "research_baskets": [
+          "机器人/自动化/数据中心"
+        ],
         "price": 2319.0,
         "change": 0.0266,
         "change_5d": 0.0022,
@@ -2911,6 +3360,7 @@
         "exchange": "HK",
         "name": "智谱",
         "industry": "IT服务[HK]",
+        "research_baskets": [],
         "price": 1160.0,
         "change": 0.1262,
         "change_5d": 0.1339,
@@ -2929,6 +3379,9 @@
         "exchange": "SSE",
         "name": "恒瑞医药",
         "industry": "化学制药",
+        "research_baskets": [
+          "创新药/CXO/AI医疗"
+        ],
         "price": 47.61,
         "change": 0.0186,
         "change_5d": -0.0382,
@@ -6684,6 +7137,9 @@
           "exchange": "SH",
           "name": "联瑞新材",
           "industry": "非金属材料",
+          "research_baskets": [
+            "AI PCB/光通信"
+          ],
           "price": 186.24,
           "change": 0.2,
           "change_5d": 0.3063,
@@ -6702,6 +7158,9 @@
           "exchange": "SH",
           "name": "生益电子",
           "industry": "元件",
+          "research_baskets": [
+            "AI PCB/光通信"
+          ],
           "price": 121.69,
           "change": 0.1432,
           "change_5d": 0.1656,
@@ -6720,6 +7179,9 @@
           "exchange": "SZ",
           "name": "科翔股份",
           "industry": "元件",
+          "research_baskets": [
+            "AI PCB/光通信"
+          ],
           "price": 90.72,
           "change": 0.1401,
           "change_5d": 0.151,
@@ -6738,6 +7200,7 @@
           "exchange": "HK",
           "name": "智谱",
           "industry": "IT服务[HK]",
+          "research_baskets": [],
           "price": 1160.0,
           "change": 0.1262,
           "change_5d": 0.1339,
@@ -6756,6 +7219,9 @@
           "exchange": "SZ",
           "name": "长芯博创",
           "industry": "通信设备",
+          "research_baskets": [
+            "AI PCB/光通信"
+          ],
           "price": 216.01,
           "change": 0.12,
           "change_5d": 0.0589,
@@ -6774,6 +7240,7 @@
           "exchange": "SH",
           "name": "上纬新材",
           "industry": "塑料制品",
+          "research_baskets": [],
           "price": 159.88,
           "change": 0.1072,
           "change_5d": 0.1267,
@@ -6792,6 +7259,9 @@
           "exchange": "HK",
           "name": "建滔积层板",
           "industry": "电子设备和元件[HK]",
+          "research_baskets": [
+            "AI PCB/光通信"
+          ],
           "price": 43.94,
           "change": 0.1051,
           "change_5d": 0.2226,
@@ -6810,6 +7280,9 @@
           "exchange": "SH",
           "name": "澜起科技",
           "industry": "半导体",
+          "research_baskets": [
+            "AI算力/半导体"
+          ],
           "price": 221.22,
           "change": 0.1006,
           "change_5d": 0.111,
@@ -6830,6 +7303,9 @@
           "exchange": "SZ",
           "name": "宁德时代",
           "industry": "电池",
+          "research_baskets": [
+            "新能源"
+          ],
           "price": 373.0,
           "change": -0.0158,
           "change_5d": -0.0312,
@@ -6848,6 +7324,9 @@
           "exchange": "SH",
           "name": "宇通客车",
           "industry": "汽车整车",
+          "research_baskets": [
+            "金融/红利/核心资产"
+          ],
           "price": 29.91,
           "change": -0.0161,
           "change_5d": -0.0047,
@@ -6866,6 +7345,9 @@
           "exchange": "HK",
           "name": "信达生物",
           "industry": "生物科技Ⅲ[HK]",
+          "research_baskets": [
+            "创新药/CXO/AI医疗"
+          ],
           "price": 107.6,
           "change": -0.02,
           "change_5d": 0.0632,
@@ -6884,6 +7366,9 @@
           "exchange": "HK",
           "name": "药明合联",
           "industry": "医疗服务[HK]",
+          "research_baskets": [
+            "创新药/CXO/AI医疗"
+          ],
           "price": 75.5,
           "change": -0.0227,
           "change_5d": 0.0755,
@@ -6902,6 +7387,9 @@
           "exchange": "SZ",
           "name": "国城矿业",
           "industry": "小金属",
+          "research_baskets": [
+            "资源品/黄金/周期"
+          ],
           "price": 31.01,
           "change": -0.0288,
           "change_5d": 0.0081,
@@ -6920,6 +7408,9 @@
           "exchange": "HK",
           "name": "小米集团-W",
           "industry": "消费电子[HK]",
+          "research_baskets": [
+            "消费/互联网/出海"
+          ],
           "price": 27.48,
           "change": -0.0344,
           "change_5d": -0.0101,
@@ -6938,6 +7429,9 @@
           "exchange": "SH",
           "name": "金盘科技",
           "industry": "电网设备",
+          "research_baskets": [
+            "新能源"
+          ],
           "price": 66.77,
           "change": -0.0771,
           "change_5d": -0.008,
@@ -6956,6 +7450,9 @@
           "exchange": "SZ",
           "name": "阳光电源",
           "industry": "光伏设备",
+          "research_baskets": [
+            "新能源"
+          ],
           "price": 98.84,
           "change": -0.1224,
           "change_5d": -0.1087,
@@ -6977,6 +7474,9 @@
             "exchange": "SH",
             "name": "联瑞新材",
             "industry": "非金属材料",
+            "research_baskets": [
+              "AI PCB/光通信"
+            ],
             "price": 186.24,
             "change": 0.2,
             "change_5d": 0.3063,
@@ -6995,6 +7495,9 @@
             "exchange": "SH",
             "name": "生益电子",
             "industry": "元件",
+            "research_baskets": [
+              "AI PCB/光通信"
+            ],
             "price": 121.69,
             "change": 0.1432,
             "change_5d": 0.1656,
@@ -7013,6 +7516,9 @@
             "exchange": "SZ",
             "name": "科翔股份",
             "industry": "元件",
+            "research_baskets": [
+              "AI PCB/光通信"
+            ],
             "price": 90.72,
             "change": 0.1401,
             "change_5d": 0.151,
@@ -7031,6 +7537,7 @@
             "exchange": "HK",
             "name": "智谱",
             "industry": "IT服务[HK]",
+            "research_baskets": [],
             "price": 1160.0,
             "change": 0.1262,
             "change_5d": 0.1339,
@@ -7049,6 +7556,9 @@
             "exchange": "SZ",
             "name": "长芯博创",
             "industry": "通信设备",
+            "research_baskets": [
+              "AI PCB/光通信"
+            ],
             "price": 216.01,
             "change": 0.12,
             "change_5d": 0.0589,
@@ -7067,6 +7577,7 @@
             "exchange": "SH",
             "name": "上纬新材",
             "industry": "塑料制品",
+            "research_baskets": [],
             "price": 159.88,
             "change": 0.1072,
             "change_5d": 0.1267,
@@ -7085,6 +7596,9 @@
             "exchange": "HK",
             "name": "建滔积层板",
             "industry": "电子设备和元件[HK]",
+            "research_baskets": [
+              "AI PCB/光通信"
+            ],
             "price": 43.94,
             "change": 0.1051,
             "change_5d": 0.2226,
@@ -7103,6 +7617,9 @@
             "exchange": "SH",
             "name": "澜起科技",
             "industry": "半导体",
+            "research_baskets": [
+              "AI算力/半导体"
+            ],
             "price": 221.22,
             "change": 0.1006,
             "change_5d": 0.111,
@@ -7123,6 +7640,9 @@
             "exchange": "SZ",
             "name": "宁德时代",
             "industry": "电池",
+            "research_baskets": [
+              "新能源"
+            ],
             "price": 373.0,
             "change": -0.0158,
             "change_5d": -0.0312,
@@ -7141,6 +7661,9 @@
             "exchange": "SH",
             "name": "宇通客车",
             "industry": "汽车整车",
+            "research_baskets": [
+              "金融/红利/核心资产"
+            ],
             "price": 29.91,
             "change": -0.0161,
             "change_5d": -0.0047,
@@ -7159,6 +7682,9 @@
             "exchange": "HK",
             "name": "信达生物",
             "industry": "生物科技Ⅲ[HK]",
+            "research_baskets": [
+              "创新药/CXO/AI医疗"
+            ],
             "price": 107.6,
             "change": -0.02,
             "change_5d": 0.0632,
@@ -7177,6 +7703,9 @@
             "exchange": "HK",
             "name": "药明合联",
             "industry": "医疗服务[HK]",
+            "research_baskets": [
+              "创新药/CXO/AI医疗"
+            ],
             "price": 75.5,
             "change": -0.0227,
             "change_5d": 0.0755,
@@ -7195,6 +7724,9 @@
             "exchange": "SZ",
             "name": "国城矿业",
             "industry": "小金属",
+            "research_baskets": [
+              "资源品/黄金/周期"
+            ],
             "price": 31.01,
             "change": -0.0288,
             "change_5d": 0.0081,
@@ -7213,6 +7745,9 @@
             "exchange": "HK",
             "name": "小米集团-W",
             "industry": "消费电子[HK]",
+            "research_baskets": [
+              "消费/互联网/出海"
+            ],
             "price": 27.48,
             "change": -0.0344,
             "change_5d": -0.0101,
@@ -7231,6 +7766,9 @@
             "exchange": "SH",
             "name": "金盘科技",
             "industry": "电网设备",
+            "research_baskets": [
+              "新能源"
+            ],
             "price": 66.77,
             "change": -0.0771,
             "change_5d": -0.008,
@@ -7249,6 +7787,9 @@
             "exchange": "SZ",
             "name": "阳光电源",
             "industry": "光伏设备",
+            "research_baskets": [
+              "新能源"
+            ],
             "price": 98.84,
             "change": -0.1224,
             "change_5d": -0.1087,
@@ -7271,6 +7812,9 @@
             "exchange": "SH",
             "name": "联瑞新材",
             "industry": "非金属材料",
+            "research_baskets": [
+              "AI PCB/光通信"
+            ],
             "price": 186.24,
             "change": 0.2,
             "change_5d": 0.3063,
@@ -7289,6 +7833,9 @@
             "exchange": "SZ",
             "name": "申菱环境",
             "industry": "通用设备",
+            "research_baskets": [
+              "机器人/自动化/数据中心"
+            ],
             "price": 107.88,
             "change": 0.0515,
             "change_5d": 0.2472,
@@ -7307,6 +7854,9 @@
             "exchange": "SZ",
             "name": "英维克",
             "industry": "专用设备",
+            "research_baskets": [
+              "机器人/自动化/数据中心"
+            ],
             "price": 65.97,
             "change": 0.0628,
             "change_5d": 0.2464,
@@ -7325,6 +7875,9 @@
             "exchange": "HK",
             "name": "建滔积层板",
             "industry": "电子设备和元件[HK]",
+            "research_baskets": [
+              "AI PCB/光通信"
+            ],
             "price": 43.94,
             "change": 0.1051,
             "change_5d": 0.2226,
@@ -7343,6 +7896,9 @@
             "exchange": "SH",
             "name": "长飞光纤",
             "industry": "通信设备",
+            "research_baskets": [
+              "AI PCB/光通信"
+            ],
             "price": 426.82,
             "change": 0.1,
             "change_5d": 0.1932,
@@ -7361,6 +7917,9 @@
             "exchange": "SH",
             "name": "生益电子",
             "industry": "元件",
+            "research_baskets": [
+              "AI PCB/光通信"
+            ],
             "price": 121.69,
             "change": 0.1432,
             "change_5d": 0.1656,
@@ -7379,6 +7938,9 @@
             "exchange": "SH",
             "name": "长盈通",
             "industry": "通信设备",
+            "research_baskets": [
+              "AI PCB/光通信"
+            ],
             "price": 173.3,
             "change": 0.0164,
             "change_5d": 0.1592,
@@ -7397,6 +7959,9 @@
             "exchange": "SZ",
             "name": "科翔股份",
             "industry": "元件",
+            "research_baskets": [
+              "AI PCB/光通信"
+            ],
             "price": 90.72,
             "change": 0.1401,
             "change_5d": 0.151,
@@ -7417,6 +7982,7 @@
             "exchange": "SZ",
             "name": "宏景科技",
             "industry": "IT服务",
+            "research_baskets": [],
             "price": 181.38,
             "change": 0.0525,
             "change_5d": -0.0454,
@@ -7435,6 +8001,9 @@
             "exchange": "SZ",
             "name": "潍柴动力",
             "industry": "汽车零部件",
+            "research_baskets": [
+              "金融/红利/核心资产"
+            ],
             "price": 26.99,
             "change": -0.0015,
             "change_5d": -0.0463,
@@ -7453,6 +8022,9 @@
             "exchange": "SH",
             "name": "药明康德",
             "industry": "医疗服务",
+            "research_baskets": [
+              "创新药/CXO/AI医疗"
+            ],
             "price": 159.94,
             "change": 0.0043,
             "change_5d": -0.0474,
@@ -7471,6 +8043,9 @@
             "exchange": "HK",
             "name": "晶泰控股",
             "industry": "医疗服务[HK]",
+            "research_baskets": [
+              "创新药/CXO/AI医疗"
+            ],
             "price": 7.46,
             "change": -0.0119,
             "change_5d": -0.0727,
@@ -7489,6 +8064,9 @@
             "exchange": "HK",
             "name": "阿里巴巴-W",
             "industry": "多品类零售Ⅲ[HK]",
+            "research_baskets": [
+              "消费/互联网/出海"
+            ],
             "price": 115.5,
             "change": -0.0094,
             "change_5d": -0.0848,
@@ -7507,6 +8085,9 @@
             "exchange": "SZ",
             "name": "大金重工",
             "industry": "风电设备",
+            "research_baskets": [
+              "新能源"
+            ],
             "price": 35.41,
             "change": 0.0043,
             "change_5d": -0.0965,
@@ -7525,6 +8106,9 @@
             "exchange": "SZ",
             "name": "阳光电源",
             "industry": "光伏设备",
+            "research_baskets": [
+              "新能源"
+            ],
             "price": 98.84,
             "change": -0.1224,
             "change_5d": -0.1087,
@@ -7543,6 +8127,7 @@
             "exchange": "SZ",
             "name": "杰瑞股份",
             "industry": "专用设备",
+            "research_baskets": [],
             "price": 136.24,
             "change": -0.0092,
             "change_5d": -0.111,
@@ -7565,6 +8150,9 @@
             "exchange": "SH",
             "name": "长盈通",
             "industry": "通信设备",
+            "research_baskets": [
+              "AI PCB/光通信"
+            ],
             "price": 173.3,
             "change": 0.0164,
             "change_5d": 0.1592,
@@ -7583,6 +8171,9 @@
             "exchange": "SZ",
             "name": "科翔股份",
             "industry": "元件",
+            "research_baskets": [
+              "AI PCB/光通信"
+            ],
             "price": 90.72,
             "change": 0.1401,
             "change_5d": 0.151,
@@ -7601,6 +8192,9 @@
             "exchange": "SH",
             "name": "仕佳光子",
             "industry": "通信设备",
+            "research_baskets": [
+              "AI PCB/光通信"
+            ],
             "price": 159.14,
             "change": 0.0644,
             "change_5d": -0.0296,
@@ -7619,6 +8213,9 @@
             "exchange": "SH",
             "name": "天通股份",
             "industry": "电子化学品",
+            "research_baskets": [
+              "AI算力/半导体"
+            ],
             "price": 29.15,
             "change": 0.1,
             "change_5d": 0.0452,
@@ -7637,6 +8234,9 @@
             "exchange": "SH",
             "name": "联瑞新材",
             "industry": "非金属材料",
+            "research_baskets": [
+              "AI PCB/光通信"
+            ],
             "price": 186.24,
             "change": 0.2,
             "change_5d": 0.3063,
@@ -7655,6 +8255,7 @@
             "exchange": "SH",
             "name": "旭光电子",
             "industry": "其他电子",
+            "research_baskets": [],
             "price": 37.24,
             "change": 0.0779,
             "change_5d": 0.0701,
@@ -7673,6 +8274,9 @@
             "exchange": "SZ",
             "name": "长芯博创",
             "industry": "通信设备",
+            "research_baskets": [
+              "AI PCB/光通信"
+            ],
             "price": 216.01,
             "change": 0.12,
             "change_5d": 0.0589,
@@ -7691,6 +8295,9 @@
             "exchange": "SZ",
             "name": "天孚通信",
             "industry": "通信设备",
+            "research_baskets": [
+              "AI PCB/光通信"
+            ],
             "price": 267.16,
             "change": 0.0536,
             "change_5d": -0.0329,
@@ -7711,6 +8318,9 @@
             "exchange": "SH",
             "name": "海光信息",
             "industry": "半导体",
+            "research_baskets": [
+              "AI算力/半导体"
+            ],
             "price": 245.97,
             "change": 0.065,
             "change_5d": -0.0015,
@@ -7729,6 +8339,9 @@
             "exchange": "HK",
             "name": "理想汽车-W",
             "industry": "汽车[HK]",
+            "research_baskets": [
+              "消费/互联网/出海"
+            ],
             "price": 48.6,
             "change": 0.0104,
             "change_5d": -0.0386,
@@ -7747,6 +8360,9 @@
             "exchange": "SZ",
             "name": "大金重工",
             "industry": "风电设备",
+            "research_baskets": [
+              "新能源"
+            ],
             "price": 35.41,
             "change": 0.0043,
             "change_5d": -0.0965,
@@ -7765,6 +8381,9 @@
             "exchange": "HK",
             "name": "小米集团-W",
             "industry": "消费电子[HK]",
+            "research_baskets": [
+              "消费/互联网/出海"
+            ],
             "price": 27.48,
             "change": -0.0344,
             "change_5d": -0.0101,
@@ -7783,6 +8402,9 @@
             "exchange": "SH",
             "name": "宇通客车",
             "industry": "汽车整车",
+            "research_baskets": [
+              "金融/红利/核心资产"
+            ],
             "price": 29.91,
             "change": -0.0161,
             "change_5d": -0.0047,
@@ -7801,6 +8423,9 @@
             "exchange": "SZ",
             "name": "乖宝宠物",
             "industry": "农产品加工",
+            "research_baskets": [
+              "消费/互联网/出海"
+            ],
             "price": 38.64,
             "change": 0.0089,
             "change_5d": -0.0168,
@@ -7819,6 +8444,9 @@
             "exchange": "SSE",
             "name": "恒瑞医药",
             "industry": "化学制药",
+            "research_baskets": [
+              "创新药/CXO/AI医疗"
+            ],
             "price": 47.61,
             "change": 0.0186,
             "change_5d": -0.0382,
@@ -7837,6 +8465,9 @@
             "exchange": "SH",
             "name": "东鹏饮料",
             "industry": "饮料制造",
+            "research_baskets": [
+              "消费/互联网/出海"
+            ],
             "price": 120.38,
             "change": -0.0076,
             "change_5d": -0.0219,
@@ -7851,6 +8482,215 @@
           }
         ]
       }
+    },
+    "definitions": {
+      "focus_codes": [
+        "600519"
+      ],
+      "research_baskets": [
+        {
+          "key": "ai_semiconductor",
+          "name": "AI算力/半导体",
+          "codes": [
+            "00981",
+            "01347",
+            "688012",
+            "688041",
+            "688256",
+            "603986",
+            "688008",
+            "600584",
+            "002156",
+            "300373",
+            "688234",
+            "300666",
+            "688037",
+            "300604",
+            "688372",
+            "688820",
+            "688825",
+            "688521",
+            "688141",
+            "688048",
+            "300857",
+            "688702",
+            "688146",
+            "600330"
+          ],
+          "count": 24
+        },
+        {
+          "key": "ai_pcb_optical",
+          "name": "AI PCB/光通信",
+          "codes": [
+            "300476",
+            "002916",
+            "002463",
+            "600183",
+            "688183",
+            "002384",
+            "01888",
+            "300903",
+            "301377",
+            "688300",
+            "301217",
+            "300308",
+            "300502",
+            "300394",
+            "002281",
+            "300620",
+            "688313",
+            "688143",
+            "300548",
+            "601869",
+            "600487",
+            "688498",
+            "688502",
+            "002484",
+            "300408"
+          ],
+          "count": 25
+        },
+        {
+          "key": "robotics_datacenter",
+          "name": "机器人/自动化/数据中心",
+          "codes": [
+            "601689",
+            "002050",
+            "688017",
+            "09880",
+            "09660",
+            "601100",
+            "688777",
+            "002851",
+            "002008",
+            "301200",
+            "688025",
+            "603308",
+            "301018",
+            "002837",
+            "688630",
+            "300757",
+            "300776",
+            "300870",
+            "688808",
+            "600875"
+          ],
+          "count": 20
+        },
+        {
+          "key": "resources_cycle",
+          "name": "资源品/黄金/周期",
+          "codes": [
+            "601899",
+            "600988",
+            "000426",
+            "603993",
+            "601168",
+            "000807",
+            "600549",
+            "000657",
+            "600301",
+            "002428",
+            "000688",
+            "001203",
+            "603799",
+            "600938",
+            "601225",
+            "600188",
+            "600309",
+            "002648",
+            "600346",
+            "600989",
+            "600141",
+            "000893",
+            "600160",
+            "605376"
+          ],
+          "count": 24
+        },
+        {
+          "key": "innovative_drug",
+          "name": "创新药/CXO/AI医疗",
+          "codes": [
+            "600276",
+            "06160",
+            "01801",
+            "09926",
+            "06990",
+            "603259",
+            "02269",
+            "02268",
+            "02228"
+          ],
+          "count": 9
+        },
+        {
+          "key": "new_energy",
+          "name": "新能源",
+          "codes": [
+            "300750",
+            "300274",
+            "600438",
+            "600732",
+            "605117",
+            "002709",
+            "301358",
+            "688778",
+            "300450",
+            "300776",
+            "002487",
+            "301511",
+            "688676"
+          ],
+          "count": 13
+        },
+        {
+          "key": "consumer_internet",
+          "name": "消费/互联网/出海",
+          "codes": [
+            "600519",
+            "000333",
+            "600690",
+            "00700",
+            "09988",
+            "01810",
+            "02020",
+            "09992",
+            "605499",
+            "300866",
+            "689009",
+            "02015",
+            "01364",
+            "301498",
+            "002832",
+            "688775",
+            "300209"
+          ],
+          "count": 17
+        },
+        {
+          "key": "core_assets",
+          "name": "金融/红利/核心资产",
+          "codes": [
+            "601398",
+            "601318",
+            "601336",
+            "601628",
+            "600030",
+            "300059",
+            "600941",
+            "600900",
+            "600031",
+            "000338",
+            "600066",
+            "600233",
+            "601058",
+            "002714"
+          ],
+          "count": 14
+        }
+      ]
     },
     "default_index_selfselect": [
       "801950",

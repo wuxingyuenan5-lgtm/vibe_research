@@ -13,7 +13,6 @@ indices.csv（行业/指数强弱）本轮不刷新，仅刷新股票池。
 """
 import argparse
 import csv
-import json
 import re
 import time
 import urllib.request
@@ -343,53 +342,6 @@ def refresh_indices() -> tuple[int, int]:
     return refreshed, stale
 
 
-# ---------------------------------------------------------------------------
-# 兜底：池子里有 code 但 stocks.csv 没匹配的股票，主动用腾讯实时行情补全
-# ---------------------------------------------------------------------------
-
-def _refill_pool_from_quote(stocks: list[dict]) -> int:
-    """对池子里所有有 6 位 A 股代码且缺数据的股票，主动 astock.tencent_quote 补实时行情。
-    返回补全的股票数。"""
-    need_codes: list[str] = []
-    for s in stocks:
-        code = (s.get("code") or "").strip()
-        if len(code) != 6 or not code.isdigit():
-            continue
-        if s.get("price") in (None, "", 0):
-            need_codes.append(code)
-    if not need_codes:
-        return 0
-    try:
-        import astock
-        quotes = astock.tencent_quote(need_codes)
-    except Exception as e:  # noqa: BLE001
-        print(f"  [WARN] astock.tencent_quote 失败: {e}")
-        return 0
-    filled = 0
-    for s in stocks:
-        code = (s.get("code") or "").strip()
-        if len(code) != 6:
-            continue
-        q = quotes.get(code)
-        if not q:
-            continue
-        if s.get("price") in (None, "", 0):
-            try:
-                s["price"] = round(float(q["price"]), 2)
-                s["change"] = round(float(q["change_pct"]) / 100, 6)
-                if q.get("turnover_pct") is not None:
-                    s["turnover"] = round(float(q["turnover_pct"]) / 100, 6)
-                if q.get("pe_ttm") is not None:
-                    s["pe_ttm"] = round(float(q["pe_ttm"]), 2)
-                if q.get("pb") is not None:
-                    s["pb"] = round(float(q["pb"]), 2)
-                s["data_status"] = "live"
-                filled += 1
-            except (KeyError, TypeError, ValueError):
-                continue
-    return filled
-
-
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", default=datetime.now().strftime("%Y-%m-%d"), help="报告日（默认今天）")
@@ -397,7 +349,9 @@ def main() -> None:
     close_time = require_current_close_window(args.date)
     seed_single_source_files()
 
-    pool = json.loads(POOL_PATH.read_text("utf-8"))
+    from market_monitor.stock_pool import build_stock_pool_payload, load_pool, save_pool  # noqa: PLC0415
+
+    pool = load_pool()
     stocks = pool.get("stocks", [])
     coded = [s for s in stocks if s.get("code")]
     print(f"池子 {len(stocks)} 只，有代码 {len(coded)} 只")
@@ -469,26 +423,18 @@ def main() -> None:
     STOCKS_CSV.write_text("\n".join(",".join(r) for r in rows), encoding="utf-8")
     print(f"stocks.csv 已更新（{len(rows) - 1} 行），拉取失败 0 只")
 
-    # 3.1) 自选股不维护逐日全量历史。stocks.csv 是覆盖式轻量缓存；
-    # 页面通过 /api/quote 批量覆盖今日字段并在浏览器内重新汇总。
+    # 3.1) 自选股不维护逐日全量历史。stocks.csv 是覆盖式轻量缓存。
 
     # 3.5) indices.csv 刷新（标准指数/ETF 刷新，申万/自定义保留旧值标 stale）
     n_ok, n_stale = refresh_indices()
     print(f"indices.csv 已更新：刷新 {n_ok} 个 / 保留旧值 {n_stale} 个（申万/自定义等公开接口无数据）")
 
-    # 3.6) 兜底：池子里有 code 但 stocks.csv 没匹配的股票，主动用腾讯实时行情补全 pool.json
-    # 修复"pool 里加了一只但 daily_refresh 没拉到数据"导致全"—"的问题
-    filled = _refill_pool_from_quote(stocks)
-    if filled:
-        print(f"用腾讯实时行情兜底填充 {filled} 只（pool.json 里但 stocks.csv 无对应快照）")
-
     # 4) pool version = 报告日
     pool["version"] = args.date
-    POOL_PATH.write_text(json.dumps(pool, ensure_ascii=False, indent=2), encoding="utf-8")
+    save_pool(pool)
     print(f"pool.json version → {args.date}")
 
     # 5) 重建 payload
-    from market_monitor.stock_pool import build_stock_pool_payload  # noqa: PLC0415
     payload = build_stock_pool_payload()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     LATEST_BUNDLE.write_text(json.dumps({

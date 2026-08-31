@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X, RefreshCw, CloudUpload, Plus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { RefreshCw, CloudUpload, Plus } from "lucide-react";
 import { AskAiButton } from "@/components/ui/AskAiButton";
 import { addCodes } from "@/lib/watchlist";
 import "./stock-pool.css";
@@ -15,6 +15,10 @@ interface Stock {
   industry: string; price: number | null; change: number | null; change_5d: number | null;
   change_20d: number | null; ytd: number | null; amount_yi: number | null; mcap_yi: number | null;
   turnover: number | null; pe_ttm: number | null; pb: number | null; data_status: string;
+  research_baskets?: string[];
+}
+interface ResearchBasket {
+  key: string; name: string; codes: string[]; count: number;
 }
 interface IndexRow {
   code: string; name: string; price: number | null; change: number | null; change_5d: number | null;
@@ -22,6 +26,7 @@ interface IndexRow {
 }
 interface Payload {
   meta: { report_date: string };
+  definitions?: { focus_codes: string[]; research_baskets: ResearchBasket[] };
   summary: {
     tracked_count: number;
     breadth: { count: number; up: number; down: number; flat: number; median: number | null };
@@ -81,12 +86,14 @@ function sortValue(v: unknown): number | string | null {
   const n = Number(v);
   return Number.isFinite(n) && String(v).trim() !== "" ? n : String(v).toLocaleLowerCase();
 }
-function sortRows<T extends Record<string, unknown>>(rows: T[], key: string | null, dir: "asc" | "desc" | null): T[] {
+function sortRows<T>(rows: T[], key: string | null, dir: "asc" | "desc" | null): T[] {
   if (!key || !dir) return [...rows];
   return rows
     .map((r, i) => ({ r, i }))
     .sort((a, b) => {
-      const av = sortValue(a.r[key]), bv = sortValue(b.r[key]);
+      const left = a.r as Record<string, unknown>;
+      const right = b.r as Record<string, unknown>;
+      const av = sortValue(left[key]), bv = sortValue(right[key]);
       if (av == null && bv == null) return a.i - b.i;
       if (av == null) return 1;
       if (bv == null) return -1;
@@ -124,7 +131,7 @@ export function StockPool() {
   const [heatPeriod, setHeatPeriod] = useState<PeriodKey>("change");
   const [stockSort, setStockSort] = useState<{ key: string | null; dir: "asc" | "desc" | null }>({ key: null, dir: null });
   const [search, setSearch] = useState("");
-  const [industry, setIndustry] = useState("");
+  const [stockFilter, setStockFilter] = useState("");
   const [stockDataCode, setStockDataCode] = useState<string | null>(null);
 
   // —— AI 读自选（合并自「自选股」页功能）：把池子日度行情喂给 AI ——
@@ -137,21 +144,12 @@ export function StockPool() {
   }, [data]);
   const [batchInput, setBatchInput] = useState("");
 
-  // —— 近期关注（独立自选：focus.json 唯一真源，同步 GitHub；在行业筛选「近期关注」里增删查看）——
+  // —— 近期关注（定义层并入 pool.json，同步 GitHub；在筛选器里作为第一层）——
   const [watchCodes, setWatchCodes] = useState<string[]>([]);
   const [focusInput, setFocusInput] = useState("");
-  // 从后端读关注列表（data/stock-pool/focus.json 唯一真源）；后端不可用时显示空，不再静默回退本地
   useEffect(() => {
-    let alive = true;
-    fetch("/api/stock-pool/focus")
-      .then((r) => r.json())
-      .then((b) => {
-        const codes: string[] = b?.data?.codes || [];
-        if (alive) setWatchCodes(codes);
-      })
-      .catch((e) => { console.warn("[stock-pool] focus 读取失败:", e); if (alive) setWatchCodes([]); });
-    return () => { alive = false; };
-  }, []);
+    setWatchCodes(data?.definitions?.focus_codes || []);
+  }, [data]);
   const persistFocus = (codes: string[]) => {
     fetch("/api/stock-pool/focus", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ codes }) }).catch((e) => console.warn("[stock-pool] focus 保存失败:", e));
   };
@@ -187,9 +185,9 @@ export function StockPool() {
     setPoolMsg(r.data?.ok ? `已移除，池子 ${r.data.count} 只（已同步 GitHub）` : (r.error || "移除失败"));
     refreshAll();
   };
-  // 明细表行删除：近期关注模式下只动本地 localStorage；池子模式下才动 GitHub 真源
+  // 明细表行删除：近期关注模式下只改 pool.json 里的 focus；其他模式下才动核心股票池定义
   const handleRemoveRow = (x: Stock) => {
-    if (industry === "__focus__") {
+    if (stockFilter === "__focus__") {
       if (x.code) removeFocus(x.code); // 仅取消关注，绝不涉及池子 / GitHub
     } else {
       removePool(x.instrument_id, x.name);
@@ -247,7 +245,7 @@ export function StockPool() {
   }, [data, heatPeriod]);
 
   const ranking = useMemo(() => {
-    if (!data) return [];
+    if (!data) return { view: [] as IndexRow[], max: 0.0001 };
     const rows = [...data.indices].filter((x) => typeof x[period] === "number").sort((a, b) => (b[period] ?? 0) - (a[period] ?? 0));
     const view = [...rows.slice(0, 8), ...rows.slice(-8)];
     const max = Math.max(...view.map((x) => Math.abs(x[period] ?? 0)), 0.0001);
@@ -263,19 +261,21 @@ export function StockPool() {
     () => (data ? [...new Set(data.stocks.map((x) => x.industry).filter(Boolean))].sort((a, b) => a.localeCompare(b, "zh-CN")) : []),
     [data],
   );
-
-  const stockType = (x: Stock) => "个股";
-
-  const byCode = useMemo(() => {
-    const m: Record<string, Stock> = {};
-    (data?.stocks || []).forEach((s) => { if (s.code) m[s.code] = s; });
-    return m;
-  }, [data]);
+  const researchBaskets = useMemo(() => data?.definitions?.research_baskets || [], [data]);
+  const basketCodesByFilter = useMemo(() => {
+    const out: Record<string, string[]> = {};
+    researchBaskets.forEach((basket) => {
+      out[`basket:${basket.key}`] = basket.codes || [];
+    });
+    return out;
+  }, [researchBaskets]);
 
   const filteredStocks = useMemo(() => {
     if (!data) return [];
     const q = search.trim().toLowerCase();
-    const focusMode = industry === "__focus__";
+    const focusMode = stockFilter === "__focus__";
+    const basketCodes = basketCodesByFilter[stockFilter] || [];
+    const selectedIndustry = stockFilter.startsWith("industry:") ? stockFilter.slice("industry:".length) : "";
     if (focusMode) {
       // 近期关注也统一按日更缓存口径展示，不再混入实时 quote。
       const all: Stock[] = [];
@@ -306,9 +306,10 @@ export function StockPool() {
     return data.stocks.filter(
       (x) =>
         (!q || (x.name || "").toLowerCase().includes(q) || (x.industry || "").toLowerCase().includes(q) || (x.code || "").toLowerCase().includes(q)) &&
-        (!industry || x.industry === industry),
+        (!selectedIndustry || x.industry === selectedIndustry) &&
+        (!basketCodes.length || basketCodes.includes(x.code || "")),
     );
-  }, [data, search, industry, watchCodes]);
+  }, [data, search, stockFilter, watchCodes, basketCodesByFilter]);
 
   const stockRows = useMemo(() => sortRows(filteredStocks, stockSort.key, stockSort.dir), [filteredStocks, stockSort]);
 
@@ -489,12 +490,21 @@ export function StockPool() {
             <span>股票池明细</span>
             <div className="toolbar">
               <input placeholder="搜索名称 / 行业" value={search} onChange={(e) => setSearch(e.target.value)} />
-              <select value={industry} onChange={(e) => setIndustry(e.target.value)} title="行业筛选（含「近期关注」）">
-                <option value="">全部行业</option>
-                <option value="__focus__">★ 近期关注（{watchCodes.length}）</option>
-                {industries.map((x) => <option key={x}>{x}</option>)}
+              <select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} title="按近期关注 / 研究篮子 / 行业分类筛选">
+                <option value="">全部股票</option>
+                <optgroup label="重点列表">
+                  <option value="__focus__">★ 近期关注（{watchCodes.length}）</option>
+                </optgroup>
+                <optgroup label="研究篮子">
+                  {researchBaskets.map((basket) => (
+                    <option key={basket.key} value={`basket:${basket.key}`}>{basket.name}（{basket.count}）</option>
+                  ))}
+                </optgroup>
+                <optgroup label="行业分类">
+                  {industries.map((x) => <option key={x} value={`industry:${x}`}>{x}</option>)}
+                </optgroup>
               </select>
-              {industry === "__focus__" ? (
+              {stockFilter === "__focus__" ? (
                 <>
                   <input
                     className="input"
@@ -556,14 +566,14 @@ export function StockPool() {
                       <td>{fmt(x.pb, 2)}</td>
                       <td><button
                         className="remove"
-                        title={industry === "__focus__" ? "从近期关注移除（仅本地，不影响股票池）" : "从股票池移除（会同步 GitHub）"}
+                        title={stockFilter === "__focus__" ? "从近期关注移除（会同步 pool.json）" : "从股票池移除（会同步 GitHub）"}
                         onClick={() => handleRemoveRow(x)}
                       >×</button></td>
                     </tr>
                   ))}
                   {stockRows.length === 0 && (
                   <tr><td colSpan={13} className="empty">
-                    {industry === "__focus__"
+                    {stockFilter === "__focus__"
                       ? "还没有关注股票——在上方「加自选」框粘贴代码批量加入，或先去「全部行业」把想关注的加进核心股票池。"
                       : "暂无数据"}
                   </td></tr>

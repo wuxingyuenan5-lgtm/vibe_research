@@ -1,8 +1,8 @@
 """核心股票池 —— 池子定义（可编辑）+ payload builder + GitHub 真源同步。
 
 数据流：
-  data/stock-pool/pool.json         ← 池子定义（页面可增删，GitHub 真源的本地副本）
-  data/market-monitor/stock-pool/*.csv ← 日更快照（行情数据）
+  data/stock-pool/pool.json         ← 池子定义（核心股票池 + 近期关注 + 研究篮子）
+  data/stock-pool/stocks.csv        ← 日更快照（行情数据）
   → build_stock_pool_payload()      → /api/stock-pool 返回 payload
   → sync_to_github()                → 增删后自动 push 到 vibe_research/data/stock-pool/pool.json
 """
@@ -30,17 +30,56 @@ STOCK_FIELDS = (
 LEADER_COUNT = 8
 REPO = "wuxingyuenan5-lgtm/vibe_research"
 GITHUB_PATH = "data/stock-pool/pool.json"
-GITHUB_FOCUS_PATH = "data/stock-pool/focus.json"
 GITHUB_LATEST_PATH = "data/stock-pool/latest_stock_pool.json"
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BASE_DIR.parent
-# 股票池定义、关注列表、日度母表和最新快照只保留在仓库根 data/stock-pool。
+# 股票池定义、日度母表和最新快照只保留在仓库根 data/stock-pool。
 # backend/data 下的旧副本不再参与读取或生产。
 POOL_PATH = PROJECT_ROOT / "data" / "stock-pool" / "pool.json"
-FOCUS_PATH = PROJECT_ROOT / "data" / "stock-pool" / "focus.json"
+LEGACY_FOCUS_PATH = PROJECT_ROOT / "data" / "stock-pool" / "focus.json"
 SNAPSHOT_DIR = PROJECT_ROOT / "data" / "stock-pool"
 LATEST_BUNDLE_PATH = SNAPSHOT_DIR / "latest_stock_pool.json"
+DEFINITION_STOCK_FIELDS = ("instrument_id", "code", "exchange", "name", "industry")
+
+DEFAULT_RESEARCH_BASKETS = (
+    {"key": "ai_semiconductor", "name": "AI算力/半导体", "codes": [
+        "00981", "01347", "688012", "688041", "688256", "603986", "688008", "600584",
+        "002156", "300373", "688234", "300666", "688037", "300604", "688372", "688820",
+        "688825", "688521", "688141", "688048", "300857", "688702", "688146", "600330",
+    ]},
+    {"key": "ai_pcb_optical", "name": "AI PCB/光通信", "codes": [
+        "300476", "002916", "002463", "600183", "688183", "002384", "01888", "300903",
+        "301377", "688300", "301217", "300308", "300502", "300394", "002281", "300620",
+        "688313", "688143", "300548", "601869", "600487", "688498", "688502", "002484",
+        "300408",
+    ]},
+    {"key": "robotics_datacenter", "name": "机器人/自动化/数据中心", "codes": [
+        "601689", "002050", "688017", "09880", "09660", "601100", "688777", "002851",
+        "002008", "301200", "688025", "603308", "301018", "002837", "688630", "300757",
+        "300776", "300870", "688808", "600875",
+    ]},
+    {"key": "resources_cycle", "name": "资源品/黄金/周期", "codes": [
+        "601899", "600988", "000426", "603993", "601168", "000807", "600549", "000657",
+        "600301", "002428", "000688", "001203", "603799", "600938", "601225", "600188",
+        "600309", "002648", "600346", "600989", "600141", "000893", "600160", "605376",
+    ]},
+    {"key": "innovative_drug", "name": "创新药/CXO/AI医疗", "codes": [
+        "600276", "06160", "01801", "09926", "06990", "603259", "02269", "02268", "02228",
+    ]},
+    {"key": "new_energy", "name": "新能源", "codes": [
+        "300750", "300274", "600438", "600732", "605117", "002709", "301358", "688778",
+        "300450", "300776", "002487", "301511", "688676",
+    ]},
+    {"key": "consumer_internet", "name": "消费/互联网/出海", "codes": [
+        "600519", "000333", "600690", "00700", "09988", "01810", "02020", "09992",
+        "605499", "300866", "689009", "02015", "01364", "301498", "002832", "688775", "300209",
+    ]},
+    {"key": "core_assets", "name": "金融/红利/核心资产", "codes": [
+        "601398", "601318", "601336", "601628", "600030", "300059", "600941", "600900",
+        "600031", "000338", "600066", "600233", "601058", "002714",
+    ]},
+)
 
 
 def validate_published_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
@@ -86,9 +125,11 @@ def fetch_remote_json(github_path: str, ref: str = "main") -> dict[str, Any]:
 
 
 def fetch_remote_focus(ref: str = "main") -> list[str]:
-    data = fetch_remote_json(GITHUB_FOCUS_PATH, ref)
-    codes = data.get("codes") or []
-    return [str(code) for code in codes if str(code).strip()]
+    data = fetch_remote_json(GITHUB_PATH, ref)
+    focus = data.get("focus") if isinstance(data, dict) else {}
+    codes = (focus or {}).get("codes") if isinstance(focus, dict) else focus
+    cleaned = _clean_codes(codes)
+    return cleaned or _load_legacy_focus_codes()
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
@@ -113,23 +154,119 @@ def _str(value: Any) -> str | None:
     return str(value)
 
 
+def _clean_codes(codes: Any) -> list[str]:
+    clean: list[str] = []
+    for code in codes or []:
+        value = str(code or "").strip()
+        if value and value not in clean:
+            clean.append(value)
+    return clean
+
+
+def _load_legacy_focus_codes() -> list[str]:
+    if not LEGACY_FOCUS_PATH.exists():
+        return []
+    try:
+        data = json.loads(LEGACY_FOCUS_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    return _clean_codes(data.get("codes", []) if isinstance(data, dict) else data)
+
+
+def _clean_stock_definition(raw: dict[str, Any]) -> dict[str, Any]:
+    item = {
+        "instrument_id": str(raw.get("instrument_id") or "").strip() or str(raw.get("code") or "").strip(),
+        "code": str(raw.get("code") or "").strip() or None,
+        "exchange": _str(raw.get("exchange")),
+        "name": str(raw.get("name") or "").strip(),
+        "industry": str(raw.get("industry") or "").strip(),
+    }
+    if not item["instrument_id"] and item["name"]:
+        item["instrument_id"] = f"legacy:{item['name']}"
+    return item
+
+
+def _default_research_baskets(valid_codes: set[str]) -> list[dict[str, Any]]:
+    return [
+        {
+            "key": item["key"],
+            "name": item["name"],
+            "codes": [code for code in item["codes"] if code in valid_codes],
+        }
+        for item in DEFAULT_RESEARCH_BASKETS
+    ]
+
+
+def _normalize_research_baskets(raw: Any, valid_codes: set[str]) -> list[dict[str, Any]]:
+    if not isinstance(raw, list) or not raw:
+        return _default_research_baskets(valid_codes)
+    baskets: list[dict[str, Any]] = []
+    for index, item in enumerate(raw):
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        if not name:
+            continue
+        key = str(item.get("key") or f"basket_{index + 1}").strip()
+        codes = [code for code in _clean_codes(item.get("codes")) if code in valid_codes]
+        baskets.append({"key": key, "name": name, "codes": codes})
+    return baskets or _default_research_baskets(valid_codes)
+
+
+def _normalize_pool(raw_pool: dict[str, Any] | None) -> dict[str, Any]:
+    raw_pool = raw_pool if isinstance(raw_pool, dict) else {}
+    stocks_raw = raw_pool.get("stocks") if isinstance(raw_pool.get("stocks"), list) else []
+    stocks: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for item in stocks_raw:
+        if not isinstance(item, dict):
+            continue
+        cleaned = _clean_stock_definition(item)
+        if not cleaned["name"] or not cleaned["instrument_id"] or cleaned["instrument_id"] in seen_ids:
+            continue
+        seen_ids.add(cleaned["instrument_id"])
+        stocks.append(cleaned)
+    valid_codes = {str(item.get("code") or "").strip() for item in stocks if str(item.get("code") or "").strip()}
+    focus_raw = raw_pool.get("focus")
+    focus_codes = _clean_codes((focus_raw or {}).get("codes") if isinstance(focus_raw, dict) else focus_raw)
+    if not focus_codes:
+        focus_codes = _load_legacy_focus_codes()
+    return {
+        "pool_name": str(raw_pool.get("pool_name") or "核心股票池").strip() or "核心股票池",
+        "version": str(raw_pool.get("version") or "").strip(),
+        "count": len(stocks),
+        "focus": {
+            "updated_at": str((focus_raw or {}).get("updated_at") or raw_pool.get("updated_at") or "").strip(),
+            "codes": focus_codes,
+        },
+        "research_baskets": _normalize_research_baskets(raw_pool.get("research_baskets"), valid_codes),
+        "stocks": stocks,
+        "updated_at": str(raw_pool.get("updated_at") or "").strip(),
+    }
+
+
 # ---------------- 池子定义（可编辑） ----------------
 
 def load_pool() -> dict:
     if POOL_PATH.exists():
         try:
             pool = json.loads(POOL_PATH.read_text(encoding="utf-8"))
-            if isinstance(pool, dict) and isinstance(pool.get("stocks"), list):
-                return pool
+            return _normalize_pool(pool)
         except Exception:
             pass
-    return {"pool_name": "核心股票池", "version": "", "count": 0, "stocks": []}
+    return _normalize_pool({"pool_name": "核心股票池", "version": "", "count": 0, "stocks": []})
 
 
 def save_pool(pool: dict) -> Path:
+    pool = _normalize_pool(pool)
     POOL_PATH.parent.mkdir(parents=True, exist_ok=True)
     pool["count"] = len(pool.get("stocks", []))
     pool["updated_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
+    focus = pool.get("focus") if isinstance(pool.get("focus"), dict) else {}
+    pool["focus"] = {
+        "updated_at": str(focus.get("updated_at") or pool["updated_at"]),
+        "codes": _clean_codes(focus.get("codes")),
+    }
     POOL_PATH.write_text(json.dumps(pool, ensure_ascii=False, indent=2), encoding="utf-8")
     return POOL_PATH
 
@@ -203,9 +340,23 @@ def add_stock_batch(codes: list[str]) -> dict:
 def remove_stock(instrument_id: str) -> dict:
     pool = load_pool()
     before = len(pool["stocks"])
+    removed_codes = [str(s.get("code") or "").strip() for s in pool["stocks"] if s.get("instrument_id") == instrument_id]
     pool["stocks"] = [s for s in pool["stocks"] if s.get("instrument_id") != instrument_id]
     if len(pool["stocks"]) == before:
         return {"ok": False, "error": "未找到该标的"}
+    removed_set = {code for code in removed_codes if code}
+    if removed_set:
+        focus = pool.get("focus") if isinstance(pool.get("focus"), dict) else {}
+        focus["codes"] = [code for code in _clean_codes(focus.get("codes")) if code not in removed_set]
+        pool["focus"] = focus
+        baskets = []
+        for basket in pool.get("research_baskets", []):
+            if not isinstance(basket, dict):
+                continue
+            current = dict(basket)
+            current["codes"] = [code for code in _clean_codes(current.get("codes")) if code not in removed_set]
+            baskets.append(current)
+        pool["research_baskets"] = baskets
     save_pool(pool)
     _async_sync_github()
     return {"ok": True, "count": len(pool["stocks"])}
@@ -286,36 +437,27 @@ def _async_sync_github() -> None:
     threading.Thread(target=_do, daemon=True).start()
 
 
-# ---------------- 近期关注（focus）独立存 GitHub ----------------
+# ---------------- 近期关注（focus）并入 pool.json ----------------
 
 def load_focus() -> list[str]:
-    """读近期关注代码列表（本地 focus.json 缓存；无则空）。"""
-    if FOCUS_PATH.exists():
-        try:
-            data = json.loads(FOCUS_PATH.read_text(encoding="utf-8"))
-            codes = data.get("codes", []) if isinstance(data, dict) else data
-            return [str(c) for c in codes if c]
-        except Exception:
-            return []
-    return []
+    """读近期关注代码列表（现存于 pool.json；若还没迁移则回退 legacy focus.json）。"""
+    pool = load_pool()
+    focus = pool.get("focus") if isinstance(pool.get("focus"), dict) else {}
+    codes = _clean_codes(focus.get("codes"))
+    return codes or _load_legacy_focus_codes()
 
 
 def save_focus(codes: list[str], push: bool = True) -> dict:
-    """保存近期关注列表到本地 focus.json（并可选同步 GitHub 真源）。独立于核心股票池 pool.json。"""
-    clean = []
-    for c in codes:
-        c = str(c).strip()
-        if c and c not in clean:
-            clean.append(c)
-    FOCUS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
+    """保存近期关注列表到 pool.json；focus 属于定义层，不属于 daily bundle 结果层。"""
+    clean = _clean_codes(codes)
+    pool = load_pool()
+    pool["focus"] = {
         "updated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-        "count": len(clean),
         "codes": clean,
     }
-    FOCUS_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    save_pool(pool)
     if push:
-        return _push_github(GITHUB_FOCUS_PATH, json.dumps(payload, ensure_ascii=False, indent=2), f"chore(data): 更新近期关注 focus.json（{len(clean)} 只）")
+        return sync_to_github()
     return {"ok": True, "count": len(clean)}
 
 
@@ -325,6 +467,20 @@ def build_stock_pool_payload() -> dict[str, Any]:
     pool = load_pool()
     stocks_raw = _read_csv(SNAPSHOT_DIR / "stocks.csv")
     indices_raw = _read_csv(SNAPSHOT_DIR / "indices.csv")
+    focus = pool.get("focus") if isinstance(pool.get("focus"), dict) else {}
+    focus_codes = _clean_codes(focus.get("codes"))
+    research_baskets = pool.get("research_baskets") if isinstance(pool.get("research_baskets"), list) else []
+    basket_names_by_code: dict[str, list[str]] = {}
+    for basket in research_baskets:
+        if not isinstance(basket, dict):
+            continue
+        basket_name = str(basket.get("name") or "").strip()
+        if not basket_name:
+            continue
+        for code in _clean_codes(basket.get("codes")):
+            names = basket_names_by_code.setdefault(code, [])
+            if basket_name not in names:
+                names.append(basket_name)
 
     # 行情快照按 instrument_id / code 匹配
     quote_by_key: dict[str, dict[str, Any]] = {}
@@ -344,6 +500,7 @@ def build_stock_pool_payload() -> dict[str, Any]:
             "exchange": item.get("exchange") or _str(raw.get("exchange")),
             "name": item.get("name") or _str(raw.get("name")) or "",
             "industry": item.get("industry") or _str(raw.get("industry")) or "",
+            "research_baskets": basket_names_by_code.get(code, []) if code else [],
         }
         for field in ("price", "change", "change_5d", "change_20d", "ytd", "amount_yi",
                       "mcap_yi", "turnover", "pe_ttm", "pb"):
@@ -420,6 +577,19 @@ def build_stock_pool_payload() -> dict[str, Any]:
             "today": {"up": leaders_today_up, "down": leaders_today_down},
             "5d": {"up": leaders_5d_up, "down": leaders_5d_down},
             "20d": {"up": leaders_20d_up, "down": leaders_20d_down},
+        },
+        "definitions": {
+            "focus_codes": focus_codes,
+            "research_baskets": [
+                {
+                    "key": str(item.get("key") or ""),
+                    "name": str(item.get("name") or ""),
+                    "codes": _clean_codes(item.get("codes")),
+                    "count": len(_clean_codes(item.get("codes"))),
+                }
+                for item in research_baskets
+                if isinstance(item, dict) and str(item.get("name") or "").strip()
+            ],
         },
         "default_index_selfselect": [i["code"] for i in indices if i["code"]],
     }

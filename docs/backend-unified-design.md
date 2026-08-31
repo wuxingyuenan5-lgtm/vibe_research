@@ -1,5 +1,7 @@
 # 后端统一化设计方案 · 市场总览 + 自选股
 
+> 说明：本文是历史设计稿，当前正式规则以 `docs/production-rules.md` 为准。
+
 > 状态：待评审（未动代码）
 > 目标：把「市场总览」「自选股」两个子页的数据生产流程统一到一套后端数据服务层上，同时消除后端不稳定的根源。
 > 原则：**只改数据获取/缓存/降级，不动任何业务语义**（不出买卖建议、不改数据口径）。
@@ -53,9 +55,9 @@
 | 概念 | 真源 | 数据 | 频率 |
 |---|---|---|---|
 | **核心股票池** | `backend/data/stock-pool/pool.json`（→ GitHub backup） | 日度快照 `stocks.csv` | 每日 `daily_refresh.py` |
-| **近期关注（focus）** | `backend/data/stock-pool/focus.json`（→ GitHub backup） | `/api/quote` 实时补全 | 页面加载时拉一次 |
+| **近期关注（focus）** | `data/stock-pool/pool.json` 中的 `focus.codes`（→ GitHub backup） | `/api/quote` 实时补全 | 页面加载时拉一次 |
 
-**关键发现：自选股（近期关注 focus）的真源其实已经在后端了**（`focus.json` + GitHub 真源，`GET/POST /api/stock-pool/focus`），`localStorage` 里的 `vr-watchlist` 只是「后端挂了才兜底」的缓存副本（`StockPool.tsx` 第 133-149 行 `saveWatch` / `loadWatch`）。
+**关键发现：自选股（近期关注 focus）的真源其实已经在后端了**（`pool.json.focus` + GitHub 真源，`GET/POST /api/stock-pool/focus`），`localStorage` 里的 `vr-watchlist` 只是历史兜底缓存。
 
 ### 1.3 稳定性问题根源（按影响排序）
 
@@ -164,7 +166,7 @@ single-flight 实现要点：`dict[key] -> (threading.Event, result)`，第一�
 
 ### 第 2 期：自选股收编 + 行情节流
 
-> 重要更正：自选股（近期关注 focus）**已经迁到后端了**（`focus.json` + GitHub 真源）。第 2 期实际工作是「清理残留 + 修 bug + 补节流」，不是从零迁移。
+> 重要更正：自选股（近期关注 focus）**已经迁到后端了**（`pool.json.focus` + GitHub 真源）。第 2 期实际工作是「清理残留 + 修 bug + 补节流」，不是从零迁移。
 
 #### 3.2.1 清理死代码 + 修路由 bug
 
@@ -173,7 +175,7 @@ single-flight 实现要点：`dict[key] -> (threading.Event, result)`，第一�
 - 删除 `frontend/src/hooks/useLiveQuotes.ts`（只被死代码引用）。
 - `frontend/src/lib/watchlist.ts`：`loadWatch`/`saveWatch`/`addCodes` 保留 `addCodes`（代码解析工具），移除 localStorage 读写（见 3.2.2）。
 
-#### 3.2.2 移除 localStorage 兜底，focus.json 为唯一真源
+#### 3.2.2 移除 localStorage 兜底，pool.json.focus 为唯一真源
 
 - `StockPool.tsx`：
   - 删除 `saveWatch(codes)`（第 141、147 行）和 `loadWatch()`（第 143 行）的 localStorage 读写。
@@ -182,7 +184,7 @@ single-flight 实现要点：`dict[key] -> (threading.Event, result)`，第一�
 - `lib/watchlist.ts`：删除 `vr-watchlist` 的 localStorage 逻辑，只保留 `parseCodes`/`addCodes` 纯函数（供批量添加解析用）。
 - 后端 `stock_pool.py` 的 `load_focus`/`save_focus` 已经是后端真源，无需改动。
 
-> 说明：焦点从「localStorage vs 后端」收敛为「focus.json 唯一真源，GitHub backup 为异地备份」。这是你选择的「迁到后端」的实际形态——它已经在后端，本次是把它彻底做成唯一真源。
+> 说明：焦点从「localStorage vs 后端」收敛为「pool.json.focus 唯一真源，GitHub backup 为异地备份」。这是你选择的「迁到后端」的实际形态——它已经在后端，本次是把它彻底做成唯一真源。
 
 #### 3.2.3 `/api/quote` 短 TTL + 合并
 
@@ -232,7 +234,7 @@ single-flight 实现要点：`dict[key] -> (threading.Event, result)`，第一�
 |---|---|
 | 聚合端点改动破坏现有 `/api/market/overview` 兼容 | 返回体**只增字段不改字段**，老前端仍可读原字段 |
 | single-flight 实现出错导致请求永久阻塞 | fetch 异常也 `set()` 广播 + 设置超时上限 |
-| 删除 localStorage 兜底后，后端偶发不可用导致 focus 显示空 | focus 读失败时明确报错提示（不再静默），并保留 `focus.json` 本地文件可手工恢复 |
+| 删除 localStorage 兜底后，后端偶发不可用导致 focus 显示空 | focus 读失败时明确报错提示（不再静默），并保留 `pool.json` 内定义层可手工恢复 |
 | 删 Watchlist.tsx 影响未知引用 | 已确认只有 router.tsx 引用它（且是死路由），删除前再 grep 一次 |
 | 腾讯 quote 缓存导致「3 秒内多次刷新看到旧价」 | TTL 3 秒与前端轮询周期一致，本就接受 3 秒粒度 |
 
