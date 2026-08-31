@@ -493,7 +493,7 @@ def market_overview_v2():
       indices / global_indices / sentiment / sectors / emotion / turnover_top / updated / providers
     前端市场总览页由 5 个实时请求合并为这 1 个，快照层（晨报/市场监控）仍独立。
     """
-    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError
     from datetime import datetime
 
     from dataservice import provider_health
@@ -515,10 +515,18 @@ def market_overview_v2():
     }
 
     result: dict = {}
-    with ThreadPoolExecutor(max_workers=len(tasks)) as ex:
+    ex = ThreadPoolExecutor(max_workers=len(tasks))
+    try:
         futures = {k: ex.submit(_safe, fn, fb) for k, (fn, fb) in tasks.items()}
         for k, fut in futures.items():
-            result[k] = fut.result()
+            fallback = tasks[k][1]
+            try:
+                result[k] = fut.result(timeout=8)
+            except TimeoutError:
+                print(f"[overview-v2] 子数据源超时: {k}")
+                result[k] = fallback
+    finally:
+        ex.shutdown(wait=False, cancel_futures=True)
 
     result["updated"] = datetime.now(market.BEIJING).strftime("%Y-%m-%d %H:%M")
     result["providers"] = provider_health()

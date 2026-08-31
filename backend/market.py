@@ -148,7 +148,11 @@ def _sectors_fallback() -> list[dict]:
 
 
 def _sectors() -> list[dict]:
-    """行业资金流（按净额降序）。不含领涨股等个股字段。"""
+    """行业资金流（按净额降序）。东财直连优先，akshare 仅作补位。"""
+    direct = _sectors_fallback()
+    if direct:
+        return direct
+
     start = time.time()
     try:
         f = astock._akshare().stock_fund_flow_industry(symbol="即时")
@@ -165,9 +169,10 @@ def _sectors() -> list[dict]:
         out.append({
             "name": str(row["行业"]),
             "pct": round(float(row.get("行业-涨跌幅", 0) or 0), 2),
-            "net": round(net / 1e8, 2),
-            "inflow": round(inflow / 1e8, 2),
-            "outflow": round(outflow / 1e8, 2),
+            # akshare 此接口资金字段本身就是“亿元”口径，不能再除一次 1e8。
+            "net": round(net, 2),
+            "inflow": round(inflow, 2),
+            "outflow": round(outflow, 2),
             "firms": _num(row.get("公司家数")),
         })
     return out

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import astock
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 
 _UA_H = {"User-Agent": astock.UA}
 _GS_HOSTS = ("push2.eastmoney.com", "push2delay.eastmoney.com")
@@ -22,13 +23,13 @@ _MKT = {105: (".O", "NASDAQ"), 106: (".N", "NYSE"), 107: (".O", "US"), 116: (".H
 _QUOTE_FIELDS = "f43,f44,f45,f46,f48,f57,f58,f59,f60,f116,f170"
 
 
-def _push2_stock_get(secid: str, fields: str) -> dict | None:
+def _push2_stock_get(secid: str, fields: str, timeout: int = 10) -> dict | None:
     """东财 push2 stock/get：push2 优先、失败降级 push2delay；latch 可用主机。空数据返回 None。"""
     params = {"secid": secid, "fields": fields}
     for i in range(_gs_host[0], len(_GS_HOSTS)):
         try:
             r = astock.em_get(f"https://{_GS_HOSTS[i]}/api/qt/stock/get",
-                              params=params, headers=_UA_H, timeout=10)
+                              params=params, headers=_UA_H, timeout=timeout)
             d = r.json().get("data")
         except Exception:
             continue
@@ -63,18 +64,33 @@ def _quote_from(d: dict) -> dict:
 
 
 def global_indices() -> list[dict]:
-    """全球指数快照（道指 / 标普500 / 纳斯达克 / 恒生 / 恒生科技）。源无的档跳过。"""
-    out = []
-    for idx in _INDICES:
-        d = _push2_stock_get(idx["secid"], "f43,f57,f58,f59,f60,f170")
+    """全球指数快照（道指 / 标普500 / 纳斯达克 / 恒生 / 恒生科技）。并发短超时，避免拖慢整页。"""
+    def fetch_one(idx: dict) -> dict | None:
+        d = _push2_stock_get(idx["secid"], "f43,f57,f58,f59,f60,f170", timeout=6)
         if not d:
-            continue
+            return None
         chg = d.get("f170")
-        out.append({
+        return {
             "key": idx["key"], "name": idx["name"], "region": idx["region"],
             "price": _price(d, "f43"),
             "change_pct": round(chg / 100, 2) if isinstance(chg, (int, float)) else None,
-        })
+        }
+
+    order = {item["key"]: i for i, item in enumerate(_INDICES)}
+    out: list[dict] = []
+    ex = ThreadPoolExecutor(max_workers=len(_INDICES))
+    try:
+        futs = [ex.submit(fetch_one, idx) for idx in _INDICES]
+        try:
+            for fut in as_completed(futs, timeout=8):
+                row = fut.result()
+                if row:
+                    out.append(row)
+        except TimeoutError:
+            pass
+    finally:
+        ex.shutdown(wait=False, cancel_futures=True)
+    out.sort(key=lambda row: order.get(str(row.get("key") or ""), 999))
     return out
 
 

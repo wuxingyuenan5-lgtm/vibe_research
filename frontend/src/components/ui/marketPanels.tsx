@@ -9,7 +9,6 @@ import type { SectorFlow, ShortTermEmotion, TurnoverStock } from "@/lib/api";
 
 const yi = (v: number | null | undefined) => (v == null ? "—" : `${(v / 1e8).toFixed(2)} 亿`);
 const pctColor = (v: number | null | undefined) => (v != null && v > 0 ? "text-danger" : v != null && v < 0 ? "text-success" : "text-muted-foreground");
-const fmt = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const flow = (v: number | null | undefined) => {
   if (v == null || Number.isNaN(v)) return "—";
   const clean = Math.abs(v) < 0.005 ? 0 : v;
@@ -80,7 +79,7 @@ export function FundRotation({ sectors }: { sectors: SectorFlow[] }) {
 }
 
 /* ---------- 全市场成交额榜（# / 名称 / 现价 / 涨跌% / 成交额 / 总市值 / 行业） ---------- */
-export function TurnoverTopTable({ stocks, topN, onTopN }: { stocks: TurnoverStock[]; topN: 10 | 20; onTopN: (n: 10 | 20) => void }) {
+export function TurnoverTopTable({ stocks, topN }: { stocks: TurnoverStock[]; topN: 10 | 20 }) {
   if (stocks.length === 0) return <p className="text-xs text-muted-foreground/60">暂无成交额榜数据</p>;
   return (
     <div className="overflow-x-auto">

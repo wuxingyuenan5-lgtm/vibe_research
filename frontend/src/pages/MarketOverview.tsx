@@ -4,7 +4,7 @@
  * 原三页（a股监控板 / 统一交易晨报 / 每日复盘）保留，本页做好后由用户确认再删。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RefreshCw, Loader2, Gauge, Flame, TrendingUp, TrendingDown, ArrowDownUp, Wallet, AlertCircle, Sparkles, X } from "lucide-react";
+import { RefreshCw, Loader2, Gauge, Flame, TrendingUp, TrendingDown, ArrowDownUp, AlertCircle, Sparkles, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -26,8 +26,6 @@ import {
 
 const fmt = (v: number | null | undefined, suffix = "") => (v == null || Number.isNaN(v) ? "—" : `${v}${suffix}`);
 const pct = (v: number | null | undefined) => (v == null || !Number.isFinite(Number(v)) ? "—" : `${Number(v) > 0 ? "+" : ""}${Number(v).toFixed(2)}%`);
-const pctColor = (v: number | null | undefined) => (v != null && v > 0 ? "text-danger" : v != null && v < 0 ? "text-success" : "text-muted-foreground");
-const yi = (v: number | null | undefined) => (v == null ? "—" : `${(v / 1e8).toFixed(2)} 亿`);
 const yiInt = (v: number | null | undefined) => (v == null ? "—" : `${(v / 1e8).toFixed(0)}亿`);
 
 // —— AI 当日复盘：客观数据聚合（实时 + 盘后快照兜底 + 宏观/要闻采集；缺哪路标「无数据」，不阻塞复盘） ——
@@ -236,7 +234,6 @@ export function MarketOverview() {
   const [publication, setPublication] = useState<MarketPublication | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [updated, setUpdated] = useState("");
   // 白银/铜/锂占位行的实时快照（从后端 K 线最新两条算价格+涨跌；避开新浪实时字段不稳定的坑）
   const [placeholderQuotes, setPlaceholderQuotes] = useState<Record<string, { price: string; change: string; cls: "up" | "down" | "flat" }>>({});
   // 晨报每日快照的资产（海外/商品/汇率/国债）的实时补丁：用 Yahoo/Sina 最新 K 线覆盖
@@ -345,7 +342,6 @@ export function MarketOverview() {
     ok(setOverview)(d ? { sentiment: d.sentiment ?? ({} as MarketSentiment), sectors: d.sectors ?? [], updated: d.updated ?? "" } : null);
     ok(setEmotion)(d?.emotion ?? null);
     ok(setTurnover)(d?.turnover_top ?? null);
-    ok(setUpdated)(d?.updated ?? "");
     ok(setLoading)(false);
     loadLiveQuotes();  // 实时资产（黄金/商品/汇率/国债）随「刷新」一起更新
 
@@ -454,7 +450,7 @@ export function MarketOverview() {
     }
   }, [review]);
 
-  const sentiment = overview?.sentiment;
+  const sentiment = overview?.sentiment ?? null;
   const sectors = overview?.sectors || [];
   const emoCells = emotion ? [
     { k: "涨停", v: fmt(emotion.zt_count), c: "text-danger" },
@@ -644,7 +640,7 @@ export function MarketOverview() {
                 const cells = [
                   { k: "全A成交额", v: aAmt == null ? "—" : `${aAmt.toLocaleString()} 亿`, c: "text-foreground", click: null as null | (() => void) },
                   { k: "百亿成交股", v: hotN == null ? "—" : `${hotN} 只`, c: "text-foreground", click: () => setHotMatrixOpen(true) },
-                  { k: "市场宽度", v: bw == null ? "—" : `${(bw * 100).toFixed(1)}%`, c: bw > 0 ? "text-danger" : bw < 0 ? "text-success" : "text-foreground", click: null },
+                  { k: "市场宽度", v: bw == null ? "—" : `${(bw * 100).toFixed(1)}%`, c: bw == null ? "text-foreground" : bw > 0 ? "text-danger" : bw < 0 ? "text-success" : "text-foreground", click: null },
                 ];
                 return cells.map((m) => (
                   <div key={m.k} className="rounded-lg bg-muted/30 p-2 text-center">
@@ -744,7 +740,7 @@ export function MarketOverview() {
         {!turnover || turnover.stocks.length === 0 ? (
           <p className="text-xs text-muted-foreground/60">{loading ? "加载中…" : "暂无成交额榜数据"}</p>
         ) : (
-          <TurnoverTopTable stocks={turnover.stocks} topN={topN} onTopN={setTopN} />
+          <TurnoverTopTable stocks={turnover.stocks} topN={topN} />
         )}
       </GlassCard>
 
