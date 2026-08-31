@@ -130,6 +130,16 @@ def _listening_pids(port: int) -> list[int]:
     return pids
 
 
+def _wait_until_ports_clear(ports: Iterable[int], timeout: float = 8.0) -> bool:
+    deadline = time.time() + timeout
+    port_list = list(ports)
+    while time.time() < deadline:
+        if all(not _listening_pids(port) for port in port_list):
+            return True
+        time.sleep(0.25)
+    return all(not _listening_pids(port) for port in port_list)
+
+
 def _managed_process_lines() -> list[str]:
     return _run_capture(["ps", "-axo", "pid=,command="])
 
@@ -165,11 +175,28 @@ def cleanup_orphans(exclude_pids: Iterable[int] = ()) -> None:
         time.sleep(1)
         for pid in sorted(targets):
             _kill_group(pid, signal.SIGKILL)
+        _wait_until_ports_clear((FRONTEND_PORT, BACKEND_PORT))
+
+
+def ensure_service_ports_available(exclude_pids: Iterable[int] = ()) -> None:
+    cleanup_orphans(exclude_pids=exclude_pids)
+    stubborn = {
+        pid
+        for port in (FRONTEND_PORT, BACKEND_PORT)
+        for pid in _listening_pids(port)
+    }
+    for pid in sorted(stubborn):
+        _kill_group(pid, signal.SIGTERM)
+    if stubborn:
+        time.sleep(1)
+        for pid in sorted(stubborn):
+            _kill_group(pid, signal.SIGKILL)
+        _wait_until_ports_clear((FRONTEND_PORT, BACKEND_PORT))
 
 
 def run_forever():
     write_pid(os.getpid())
-    cleanup_orphans(exclude_pids=[os.getpid()])
+    ensure_service_ports_available(exclude_pids=[os.getpid()])
     with open(LOG_DAEMON, "a") as dl:
         dl.write(f"[daemon] start pid={os.getpid()} at {time.strftime('%F %T')}\n")
     procs = {
@@ -182,6 +209,16 @@ def run_forever():
             if code is not None:
                 with open(LOG_DAEMON, "a") as dl:
                     dl.write(f"[daemon] {name} exited code={code}, restarting at {time.strftime('%F %T')}\n")
+                if name == "frontend":
+                    ensure_service_ports_available(exclude_pids=[os.getpid()])
+                else:
+                    for pid in _listening_pids(BACKEND_PORT):
+                        _kill_group(pid, signal.SIGTERM)
+                    if _listening_pids(BACKEND_PORT):
+                        time.sleep(1)
+                        for pid in _listening_pids(BACKEND_PORT):
+                            _kill_group(pid, signal.SIGKILL)
+                        _wait_until_ports_clear((BACKEND_PORT,))
                 procs[name] = spawn(
                     FRONTEND_CMD if name == "frontend" else BACKEND_CMD,
                     FRONTEND_DIR if name == "frontend" else BACKEND_DIR,

@@ -13,6 +13,7 @@ indices.csv（行业/指数强弱）本轮不刷新，仅刷新股票池。
 """
 import argparse
 import csv
+import json
 import re
 import time
 import urllib.request
@@ -172,16 +173,15 @@ def fetch_eastmoney_kline(code: str) -> list[tuple[str, float]]:
 
 
 def fetch_daily_kline(code: str) -> tuple[list[tuple[str, float]], str]:
-    """股票池日 K 统一入口：东财优先，失败时回退腾讯，避免单一源失效导致整批 20日/YTD 为空。"""
+    """股票池日 K 统一入口：腾讯优先，失败时回退东财，避免东财抖动拖慢整池刷新。"""
+    symbol = tx_symbol_of(code)
+    if symbol:
+        tencent_rows = fetch_kline(symbol)
+        if tencent_rows:
+            return tencent_rows, "tencent"
     eastmoney_rows = fetch_eastmoney_kline(code)
     if eastmoney_rows:
         return eastmoney_rows, "eastmoney"
-    symbol = tx_symbol_of(code)
-    if not symbol:
-        return [], "unavailable"
-    tencent_rows = fetch_kline(symbol)
-    if tencent_rows:
-        return tencent_rows, "tencent"
     return [], "unavailable"
 
 

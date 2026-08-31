@@ -337,27 +337,18 @@ def market_monitor():
 
 @app.get("/api/stock-pool")
 def stock_pool():
-    """核心股票池只读取 GitHub 已发布的日更 bundle；网络失败时回退仓库内最后成功版本。"""
+    """核心股票池页面只读取本地最新日更 bundle，避免网络抖动拖慢或覆盖本地修复结果。"""
     try:
-        try:
-            bundle = _ds_get(
-                "stock-pool:published:main",
-                TTL["minute"],
-                stock_pool_builder.fetch_remote_latest,
-                valid=lambda value: bool(value and value.get("status") == "published"),
-                provider="github-stock-pool",
-            )
-            source = "github"
-        except Exception:
-            bundle = stock_pool_builder.load_bundled_latest()
-            source = "bundled-last-good"
+        local_bundle = stock_pool_builder.load_bundled_latest()
+        bundle = local_bundle
+        source = "local-bundle"
         if bundle is None:
             raise RuntimeError("没有可用的已验证股票池发布包")
         return {"data": bundle["payload"], "publication": {
             "data_date": bundle["data_date"],
             "published_at": bundle.get("published_at"),
             "source": source,
-            "using_fallback": source != "github",
+            "using_fallback": False,
         }}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"股票池数据异常：{e}") from e
