@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
@@ -257,7 +259,11 @@ def fetch_eastmoney_index(target_date: str, secid: str, name: str) -> dict[str, 
         }
     except Exception:
         pass
-    # 东财 push2his 被网络阻断（ProxyError/RemoteDisconnected）时回退腾讯实时行情。
+    # 东财 push2his 被网络阻断时，仅允许在“当天生产”回退腾讯实时行情。
+    # 历史补数绝不允许拿当前实时值冒充历史值。
+    today = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d")
+    if target_date != today:
+        raise RuntimeError(f"历史日期 {target_date} 的东财指数K线不可达，禁止使用实时回退: {secid}")
     tx = _fetch_tencent_index(secid)
     if tx is not None and tx.get("close") is not None:
         return {
