@@ -10,6 +10,11 @@ import type { SectorFlow, ShortTermEmotion, TurnoverStock } from "@/lib/api";
 const yi = (v: number | null | undefined) => (v == null ? "—" : `${(v / 1e8).toFixed(2)} 亿`);
 const pctColor = (v: number | null | undefined) => (v != null && v > 0 ? "text-danger" : v != null && v < 0 ? "text-success" : "text-muted-foreground");
 const fmt = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const flow = (v: number | null | undefined) => {
+  if (v == null || Number.isNaN(v)) return "—";
+  const clean = Math.abs(v) < 0.005 ? 0 : v;
+  return `${clean > 0 ? "+" : clean < 0 ? "-" : ""}${Math.abs(clean).toFixed(2)} 亿`;
+};
 
 type HotMatrix = { dates: string[]; rows: { industry: string; counts: number[]; history_total: number }[] };
 
@@ -31,9 +36,9 @@ export function SectorTrendTable({ sectors, max = 15 }: { sectors: SectorFlow[];
             <tr key={s.name} className="border-b border-border/30">
               <td className="px-2 py-2 font-medium">{s.name}</td>
               <td className={cn("px-2 py-2 font-mono", pctColor(s.pct))}>{s.pct > 0 ? "+" : ""}{s.pct}%</td>
-              <td className={cn("px-2 py-2 font-mono", pctColor(s.net))}>{s.net > 0 ? "+" : ""}{s.net} 亿</td>
-              <td className="px-2 py-2 font-mono text-muted-foreground">{s.inflow} 亿</td>
-              <td className="px-2 py-2 font-mono text-muted-foreground">{s.outflow} 亿</td>
+              <td className={cn("px-2 py-2 font-mono", pctColor(s.net))}>{flow(s.net)}</td>
+              <td className="px-2 py-2 font-mono text-muted-foreground">{flow(s.inflow)}</td>
+              <td className="px-2 py-2 font-mono text-muted-foreground">{flow(s.outflow)}</td>
               <td className="px-2 py-2 font-mono text-muted-foreground">{s.firms}</td>
             </tr>
           ))}
@@ -63,7 +68,7 @@ export function FundRotation({ sectors }: { sectors: SectorFlow[] }) {
                   <span className="w-5 text-xs text-muted-foreground/50">{i + 1}</span>
                   <span className="flex-1 truncate">{s.name}</span>
                   <span className={cn("font-mono text-xs", pctColor(s.pct))}>{s.pct > 0 ? "+" : ""}{s.pct}%</span>
-                  <span className={cn("w-20 text-right font-mono text-xs", pctColor(s.net))}>{s.net > 0 ? "+" : ""}{fmt(s.net)} 亿</span>
+                  <span className={cn("w-24 text-right font-mono text-xs", pctColor(s.net))}>{flow(s.net)}</span>
                 </div>
               ))}
             </div>

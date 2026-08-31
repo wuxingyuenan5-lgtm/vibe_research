@@ -88,14 +88,23 @@ def _check_status(ok: bool, warn: bool = False) -> str:
     return "WARN" if warn else "FAIL"
 
 
-def _module_health_rows(module_latest_dates: dict[str, str | None], benchmark_date: str | None) -> list[dict[str, object]]:
+def _module_health_rows(
+    module_latest_dates: dict[str, str | None],
+    benchmark_date: str | None,
+    recent_history_gaps: dict[str, list[str]] | None = None,
+) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     order = ("market", "indices", "sw_industry", "sw_crowding", "innovation", "hot_stocks")
+    gap_map = recent_history_gaps or {}
     for key in order:
         latest = module_latest_dates.get(key)
+        gap_dates = gap_map.get(key) or []
         if not latest:
             status = "FAIL"
             detail = "母表缺少有效数据"
+        elif gap_dates:
+            status = "WARN"
+            detail = f"最新到 {latest}，但历史仍缺 {', '.join(gap_dates)}"
         elif benchmark_date and latest < benchmark_date:
             status = "WARN"
             detail = f"晚于页面基准日 {benchmark_date} 的数据尚未补齐"
@@ -129,6 +138,12 @@ def _unresolved_message(module: str, detail: object, benchmark_date: str | None 
         return f"百亿成交母表当日明细数量不一致：应为 {expected} 只，当前 {actual} 只。"
     if module == "canonical_validation":
         return "离线审计还没有完全通过，当前页面可以继续直读母表，但底层体检结果还不完整。"
+    if module == "recent_history_gaps" and isinstance(detail, dict):
+        parts = []
+        for label, dates in detail.items():
+            if dates:
+                parts.append(f"{QUALITY_MODULE_LABELS.get(label, label)}缺 {', '.join(dates)}")
+        return "最近窗口历史仍有缺口：" + "；".join(parts) if parts else "最近窗口历史仍有缺口。"
     if module == "publication_gate":
         return "当前还有发布门禁未通过，建议先补齐母表后再把这版当成稳定产物。"
     if module.endswith("_latest") and isinstance(detail, dict):
@@ -141,6 +156,7 @@ def _unresolved_message(module: str, detail: object, benchmark_date: str | None 
 def _build_quality_summary(
     report_date: str,
     module_latest_dates: dict[str, str | None],
+    recent_history_gaps: dict[str, list[str]],
     latest_hot: list[dict[str, object]],
     expected_hot: int,
     hot_latest_date: str | None,
@@ -151,7 +167,7 @@ def _build_quality_summary(
     gaps: dict[str, object],
     canonical_validation: dict[str, object],
 ) -> dict[str, object]:
-    mother_tables = _module_health_rows(module_latest_dates, report_date)
+    mother_tables = _module_health_rows(module_latest_dates, report_date, recent_history_gaps)
 
     latest_indices = [row for row in indices_history if str(row.get("date") or "") == report_date]
     indices_ok = len([row for row in latest_indices if row.get("name") in INDEX_NAMES and row.get("return") is not None and row.get("amount_100m") is not None]) == len(INDEX_NAMES)
@@ -214,8 +230,16 @@ def _build_quality_summary(
     denominator_gap_dates = [str(item)[:10] for item in (gaps.get("market_denominator_dates") or []) if str(item)[:10]]
     canonical_status = str(canonical_validation.get("status") or "UNKNOWN")
     history_notes: list[str] = []
+    if recent_history_gaps:
+        detail_parts = []
+        for module_key in ("indices", "sw_industry", "sw_crowding", "innovation", "hot_stocks", "market"):
+            missing_dates = recent_history_gaps.get(module_key) or []
+            if missing_dates:
+                detail_parts.append(f"{QUALITY_MODULE_LABELS.get(module_key, module_key)}缺 {', '.join(missing_dates)}")
+        if detail_parts:
+            history_notes.append("最近窗口历史缺口：" + "；".join(detail_parts))
     if index_gap_items:
-        history_notes.append(f"监控页三项指数最近窗口仍有 {len(index_gap_items)} 个字段缺口，涉及 {', '.join(index_gap_dates)}")
+        history_notes.append(f"监控页三项指数字段缺口仍在，涉及 {', '.join(index_gap_dates)}")
     if denominator_gap_dates:
         history_notes.append(f"创新药 / 四行业占全A分母仍缺 {', '.join(denominator_gap_dates)}")
     if canonical_status == "FAIL":
@@ -238,9 +262,45 @@ def _build_quality_summary(
             "index_gap_dates": index_gap_dates,
             "market_denominator_gap_count": len(denominator_gap_dates),
             "market_denominator_gap_dates": denominator_gap_dates,
+            "recent_module_gaps": recent_history_gaps,
             "notes": history_notes,
         },
     }
+
+
+def _recent_history_gap_map(
+    market_history: list[dict[str, object]],
+    indices_history: list[dict[str, object]],
+    sw_industry_dates: set[str],
+    sw_crowding_dates: set[str],
+    innovation_dates: set[str],
+    hot_dates: set[str],
+) -> dict[str, list[str]]:
+    recent_dates = sorted({str(row.get("date") or "")[:10] for row in market_history if str(row.get("date") or "")[:10]})[-5:]
+    if not recent_dates:
+        return {}
+    complete_index_dates: set[str] = set()
+    for current_date in recent_dates:
+        rows = [row for row in indices_history if str(row.get("date") or "") == current_date]
+        if len([
+            row for row in rows
+            if row.get("name") in INDEX_NAMES and row.get("return") is not None and row.get("amount_100m") is not None
+        ]) == len(INDEX_NAMES):
+            complete_index_dates.add(current_date)
+    available_by_module = {
+        "market": {str(row.get("date") or "")[:10] for row in market_history if str(row.get("date") or "")[:10]},
+        "indices": complete_index_dates,
+        "sw_industry": sw_industry_dates,
+        "sw_crowding": sw_crowding_dates,
+        "innovation": innovation_dates,
+        "hot_stocks": hot_dates,
+    }
+    gap_map: dict[str, list[str]] = {}
+    for module_key, available_dates in available_by_module.items():
+        missing_dates = [current_date for current_date in recent_dates if current_date not in available_dates]
+        if missing_dates:
+            gap_map[module_key] = missing_dates
+    return gap_map
 
 
 def _resolve_publication(
@@ -543,6 +603,14 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
     )
     raw_innovation = _innovation(root / "data/history/innovation_drug_eastmoney.csv", raw_market_history, target_date)
     raw_gaps = scan_history_gaps(root, target_date)
+    sw_industry_dates = {
+        str(raw.get("日期") or "")[:10]
+        for raw in _read_csv(root / "data/sw_industry_history.csv")
+        if str(raw.get("日期") or "")[:10] and str(raw.get("日期") or "")[:10] <= target_date
+    }
+    sw_crowding_dates = {str(row.get("date") or "")[:10] for row in raw_sw_crowding if str(row.get("date") or "")[:10]}
+    innovation_dates = {str(row.get("date") or "")[:10] for row in raw_innovation if str(row.get("date") or "")[:10]}
+    hot_dates = {str(row.get("date") or "")[:10] for row in raw_hot_all if str(row.get("date") or "")[:10]}
     # 展示层直接读取唯一母表，不再选择候选日期、发布包或回退包。
     # target_date 只是母表读取截止日。
     report_date = target_date
@@ -556,6 +624,14 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
     sw_crowding = raw_sw_crowding
     innovation = raw_innovation
     gaps = raw_gaps
+    recent_history_gaps = _recent_history_gap_map(
+        market_history,
+        indices_history,
+        sw_industry_dates,
+        sw_crowding_dates,
+        innovation_dates,
+        hot_dates,
+    )
 
     latest_market = market_history[-1]["date"] if market_history else None
     sw_latest = max((str(row.get("日期") or "")[:10] for row in sw_industry if row.get("日期")), default=None)
@@ -582,6 +658,13 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
         unresolved.append({"module": "indices_history", "level": "WARN", "detail": gaps["indices"], "message": _unresolved_message("indices_history", gaps["indices"], latest_market)})
     if gaps["market_denominator_dates"]:
         unresolved.append({"module": "market_denominator", "level": "WARN", "detail": gaps["market_denominator_dates"], "message": _unresolved_message("market_denominator", gaps["market_denominator_dates"], latest_market)})
+    if recent_history_gaps:
+        unresolved.append({
+            "module": "recent_history_gaps",
+            "level": "WARN",
+            "detail": recent_history_gaps,
+            "message": _unresolved_message("recent_history_gaps", recent_history_gaps, latest_market),
+        })
     hot_market_row = next((row for row in market_history if row["date"] == hot_latest_date), {})
     expected_hot = int(hot_market_row.get("hot_count") or 0)
     if len(latest_hot) != expected_hot:
@@ -626,6 +709,7 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
     quality_summary = _build_quality_summary(
         latest_market or report_date,
         module_latest_dates,
+        recent_history_gaps,
         latest_hot,
         expected_hot,
         hot_latest_date,

@@ -117,12 +117,12 @@ def _sentiment() -> dict:
 
 
 def _sectors_fallback() -> list[dict]:
-    """akshare 行业资金流失败时的东财 push2delay 直连兜底（fid=f62 主力净流入降序）。"""
+    """akshare 行业资金流失败时的东财 push2delay 直连兜底。"""
     import json  # noqa: PLC0415
     import urllib.request  # noqa: PLC0415
     try:
         url = ("https://push2delay.eastmoney.com/api/qt/clist/get?pn=1&pz=50&po=1&np=1&fltt=2&invt=2"
-               "&fid=f62&fs=m:90+t:2&fields=f12,f14,f3,f62")
+               "&fid=f62&fs=m:90+t:2&fields=f12,f14,f3,f62,f104,f105,f106")
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://quote.eastmoney.com/"})
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         d = json.loads(opener.open(req, timeout=8).read().decode("utf-8"))
@@ -138,7 +138,7 @@ def _sectors_fallback() -> list[dict]:
                 "net": round(net / 1e8, 2),
                 "inflow": round(max(net, 0) / 1e8, 2),
                 "outflow": round(-min(net, 0) / 1e8, 2),
-                "firms": 0,
+                "firms": int(x.get("f104") or 0) + int(x.get("f105") or 0) + int(x.get("f106") or 0),
             })
         record_provider("eastmoney", True)
         return out
