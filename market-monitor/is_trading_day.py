@@ -3,32 +3,37 @@
 from __future__ import annotations
 
 import argparse
-import json
-import urllib.request
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+import requests
 
 
 SHANGHAI_COMPOSITE_SECID = "1.000001"
+QUOTE_URL = "https://push2delay.eastmoney.com/api/qt/stock/get"
 HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://quote.eastmoney.com/"}
 
 
-def is_trading_day(target_date: str, opener=urllib.request.urlopen) -> bool:
-    compact = target_date.replace("-", "")
-    if len(compact) != 8 or not compact.isdigit():
+def is_trading_day(target_date: str, requester=requests.get) -> bool:
+    if len(target_date) != 10:
         raise ValueError(f"invalid date: {target_date}")
-    url = (
-        "https://push2his.eastmoney.com/api/qt/stock/kline/get"
-        f"?secid={SHANGHAI_COMPOSITE_SECID}&klt=101&fqt=0&beg={compact}&end={compact}"
-        "&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56"
-    )
-    request = urllib.request.Request(url, headers=HEADERS)
     try:
-        with opener(request, timeout=12) as response:
-            payload = json.loads(response.read().decode("utf-8"))
+        response = requester(
+            QUOTE_URL,
+            params={"secid": SHANGHAI_COMPOSITE_SECID, "fields": "f86", "ut": "bd1d9ddb04089700cf9c27f6f7426281"},
+            headers=HEADERS,
+            timeout=(3, 6),
+        )
+        response.raise_for_status()
+        payload = response.json()
     except Exception as exc:  # noqa: BLE001
         raise RuntimeError(f"交易日历查询失败: {exc}") from exc
 
-    rows = (payload.get("data") or {}).get("klines") or []
-    return any(str(row).startswith(target_date + ",") for row in rows)
+    timestamp = (payload.get("data") or {}).get("f86")
+    if not timestamp:
+        raise RuntimeError("交易日历查询失败: 上证综指报价时间为空")
+    quote_date = datetime.fromtimestamp(float(timestamp), ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d")
+    return quote_date == target_date
 
 
 def main() -> int:

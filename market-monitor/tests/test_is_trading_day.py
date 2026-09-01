@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import io
-import json
 import unittest
 
 from is_trading_day import is_trading_day
@@ -9,31 +7,28 @@ from is_trading_day import is_trading_day
 
 class TradingDayTests(unittest.TestCase):
     def test_returns_true_when_target_index_bar_exists(self):
-        def opener(_request, timeout):
-            self.assertEqual(timeout, 12)
-            return _Response({"data": {"klines": ["2026-09-01,3200,3210"]}})
+        def requester(_url, **kwargs):
+            self.assertEqual(kwargs["timeout"], (3, 6))
+            return _Response({"data": {"f86": 1788248700}})
 
-        self.assertTrue(is_trading_day("2026-09-01", opener=opener))
+        self.assertTrue(is_trading_day("2026-09-01", requester=requester))
 
     def test_returns_false_when_target_index_bar_is_absent(self):
-        def opener(_request, timeout):
-            return _Response({"data": {"klines": []}})
+        def requester(_url, **_kwargs):
+            return _Response({"data": {"f86": 1788248700}})
 
-        self.assertFalse(is_trading_day("2026-10-01", opener=opener))
+        self.assertFalse(is_trading_day("2026-10-01", requester=requester))
 
 
 class _Response:
     def __init__(self, payload):
-        self._body = json.dumps(payload).encode("utf-8")
+        self._payload = payload
 
-    def __enter__(self):
-        return self
+    def raise_for_status(self):
+        return None
 
-    def __exit__(self, *_args):
-        return False
-
-    def read(self):
-        return self._body
+    def json(self):
+        return self._payload
 
 
 if __name__ == "__main__":
