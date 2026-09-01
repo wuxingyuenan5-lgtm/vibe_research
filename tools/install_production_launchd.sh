@@ -1,10 +1,10 @@
 #!/bin/bash
-# 注册本地盘后生产任务。网页读取本地文件，成功后才备份到 GitHub。
+# 注册本地自选股盘后任务。市场母表由 GitHub 生产、网页后端按需同步。
 set -euo pipefail
 
 project_dir="$(cd "$(dirname "$0")/.." && pwd)"
 agent_dir="$HOME/Library/LaunchAgents"
-for name in market-production stock-production; do
+for name in stock-production; do
   source="$project_dir/tools/launchd/com.viberesearch.${name}.plist"
   target="$agent_dir/com.viberesearch.${name}.plist"
   /bin/mkdir -p "$agent_dir"

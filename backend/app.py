@@ -3,6 +3,10 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
+from datetime import datetime, time as clock_time
+from threading import Lock
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,6 +31,9 @@ import market_monitor.morning_brief as morning_brief
 from pathlib import Path
 
 app = FastAPI(title="Vibe-Research API", version="0.2.2")
+
+_MARKET_SYNC_AFTER = clock_time(15, 30)
+_MARKET_SYNC_LOCK = Lock()
 
 # 每半小时后台刷新持仓数据
 pf.start_scheduler(1800)
@@ -322,6 +329,7 @@ def market_monitor():
     project_root = Path(__file__).resolve().parent.parent
     try:
         mother_root = project_root / "market-monitor"
+        _sync_market_mother_tables_if_needed(project_root, mother_root)
         target_date = market_monitor_builder.latest_market_date(mother_root)
         if not target_date:
             raise RuntimeError("market_core.csv 没有有效日期")
@@ -333,6 +341,29 @@ def market_monitor():
         }}
     except Exception as exc:
         raise HTTPException(502, f"读取市场母表失败：{exc}") from exc
+
+
+def _sync_market_mother_tables_if_needed(project_root: Path, mother_root: Path) -> None:
+    """盘后读取时同步 GitHub 已完成的市场母表，不另设本机定时生产。"""
+    now = datetime.now(ZoneInfo("Asia/Shanghai"))
+    today = now.strftime("%Y-%m-%d")
+    if now.time() < _MARKET_SYNC_AFTER:
+        return
+    if market_monitor_builder.latest_market_date(mother_root) >= today:
+        return
+    if not _MARKET_SYNC_LOCK.acquire(blocking=False):
+        return
+    try:
+        # GitHub 产出成功后，网页仍只读取本地母表；同步失败时保留旧母表，不写空值。
+        subprocess.run(
+            ["git", "-C", str(project_root), "pull", "--ff-only", "origin", "main"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    finally:
+        _MARKET_SYNC_LOCK.release()
 
 
 @app.get("/api/stock-pool")
