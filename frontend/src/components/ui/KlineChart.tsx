@@ -134,7 +134,7 @@ export function KlineChart({
         // echarts 蜡烛图要求 [open, close, low, high]
         const kvals = raw.map((r) => [r.open, r.close, r.low, r.high]);
         const closes = raw.map((r) => r.close);
-        const vols = raw.map((r, i) => ({
+        const vols = raw.map((r) => ({
           value: r.volume,
           itemStyle: { color: r.close >= r.open ? t.up : t.down },
         }));

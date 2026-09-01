@@ -48,7 +48,7 @@ def _sentiment_fallback() -> dict:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://quote.eastmoney.com/"})
         # 国内财经站直连（绕系统/WorkBuddy 代理）；push2 常被掐断，用 push2delay 延迟行情兜底
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-        d = json.loads(opener.open(req, timeout=8).read().decode("utf-8"))
+        d = json.loads(opener.open(req, timeout=5).read().decode("utf-8"))
         diffs = (d.get("data") or {}).get("diff") or []
         up = sum(int(x.get("f104") or 0) for x in diffs)
         down = sum(int(x.get("f105") or 0) for x in diffs)
@@ -148,34 +148,8 @@ def _sectors_fallback() -> list[dict]:
 
 
 def _sectors() -> list[dict]:
-    """行业资金流（按净额降序）。东财直连优先，akshare 仅作补位。"""
-    direct = _sectors_fallback()
-    if direct:
-        return direct
-
-    start = time.time()
-    try:
-        f = astock._akshare().stock_fund_flow_industry(symbol="即时")
-        f = f.sort_values("净额", ascending=False)
-    except Exception as e:  # noqa: BLE001
-        record_provider("akshare", False, error=str(e))
-        return _sectors_fallback()
-    record_provider("akshare", True, latency_ms=(time.time() - start) * 1000)
-    out = []
-    for _, row in f.iterrows():
-        net = float(row.get("净额", 0) or 0)
-        inflow = float(row.get("流入资金", 0) or 0)
-        outflow = float(row.get("流出资金", 0) or 0)
-        out.append({
-            "name": str(row["行业"]),
-            "pct": round(float(row.get("行业-涨跌幅", 0) or 0), 2),
-            # akshare 此接口资金字段本身就是“亿元”口径，不能再除一次 1e8。
-            "net": round(net, 2),
-            "inflow": round(inflow, 2),
-            "outflow": round(outflow, 2),
-            "firms": _num(row.get("公司家数")),
-        })
-    return out
+    """行业资金流（按净额降序）。直接使用东财轻量接口，失败则快速返回空。"""
+    return _sectors_fallback()
 
 
 def get_sentiment() -> dict:

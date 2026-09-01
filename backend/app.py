@@ -337,17 +337,15 @@ def market_monitor():
 
 @app.get("/api/stock-pool")
 def stock_pool():
-    """核心股票池页面只读取本地最新日更 bundle，避免网络抖动拖慢或覆盖本地修复结果。"""
+    """核心股票池页面直接读取本地定义 + 本地日更快照，避免旧 bundle 把本地维护结果卡住。"""
     try:
-        local_bundle = stock_pool_builder.load_bundled_latest()
-        bundle = local_bundle
-        source = "local-bundle"
-        if bundle is None:
-            raise RuntimeError("没有可用的已验证股票池发布包")
-        return {"data": bundle["payload"], "publication": {
-            "data_date": bundle["data_date"],
-            "published_at": bundle.get("published_at"),
-            "source": source,
+        payload = stock_pool_builder.build_stock_pool_payload()
+        report_date = str((payload.get("meta") or {}).get("report_date") or "")
+        generated_at = str((payload.get("meta") or {}).get("generated_at") or "")
+        return {"data": payload, "publication": {
+            "data_date": report_date,
+            "published_at": generated_at,
+            "source": "local-files",
             "using_fallback": False,
         }}
     except Exception as e:  # noqa: BLE001
@@ -493,7 +491,7 @@ def market_overview_v2():
       indices / global_indices / sentiment / sectors / emotion / turnover_top / updated / providers
     前端市场总览页由 5 个实时请求合并为这 1 个，快照层（晨报/市场监控）仍独立。
     """
-    from concurrent.futures import ThreadPoolExecutor, TimeoutError
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
     from datetime import datetime
 
     from dataservice import provider_health
@@ -518,13 +516,18 @@ def market_overview_v2():
     ex = ThreadPoolExecutor(max_workers=len(tasks))
     try:
         futures = {k: ex.submit(_safe, fn, fb) for k, (fn, fb) in tasks.items()}
-        for k, fut in futures.items():
-            fallback = tasks[k][1]
-            try:
-                result[k] = fut.result(timeout=8)
-            except TimeoutError:
-                print(f"[overview-v2] 子数据源超时: {k}")
-                result[k] = fallback
+        done_keys: set[str] = set()
+        try:
+            for fut in as_completed(futures.values(), timeout=10):
+                key = next(name for name, current in futures.items() if current is fut)
+                result[key] = fut.result()
+                done_keys.add(key)
+        except TimeoutError:
+            pass
+        for key, (_, fallback) in tasks.items():
+            if key not in done_keys:
+                print(f"[overview-v2] 子数据源超时: {key}")
+                result[key] = fallback
     finally:
         ex.shutdown(wait=False, cancel_futures=True)
 

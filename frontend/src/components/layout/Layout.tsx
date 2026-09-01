@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {
-  Activity, Radar, LayoutGrid, Wallet, Settings, Search, NotebookPen,
+  Radar, LayoutGrid, Wallet, Settings, Search, NotebookPen,
   Moon, Sun, LineChart, Cog, Cpu, Database, Cable, Rocket,
-  FlaskConical, FileText, Swords, Gauge, ListChecks, Newspaper, LayoutDashboard,
+  FlaskConical, FileText, Gauge, ListChecks, LayoutDashboard,
   ChevronsLeft, ChevronsRight, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";

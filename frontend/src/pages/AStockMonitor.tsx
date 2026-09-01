@@ -24,7 +24,11 @@ export interface ReportData {
   hot_stock_matrix: { dates: string[]; rows: { industry: string; counts: number[]; history_total: number }[] };
   hot_stocks_history: HotRow[];
   hot_stocks_latest: HotRow[];
-  sw_crowding_history: { date: string; targets: Record<string, { amount_100m: number | null; amount_share_of_a: number | null; turnover: number | null }> }[];
+  sw_crowding_history: {
+    date: string;
+    targets: Record<string, { amount_100m: number | null; amount_share_of_a: number | null; turnover: number | null }>;
+    combined?: { amount_100m: number | null; amount_share_of_a: number | null };
+  }[];
   innovation_history: { date: string; amount_100m: number | null; amount_share_of_a: number | null; turnover: number | null; return: number | null; volume: number | null }[];
   quality: {
     status: string;
@@ -58,12 +62,9 @@ export interface MarketPublication {
   remote_error?: string;
 }
 
-const CROWD_TARGETS = ["通信设备", "计算机设备", "元件", "半导体"] as const;
-const INDEX_NAMES = ["上证50", "中证2000", "中证全指"] as const;
 const UP = "#f2503f", DOWN = "#2fbf71";
 const signedPct = (v: number | null | undefined) => (v == null ? "—" : `${v > 0 ? "+" : ""}${(v * 100).toFixed(2)}%`);
 const num2 = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-const num0 = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("zh-CN", { maximumFractionDigits: 0 }));
 const upDownCls = (v: number | null | undefined) => (v == null ? "neutral" : v > 0 ? "up" : v < 0 ? "down" : "neutral");
 const qualityCls = (status: string | null | undefined) => status === "PASS" ? "quality-ok" : status === "WARN" ? "quality-pending" : "quality-bad";
 const canonicalDisplay = (status: string | null | undefined) => {
@@ -156,7 +157,7 @@ function TimeChart({ cfg, initialRange = "all" }: { cfg: ChartConfig; initialRan
       const v: number[] = [];
       visibleSeries.filter((x) => (x.s.axis || "left") === axis).forEach((x) =>
         (x.s.values || []).slice(startIndex, endIndex + 1).forEach((z) => {
-          if (z != null && z !== "") { const n = Number(z) * (x.s.sign || 1); if (Number.isFinite(n)) v.push(n); }
+          if (z != null) { const n = Number(z) * (x.s.sign || 1); if (Number.isFinite(n)) v.push(n); }
         }));
       if (!v.length) return [-1, 1];
       let lo = Math.min(...v), hi = Math.max(...v);
@@ -194,7 +195,7 @@ function TimeChart({ cfg, initialRange = "all" }: { cfg: ChartConfig; initialRan
       const pts: [number, number, number, number][] = [];
       for (let i = startIndex; i <= endIndex; i++) {
         const raw = s.values[i];
-        if (raw == null || raw === "") continue;
+        if (raw == null) continue;
         const v = Number(raw) * (s.sign || 1);
         const x = X(i), y = Y(v, d);
         pts.push([x, y, i, Number(raw)]);
@@ -221,7 +222,7 @@ function TimeChart({ cfg, initialRange = "all" }: { cfg: ChartConfig; initialRan
       let idx = Math.round(startIndex + (px - x0) / (x1 - x0) * (endIndex - startIndex));
       idx = Math.max(startIndex, Math.min(endIndex, idx));
       const valueText = (v: number | null | undefined, s: Series) => {
-        if (v == null || v === "") return "—";
+        if (v == null) return "—";
         const n = Number(v);
         if (!Number.isFinite(n)) return "—";
         return s.percent ? (n * 100).toFixed(2) + "%" : n.toLocaleString("zh-CN", { maximumFractionDigits: 4 }) + (s.unit ? " " + s.unit : "");
@@ -271,7 +272,7 @@ function TimeChart({ cfg, initialRange = "all" }: { cfg: ChartConfig; initialRan
             min={0}
             max={Math.max(0, cfg.dates.length - 1)}
             value={range[0]}
-            onChange={(e) => setRange(([a, b]) => [Math.min(Number(e.target.value), b), b])}
+            onChange={(e) => setRange(([, b]) => [Math.min(Number(e.target.value), b), b])}
           />
           <input
             type="range"
@@ -279,7 +280,7 @@ function TimeChart({ cfg, initialRange = "all" }: { cfg: ChartConfig; initialRan
             min={0}
             max={Math.max(0, cfg.dates.length - 1)}
             value={range[1]}
-            onChange={(e) => setRange(([a, b]) => [a, Math.max(Number(e.target.value), a)])}
+            onChange={(e) => setRange(([a]) => [a, Math.max(Number(e.target.value), a)])}
           />
           <button
             type="button"
@@ -302,20 +303,6 @@ export function AStockMonitor({ embed = false }: { embed?: boolean } = {}) {
   const [swQuery, setSwQuery] = useState("");
   const [swLevel, setSwLevel] = useState("一级行业"); // 默认一级行业
   const [swSort, setSwSort] = useState<{ key: "成交额" | "日收益率" | "20日年化波动率" | null; state: "original" | "desc" | "asc" }>({ key: null, state: "original" });
-
-  const crowdChart = useMemo(() => {
-    if (!data) return null as ChartConfig | null;
-    const dates = data.sw_crowding_history.map((r) => r.date);
-    const colors = ["#2563eb", "#f97316", "#7c3aed", "#0891b2"];
-    return {
-      title: "四行业 | 成交额占全A与换手率", chartType: "series" as const, dates,
-      yLabel: "成交额占全A（%）", rightLabel: "换手率（%）",
-      series: [
-        ...CROWD_TARGETS.map((name, i) => ({ name: `${name}·成交占比`, type: "area" as const, axis: "left" as const, color: colors[i], percent: true, opacity: 0.4, values: data.sw_crowding_history.map((r) => r.targets[name]?.amount_share_of_a ?? null) })),
-        ...CROWD_TARGETS.map((name, i) => ({ name: `${name}·换手率`, type: "line" as const, axis: "right" as const, color: colors[i], percent: true, values: data.sw_crowding_history.map((r) => r.targets[name]?.turnover ?? null) })),
-      ],
-    };
-  }, [data]);
 
   // 05 节顶部：单行业（通信设备）面积+折线双轴图
   const commChart = useMemo(() => {
@@ -356,27 +343,6 @@ export function AStockMonitor({ embed = false }: { embed?: boolean } = {}) {
         { name: "创新药换手率", type: "line" as const, axis: "right" as const, color: "#f97316", percent: true, values: data.innovation_history.map((r) => r.turnover ?? null) },
       ],
     };
-  }, [data]);
-
-  const latest = data?.market_history[data.market_history.length - 1];
-  const latestIndices = useMemo(() => {
-    if (!data) return {} as Record<string, IndexRow | undefined>;
-    const out: Record<string, IndexRow | undefined> = {};
-    for (const name of INDEX_NAMES) {
-      const rows = data.indices_history.filter((r) => r.name === name);
-      out[name] = rows[rows.length - 1];
-    }
-    return out;
-  }, [data]);
-
-  const indexRecent = useMemo(() => {
-    if (!data) return [];
-    const dates = [...new Set(data.indices_history.map((r) => r.date))].sort().slice(-5);
-    return dates.map((d) => ({
-      date: d,
-      rows: Object.fromEntries(INDEX_NAMES.map((n) => [n, data.indices_history.find((r) => r.date === d && r.name === n) ?? null])),
-      marketAmount: data.market_history.find((r) => r.date === d)?.total_amount_100m ?? null,
-    }));
   }, [data]);
 
   const swRows = useMemo(() => {
