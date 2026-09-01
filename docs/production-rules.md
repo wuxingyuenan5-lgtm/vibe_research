@@ -32,6 +32,8 @@
 | 关注列表 | 后端读写本地 `pool.json.focus` | `data/stock-pool/pool.json` | 实时保存 + 同步 GitHub 备份 | 用户操作即更新 | 只管理关注代码 | 本地优先；不承担行情结果生产 |
 | 数据质量模块 | `GET /api/market-monitor` 中的 quality | 母表状态 + 前端可显示性检查 | `daily_market_monitor.yml` | 盘后随 market monitor 一起更新 | 友好展示结果 | 不直接吐原始 JSON 给你看 |
 
+所有盘后日更在生产前先检查目标日是否存在上证综指日线：非交易日正常跳过，不写缓存或母表；日历接口异常则任务失败，不将故障误判为休市。
+
 ## 3. 市场总览与市场监控
 
 ### 3.1 规则

@@ -70,11 +70,31 @@ jobs:
         working-directory: backend
         run: pip install -r requirements.txt
 
+      - name: Check A-share trading day
+        id: trading_day
+        shell: bash
+        run: |
+          set +e
+          python market-monitor/is_trading_day.py --date "${{ steps.date.outputs.value }}"
+          trading_status=$?
+          set -e
+          if [ "$trading_status" = "10" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "非交易日，正常跳过自选股日更。"
+            exit 0
+          fi
+          if [ "$trading_status" != "0" ]; then
+            exit "$trading_status"
+          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+
       - name: Refresh overwrite-only cache
+        if: steps.trading_day.outputs.run == 'true'
         working-directory: backend
         run: python -m market_monitor.daily_refresh --date "${{ steps.date.outputs.value }}"
 
       - name: Persist compact cache
+        if: steps.trading_day.outputs.run == 'true'
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
