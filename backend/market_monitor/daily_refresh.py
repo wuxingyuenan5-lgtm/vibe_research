@@ -17,6 +17,7 @@ import json
 import re
 import time
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, time as dt_time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -373,12 +374,14 @@ def main() -> None:
     # 2) kline 算 20日/YTD
     trends: dict[str, tuple[float | None, float | None]] = {}
     trend_sources = {"eastmoney": 0, "tencent": 0, "unavailable": 0}
-    for s in coded:
-        code = s["code"]
-        kl, source = fetch_daily_kline(code)
-        trend_sources[source] = trend_sources.get(source, 0) + 1
-        trends[code] = compute_trends(kl)
-        time.sleep(0.1)
+    # 日 K 请求彼此独立；受控并发避免 162 只股票串行重试拖满工作流时限。
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        futures = {executor.submit(fetch_daily_kline, s["code"]): s["code"] for s in coded}
+        for future in as_completed(futures):
+            code = futures[future]
+            kl, source = future.result()
+            trend_sources[source] = trend_sources.get(source, 0) + 1
+            trends[code] = compute_trends(kl)
     ok_trends = sum(1 for s in coded if trends.get(s["code"], (None, None))[0] is not None)
     print(
         "20日/YTD 计算完成"
