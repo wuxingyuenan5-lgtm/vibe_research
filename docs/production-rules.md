@@ -27,9 +27,9 @@
 | 市场监控详情 | `GET /api/market-monitor` | `market-monitor/data/` | `daily_market_monitor.yml` | 交易日 15:20 后更新 | 按后端结果展示 | 不要再读旧 published bundle |
 | 百亿成交行业分布 | `hot_stock_matrix` | `market-monitor/data/history/hot_stocks.csv` | `daily_market_monitor.yml` + `report_data` 构造 | 交易日 15:20 后更新 | 只按矩阵渲染 | 前端禁止自算矩阵 |
 | 三项指数 / 申万行业 / 四行业拥挤度 / 创新药 | `GET /api/market-monitor` | `market-monitor/data/` | `daily_market_monitor.yml` | 交易日 15:20 后更新 | 只展示正式结果 | 不准页面层修数 |
-| 自选股 / 股票池展示 | `GET /api/stock-pool` | `data/stock-pool/latest_stock_pool.json` | `daily_stock_pool.yml` | 交易日 15:20 后更新一次 | 只展示当天 bundle | 不准读取时回填旧 20 日 / YTD |
-| 股票池标的定义 | 后端读写 `pool.json` | `data/stock-pool/pool.json` | 人工维护 + GitHub 同步 | 有增删时即时同步 | 提供增删入口 | 不把它当行情母表 |
-| 关注列表 | 后端读写 `pool.json.focus` | `data/stock-pool/pool.json` | 实时保存 | 用户操作即更新 | 只管理关注代码 | 不承担行情结果生产 |
+| 自选股 / 股票池展示 | `GET /api/stock-pool` | 本地 `pool.json` + 本地 `stocks.csv` | `daily_stock_pool.yml` | 交易日 15:25 更新一次 | 定义与当天缓存直接合并展示 | 不准读取时回填旧 20 日 / YTD |
+| 股票池标的定义 | 后端读写本地 `pool.json` | `data/stock-pool/pool.json` | 人工维护 + 同步 GitHub 备份 | 有增删时即时同步 | 提供增删入口 | 本地优先；不把它当行情母表 |
+| 关注列表 | 后端读写本地 `pool.json.focus` | `data/stock-pool/pool.json` | 实时保存 + 同步 GitHub 备份 | 用户操作即更新 | 只管理关注代码 | 本地优先；不承担行情结果生产 |
 | 数据质量模块 | `GET /api/market-monitor` 中的 quality | 母表状态 + 前端可显示性检查 | `daily_market_monitor.yml` | 盘后随 market monitor 一起更新 | 友好展示结果 | 不直接吐原始 JSON 给你看 |
 
 ## 3. 市场总览与市场监控
@@ -111,7 +111,7 @@
 
 1. 自选股不是 market monitor 母表模块。
 2. 自选股也不是“网页打开时现场爬一遍完整结果”。
-3. 自选股的正式展示结果来自每日一次的 stock-pool bundle。
+3. 自选股展示直接合并本地池子定义与每日一次的本地行情缓存。
 
 ### 6.2 数据职责
 
@@ -120,19 +120,19 @@
    - 核心股票池定义
    - 近期关注代码列表
    - 研究篮子定义
-3. `data/stock-pool/latest_stock_pool.json` 才是自选股页面正式展示结果。
+3. `data/stock-pool/latest_stock_pool.json` 是日更审计快照，不是页面读取源。
 
 ### 6.3 刷新规则
 
-1. `daily_stock_pool.yml` 是唯一正式日更链路。
-2. 在交易日 `15:20` 后运行一次。
-3. 生产脚本通过 API 拉取当日需要的数据，生成当天 bundle。
-4. 前端和后端都读取当天 bundle 展示。
+1. `daily_stock_pool.yml` 是自选股唯一正式日更链路，独立于市场总览任务。
+2. 在交易日 `15:25` 后运行一次。
+3. 生产脚本通过 API 拉取当日需要的数据，覆盖本地当天行情缓存，并生成审计快照。
+4. 前端和后端读取本地 `pool.json` 与当天 `stocks.csv` 展示。
 5. `pool.json` 不回写日度行情字段，只维护定义层。
 
 ### 6.4 页面显示范围
 
-自选股页展示的这些内容都应该来自当天 daily bundle：
+自选股页展示的这些内容都应该来自本地定义与当天行情缓存：
 
 1. `stocks`
 2. `indices`
@@ -158,7 +158,7 @@
 1. 不允许把自选股并入 market monitor 母表直读链路。
 2. 不允许在 `/api/stock-pool` 返回时用历史缓存补当天缺失字段。
 3. 不允许前端为了显示完整榜单自行补算业务字段。
-4. 如果当天 bundle 缺字段，修 `daily_stock_pool` 生产脚本，不修读取层。
+4. 如果当天缓存缺字段，修 `daily_stock_pool` 生产脚本，不修读取层。
 
 ## 7. 数据质量模块
 
@@ -216,10 +216,10 @@
 ### 8A.1 日常生产
 
 1. `15:20` 后跑 market monitor 正式母表。
-2. market monitor 成功后，再跑 stock-pool 当日 bundle。
+2. 市场总览与 stock-pool 在收盘后各自独立运行；任一失败不阻断另一条链路。
 3. 页面分别读取：
    - 市场总览 / 市场监控：`market-monitor/data/`
-   - 自选股：`data/stock-pool/latest_stock_pool.json`
+   - 自选股：本地 `pool.json` + `stocks.csv`；`latest_stock_pool.json` 仅作审计快照
 
 ### 8A.2 故障修补
 
@@ -241,11 +241,11 @@
 1. 市场监控走唯一母表 `market-monitor/data/`。
 2. 百亿成交弹窗只显示后端生成好的 `hot_stock_matrix`。
 3. 自选股不并入 market monitor 母表。
-4. 自选股正式展示结果走 `daily_stock_pool.yml` 生成的 daily bundle。
+4. 自选股展示直接读取本地定义和 `daily_stock_pool.yml` 生成的当天缓存。
 5. `pool.json` 只管理标的、近期关注和研究篮子，不承担行情结果母表职责。
 6. 重点维护的是：
    - 正式母表
-   - 正式日更 bundle
+   - 正式日更缓存
    - 刷新时间
    - 数据源正确性
 7. 不再叠加补丁式生产逻辑。

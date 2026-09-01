@@ -54,10 +54,10 @@
 
 | 概念 | 真源 | 数据 | 频率 |
 |---|---|---|---|
-| **核心股票池** | `backend/data/stock-pool/pool.json`（→ GitHub backup） | 日度快照 `stocks.csv` | 每日 `daily_refresh.py` |
-| **近期关注（focus）** | `data/stock-pool/pool.json` 中的 `focus.codes`（→ GitHub backup） | `/api/quote` 实时补全 | 页面加载时拉一次 |
+| **核心股票池** | 本地 `data/stock-pool/pool.json`（→ GitHub backup） | 本地日度快照 `stocks.csv` | 每日 `daily_refresh.py` |
+| **近期关注（focus）** | 本地 `data/stock-pool/pool.json` 中的 `focus.codes`（→ GitHub backup） | `/api/quote` 实时补全 | 页面加载时拉一次 |
 
-**关键发现：自选股（近期关注 focus）的真源其实已经在后端了**（`pool.json.focus` + GitHub 真源，`GET/POST /api/stock-pool/focus`），`localStorage` 里的 `vr-watchlist` 只是历史兜底缓存。
+**当前规则：自选股定义以本地 `pool.json` 为准，GitHub 只作同步备份。**
 
 ### 1.3 稳定性问题根源（按影响排序）
 

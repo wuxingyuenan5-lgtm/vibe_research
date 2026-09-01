@@ -4,7 +4,7 @@
 1. 读 data/stock-pool/pool.json（162 只，含代码）
 2. 东财 ulist 批量拉快照：现价/涨跌幅/换手/PE/PB/总市值/成交额/5日涨跌幅
 3. 东财 kline 逐只拉日 K（300 根）算 20日涨跌幅 / YTD
-4. 更新 stocks.csv（当日快照，覆盖）+ pool.json version（报告日）
+4. 更新 stocks.csv（当日快照，覆盖）
 5. 重建 output/stock-pool/payload.json
 
 用法：python -m market_monitor.daily_refresh [--date 2026-08-15]
@@ -429,12 +429,7 @@ def main() -> None:
     n_ok, n_stale = refresh_indices()
     print(f"indices.csv 已更新：刷新 {n_ok} 个 / 保留旧值 {n_stale} 个（申万/自定义等公开接口无数据）")
 
-    # 4) pool version = 报告日
-    pool["version"] = args.date
-    save_pool(pool)
-    print(f"pool.json version → {args.date}")
-
-    # 5) 重建 payload
+    # 4) 重建 payload。pool.json 只保存本地维护的池子定义，不写入日更日期。
     payload = build_stock_pool_payload()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     LATEST_BUNDLE.write_text(json.dumps({

@@ -354,7 +354,7 @@ def stock_pool():
 
 @app.post("/api/stock-pool/add")
 async def stock_pool_add(request: Request):
-    """新增标的到核心股票池（自动同步 GitHub 真源）。"""
+    """新增标的到本地核心股票池，并同步 GitHub 备份。"""
     try:
         body = await request.json()
         result = stock_pool_builder.add_stock(body.get("name", ""), body.get("code"), body.get("industry", ""))
@@ -369,7 +369,7 @@ async def stock_pool_add(request: Request):
 
 @app.post("/api/stock-pool/add-batch")
 async def stock_pool_add_batch(request: Request):
-    """批量添加标的（代码列表 → 自动补名称，同步 GitHub 真源）。"""
+    """批量添加到本地股票池，并同步 GitHub 备份。"""
     try:
         body = await request.json()
         result = stock_pool_builder.add_stock_batch(body.get("codes") or [])
@@ -384,7 +384,7 @@ async def stock_pool_add_batch(request: Request):
 
 @app.delete("/api/stock-pool/remove")
 def stock_pool_remove(instrument_id: str = ""):
-    """从核心股票池移除标的（自动同步 GitHub 真源）。"""
+    """从本地核心股票池移除标的，并同步 GitHub 备份。"""
     try:
         result = stock_pool_builder.remove_stock(instrument_id)
         if not result.get("ok"):
@@ -398,7 +398,7 @@ def stock_pool_remove(instrument_id: str = ""):
 
 @app.post("/api/stock-pool/sync")
 def stock_pool_sync():
-    """手动触发同步到 GitHub 真源。"""
+    """手动同步本地股票池到 GitHub 备份。"""
     try:
         result = stock_pool_builder.sync_to_github()
         if not result.get("ok"):
@@ -412,18 +412,9 @@ def stock_pool_sync():
 
 @app.get("/api/stock-pool/focus")
 def stock_pool_focus_get():
-    """近期关注列表（定义层并入 pool.json，和核心股票池一起做 GitHub 备份）。"""
+    """近期关注只读本地 pool.json；GitHub 仅保存同步备份。"""
     try:
-        try:
-            codes = _ds_get(
-                "stock-pool:focus:main",
-                TTL["minute"],
-                stock_pool_builder.fetch_remote_focus,
-                valid=lambda value: isinstance(value, list),
-                provider="github-stock-pool-focus",
-            )
-        except Exception:
-            codes = stock_pool_builder.load_focus()
+        codes = stock_pool_builder.load_focus()
         return {"data": {"codes": codes}}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"读取近期关注失败：{e}") from e
@@ -431,14 +422,13 @@ def stock_pool_focus_get():
 
 @app.post("/api/stock-pool/focus")
 async def stock_pool_focus_save(request: Request):
-    """保存近期关注列表（写回 pool.json 并同步 GitHub 真源）。"""
+    """保存近期关注到本地 pool.json，并同步 GitHub 备份。"""
     try:
         body = await request.json()
         codes = body.get("codes", [])
         result = stock_pool_builder.save_focus(codes)
         if not result.get("ok"):
             raise HTTPException(502, result.get("error", "保存失败"))
-        _ds_invalidate("stock-pool:focus:main")
         return {"data": {"ok": True, "count": len(codes), "commit": result.get("commit")}}
     except HTTPException:
         raise

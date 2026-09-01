@@ -1,10 +1,10 @@
-"""核心股票池 —— 池子定义（可编辑）+ payload builder + GitHub 真源同步。
+"""核心股票池 —— 本地池子定义 + 日更行情缓存 + GitHub 备份同步。
 
 数据流：
   data/stock-pool/pool.json         ← 池子定义（核心股票池 + 近期关注 + 研究篮子）
   data/stock-pool/stocks.csv        ← 日更快照（行情数据）
   → build_stock_pool_payload()      → /api/stock-pool 返回 payload
-  → sync_to_github()                → 增删后自动 push 到 vibe_research/data/stock-pool/pool.json
+  → sync_to_github()                → 本地增删后同步备份到 GitHub
 """
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ import csv
 import json
 import os
 import re
-import threading
 import urllib.request
 from datetime import datetime
 from pathlib import Path
@@ -30,7 +29,6 @@ STOCK_FIELDS = (
 LEADER_COUNT = 8
 REPO = "wuxingyuenan5-lgtm/vibe_research"
 GITHUB_PATH = "data/stock-pool/pool.json"
-GITHUB_LATEST_PATH = "data/stock-pool/latest_stock_pool.json"
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BASE_DIR.parent
@@ -80,56 +78,6 @@ DEFAULT_RESEARCH_BASKETS = (
         "600031", "000338", "600066", "600233", "601058", "002714",
     ]},
 )
-
-
-def validate_published_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
-    if bundle.get("status") != "published":
-        raise RuntimeError("stock-pool bundle is not published")
-    payload = bundle.get("payload")
-    if not isinstance(payload, dict):
-        raise RuntimeError("stock-pool bundle payload missing")
-    data_date = str(bundle.get("data_date") or "")[:10]
-    report_date = str((payload.get("meta") or {}).get("report_date") or "")[:10]
-    stocks = payload.get("stocks") or []
-    summary = payload.get("summary") or {}
-    if not data_date or data_date != report_date:
-        raise RuntimeError(f"stock-pool bundle date mismatch: {data_date} != {report_date}")
-    if len(stocks) != int(summary.get("tracked_count") or 0):
-        raise RuntimeError("stock-pool tracked_count mismatch")
-    if int(summary.get("pending_refresh") or 0) != 0:
-        raise RuntimeError("stock-pool bundle contains pending snapshots")
-    return bundle
-
-
-def load_bundled_latest() -> dict[str, Any] | None:
-    if not LATEST_BUNDLE_PATH.exists():
-        return None
-    return validate_published_bundle(json.loads(LATEST_BUNDLE_PATH.read_text(encoding="utf-8")))
-
-
-def fetch_remote_latest(ref: str = "main") -> dict[str, Any]:
-    url = f"https://raw.githubusercontent.com/{REPO}/{ref}/{GITHUB_LATEST_PATH}"
-    request = urllib.request.Request(url, headers={"User-Agent": "Vibe-Research/stock-pool"})
-    with urllib.request.urlopen(request, timeout=15) as response:
-        return validate_published_bundle(json.loads(response.read().decode("utf-8")))
-
-
-def fetch_remote_json(github_path: str, ref: str = "main") -> dict[str, Any]:
-    url = f"https://raw.githubusercontent.com/{REPO}/{ref}/{github_path}"
-    request = urllib.request.Request(url, headers={"User-Agent": "Vibe-Research/stock-pool"})
-    with urllib.request.urlopen(request, timeout=15) as response:
-        value = json.loads(response.read().decode("utf-8"))
-    if not isinstance(value, dict):
-        raise RuntimeError(f"invalid GitHub JSON: {github_path}")
-    return value
-
-
-def fetch_remote_focus(ref: str = "main") -> list[str]:
-    data = fetch_remote_json(GITHUB_PATH, ref)
-    focus = data.get("focus") if isinstance(data, dict) else {}
-    codes = (focus or {}).get("codes") if isinstance(focus, dict) else focus
-    cleaned = _clean_codes(codes)
-    return cleaned or _load_legacy_focus_codes()
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
@@ -289,8 +237,10 @@ def add_stock(name: str, code: str | None = None, industry: str = "") -> dict:
     }
     stocks.append(entry)
     save_pool(pool)
-    _async_sync_github()
-    return {"ok": True, "count": len(stocks)}
+    sync = sync_to_github()
+    if not sync.get("ok"):
+        return {"ok": False, "error": f"本地已保存，但 GitHub 备份失败：{sync.get('error', '未知错误')}"}
+    return {"ok": True, "count": len(stocks), "commit": sync.get("commit")}
 
 
 def lookup_name(code: str) -> str | None:
@@ -333,8 +283,13 @@ def add_stock_batch(codes: list[str]) -> dict:
         })
         added.append(code)
     save_pool(pool)
-    _async_sync_github()
-    return {"ok": True, "added": added, "failed": failed, "existing": existing, "count": len(pool["stocks"])}
+    sync = sync_to_github()
+    if not sync.get("ok"):
+        return {"ok": False, "error": f"本地已保存，但 GitHub 备份失败：{sync.get('error', '未知错误')}"}
+    return {
+        "ok": True, "added": added, "failed": failed, "existing": existing,
+        "count": len(pool["stocks"]), "commit": sync.get("commit"),
+    }
 
 
 def remove_stock(instrument_id: str) -> dict:
@@ -358,11 +313,13 @@ def remove_stock(instrument_id: str) -> dict:
             baskets.append(current)
         pool["research_baskets"] = baskets
     save_pool(pool)
-    _async_sync_github()
-    return {"ok": True, "count": len(pool["stocks"])}
+    sync = sync_to_github()
+    if not sync.get("ok"):
+        return {"ok": False, "error": f"本地已保存，但 GitHub 备份失败：{sync.get('error', '未知错误')}"}
+    return {"ok": True, "count": len(pool["stocks"]), "commit": sync.get("commit")}
 
 
-# ---------------- GitHub 真源同步 ----------------
+# ---------------- GitHub 备份同步 ----------------
 
 def _github_token() -> str | None:
     creds = Path.home() / ".git-credentials"
@@ -411,30 +368,9 @@ def _push_github(github_path: str, content: str, message: str) -> dict:
 
 
 def sync_to_github() -> dict:
-    """把 pool.json 推送到 GitHub 真源（vibe_research/data/stock-pool/pool.json）。"""
+    """把本地 pool.json 同步备份到 GitHub。"""
     pool = load_pool()
     return _push_github(GITHUB_PATH, json.dumps(pool, ensure_ascii=False, indent=2), f"chore(data): 更新核心股票池 pool.json（{pool.get('count', 0)} 只）")
-
-
-def _async_sync_github() -> None:
-    """后台推送 pool.json 到 GitHub（不阻塞前端增删请求）。
-
-    pool.json 是幂等全量状态：本次推送失败，下次任何写操作会再推一次，最终一致。
-    失败只记录 backend/logs/github_sync.log，不打扰用户。
-    """
-    def _do() -> None:
-        try:
-            sync_to_github()
-        except Exception as e:  # noqa: BLE001
-            try:
-                log_dir = BASE_DIR / "logs"
-                log_dir.mkdir(exist_ok=True)
-                with (log_dir / "github_sync.log").open("a", encoding="utf-8") as f:
-                    f.write(f"{datetime.now().isoformat()} GitHub 同步失败: {e}\n")
-            except Exception:
-                pass
-
-    threading.Thread(target=_do, daemon=True).start()
 
 
 # ---------------- 近期关注（focus）并入 pool.json ----------------
@@ -448,7 +384,7 @@ def load_focus() -> list[str]:
 
 
 def save_focus(codes: list[str], push: bool = True) -> dict:
-    """保存近期关注列表到 pool.json；focus 属于定义层，不属于 daily bundle 结果层。"""
+    """保存近期关注列表到 pool.json；focus 属于定义层，不属于日更行情缓存。"""
     clean = _clean_codes(codes)
     pool = load_pool()
     pool["focus"] = {
