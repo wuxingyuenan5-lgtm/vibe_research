@@ -37,7 +37,6 @@ PROJECT_ROOT = BASE_DIR.parent
 POOL_PATH = PROJECT_ROOT / "data" / "stock-pool" / "pool.json"
 LEGACY_FOCUS_PATH = PROJECT_ROOT / "data" / "stock-pool" / "focus.json"
 SNAPSHOT_DIR = PROJECT_ROOT / "data" / "stock-pool"
-LATEST_BUNDLE_PATH = SNAPSHOT_DIR / "latest_stock_pool.json"
 DEFINITION_STOCK_FIELDS = ("instrument_id", "code", "exchange", "name", "industry")
 
 DEFAULT_RESEARCH_BASKETS = (
@@ -85,6 +84,13 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
         return []
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def _snapshot_date(path: Path) -> str:
+    """行情缓存的日期来自文件写入时间，不复用池子定义版本。"""
+    if not path.exists():
+        return ""
+    return datetime.fromtimestamp(path.stat().st_mtime).astimezone().strftime("%Y-%m-%d")
 
 
 def _num(value: Any) -> float | None:
@@ -494,7 +500,7 @@ def build_stock_pool_payload() -> dict[str, Any]:
 
     return {
         "meta": {
-            "report_date": pool.get("version") or datetime.now().astimezone().strftime("%Y-%m-%d"),
+            "report_date": _snapshot_date(SNAPSHOT_DIR / "stocks.csv"),
             "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
             "version": "0.1.0",
             "percent_contract": "decimal_ratio",

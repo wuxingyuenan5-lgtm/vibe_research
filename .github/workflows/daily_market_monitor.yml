@@ -1,9 +1,8 @@
 name: Daily A-share Market Monitor
 
 on:
+  # GitHub 是市场母表唯一生产者；本机在完成后同步该提交供网页读取。
   schedule:
-    # GitHub cron 使用 UTC：上海时间工作日 15:20。
-    # 若数据日期、分页或关键字段校验失败，任务直接失败并暴露生产问题，不自动补跑。
     - cron: "20 7 * * 1-5"
   workflow_dispatch:
     inputs:
@@ -100,7 +99,7 @@ jobs:
           python -m py_compile \
             run_daily.py run_history_preflight.py validate_canonical_data.py build_report_data.py \
             render_market_monitor_html.py validate_market_monitor_html.py audit_mother_tables.py \
-            update_sw_industry.py update_sw_industry_fast.py rebuild_eastmoney_sectors.py is_trading_day.py
+            update_sw_industry.py update_sw_industry_fast.py rebuild_eastmoney_sectors.py
           python -m py_compile market_monitor/*.py
 
       - name: Full unit tests on code review only
@@ -140,27 +139,8 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Check A-share trading day
-        if: github.event_name != 'pull_request'
-        id: trading_day
-        shell: bash
-        run: |
-          set +e
-          python is_trading_day.py --date "${{ steps.date.outputs.value }}"
-          trading_status=$?
-          set -e
-          if [ "$trading_status" = "10" ]; then
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "非交易日，正常跳过市场母表生产。"
-            exit 0
-          fi
-          if [ "$trading_status" != "0" ]; then
-            exit "$trading_status"
-          fi
-          echo "run=true" >> "$GITHUB_OUTPUT"
-
       - name: Produce normalized payload
-        if: github.event_name != 'pull_request' && steps.trading_day.outputs.run == 'true'
+        if: github.event_name != 'pull_request'
         shell: bash
         run: |
           args=""
@@ -188,11 +168,11 @@ jobs:
           done
 
       - name: Audit mother tables
-        if: github.event_name != 'pull_request' && steps.trading_day.outputs.run == 'true'
+        if: github.event_name != 'pull_request'
         run: python audit_mother_tables.py --target-date "${{ steps.date.outputs.value }}"
 
       - name: Persist mother tables
-        if: github.event_name != 'pull_request' && steps.trading_day.outputs.run == 'true'
+        if: github.event_name != 'pull_request'
         shell: bash
         working-directory: .
         run: |

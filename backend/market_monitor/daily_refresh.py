@@ -29,7 +29,6 @@ SNAPSHOT_DIR = PROJECT_ROOT / "data" / "stock-pool"
 OUT_DIR = SNAPSHOT_DIR
 STOCKS_CSV = SNAPSHOT_DIR / "stocks.csv"
 INDICES_CSV = SNAPSHOT_DIR / "indices.csv"
-LATEST_BUNDLE = SNAPSHOT_DIR / "latest_stock_pool.json"
 LEGACY_SNAPSHOT_DIR = BASE / "data" / "market-monitor" / "stock-pool"
 CLOSE_READY_TIME = dt_time(15, 20)
 
@@ -432,16 +431,7 @@ def main() -> None:
     n_ok, n_stale = refresh_indices()
     print(f"indices.csv 已更新：刷新 {n_ok} 个 / 保留旧值 {n_stale} 个（申万/自定义等公开接口无数据）")
 
-    # 4) 重建 payload。pool.json 只保存本地维护的池子定义，不写入日更日期。
-    payload = build_stock_pool_payload()
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    LATEST_BUNDLE.write_text(json.dumps({
-        "status": "published",
-        "data_date": args.date,
-        "published_at": close_time.isoformat(timespec="seconds"),
-        "payload": payload,
-    }, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"latest_stock_pool.json 已重建 | report_date={payload['meta']['report_date']} | pending={payload['summary']['pending_refresh']}")
+    # pool.json 是本地定义，stocks.csv / indices.csv 是页面当天直接读取的行情缓存。
     print("完成 ✅")
 
 

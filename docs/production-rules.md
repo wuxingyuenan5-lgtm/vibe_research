@@ -24,15 +24,15 @@
 | 模块 | 页面正式读取 | 正式数据源 | 正式生产链路 | 刷新规则 | 前端职责 | 明确禁止 |
 |---|---|---|---|---|---|---|
 | 市场情绪 / 短线情绪 / 板块资金 / 成交额榜 | 实时接口 | 实时 API | 实时请求 | 低频实时，够用即可 | 正常展示、不要阻塞首屏 | 不要和盘后慢链路绑死 |
-| 市场监控详情 | `GET /api/market-monitor` | `market-monitor/data/` | `daily_market_monitor.yml` | 交易日 15:20 后更新 | 按后端结果展示 | 不要再读旧 published bundle |
-| 百亿成交行业分布 | `hot_stock_matrix` | `market-monitor/data/history/hot_stocks.csv` | `daily_market_monitor.yml` + `report_data` 构造 | 交易日 15:20 后更新 | 只按矩阵渲染 | 前端禁止自算矩阵 |
-| 三项指数 / 申万行业 / 四行业拥挤度 / 创新药 | `GET /api/market-monitor` | `market-monitor/data/` | `daily_market_monitor.yml` | 交易日 15:20 后更新 | 只展示正式结果 | 不准页面层修数 |
-| 自选股 / 股票池展示 | `GET /api/stock-pool` | 本地 `pool.json` + 本地 `stocks.csv` | `daily_stock_pool.yml` | 交易日 15:25 更新一次 | 定义与当天缓存直接合并展示 | 不准读取时回填旧 20 日 / YTD |
-| 股票池标的定义 | 后端读写本地 `pool.json` | `data/stock-pool/pool.json` | 人工维护 + 同步 GitHub 备份 | 有增删时即时同步 | 提供增删入口 | 本地优先；不把它当行情母表 |
+| 市场监控详情 | `GET /api/market-monitor` | 本地 `market-monitor/data/` | GitHub `daily_market_monitor.yml` 生产，本机同步 | 交易日 15:20 生产，15:45 同步 | 按后端结果展示 | 不要再读旧 published bundle |
+| 百亿成交行业分布 | `hot_stock_matrix` | 本地 `market-monitor/data/history/hot_stocks.csv` | GitHub 市场生产 + `report_data` 构造，本机同步 | 交易日 15:20 生产，15:45 同步 | 只按矩阵渲染 | 前端禁止自算矩阵 |
+| 三项指数 / 申万行业 / 四行业拥挤度 / 创新药 | `GET /api/market-monitor` | 本地 `market-monitor/data/` | GitHub 市场生产，本机同步 | 交易日 15:20 生产，15:45 同步 | 只展示正式结果 | 不准页面层修数 |
+| 自选股 / 股票池展示 | `GET /api/stock-pool` | 本地 `pool.json` + 本地 `stocks.csv` | 本地 `run_local_production.sh stock` | 交易日 15:25 更新一次 | 定义与当天缓存直接合并展示 | 不准读取时回填旧 20 日 / YTD |
+| 股票池标的定义 | 后端读写本地 `pool.json` | `data/stock-pool/pool.json` | 人工维护 + 同步 GitHub 备份 | 有增删时即时同步 | 提供增删入口 | 本地优先；不承担行情日期 |
 | 关注列表 | 后端读写本地 `pool.json.focus` | `data/stock-pool/pool.json` | 实时保存 + 同步 GitHub 备份 | 用户操作即更新 | 只管理关注代码 | 本地优先；不承担行情结果生产 |
-| 数据质量模块 | `GET /api/market-monitor` 中的 quality | 母表状态 + 前端可显示性检查 | `daily_market_monitor.yml` | 盘后随 market monitor 一起更新 | 友好展示结果 | 不直接吐原始 JSON 给你看 |
+| 数据质量模块 | `GET /api/market-monitor` 中的 quality | 母表状态 + 前端可显示性检查 | GitHub 市场生产，本机同步 | 盘后随市场母表更新 | 友好展示结果 | 不直接吐原始 JSON 给你看 |
 
-所有盘后日更在生产前先检查目标日是否存在上证综指日线：非交易日正常跳过，不写缓存或母表；日历接口异常则任务失败，不将故障误判为休市。
+市场母表由 GitHub 在工作日盘后生产；本机只在 15:45 接收成功提交。非交易日任务失败时不会写入空值，本机继续保留现有母表；不额外引入日历接口。
 
 ## 3. 市场总览与市场监控
 
@@ -59,7 +59,7 @@
 
 ### 3.2 刷新规则
 
-1. 盘后模块由 `daily_market_monitor.yml` 在交易日 `15:20` 后更新。
+1. 盘后模块由 `daily_market_monitor.yml` 在交易日 `15:20` 后更新；本机在 15:45 同步完成后的母表。
 2. 首页允许先显示实时模块，再补盘后模块。
 3. 首页不允许为了等盘后模块，把实时模块一起卡住。
 
@@ -102,7 +102,7 @@
 ## 5. 三项指数 / 申万行业 / 四行业拥挤度 / 创新药
 
 1. 这几块都属于 market monitor 正式盘后模块。
-2. 统一由 `daily_market_monitor.yml` 盘后生产。
+2. 统一由 `daily_market_monitor.yml` 盘后生产，并由本机同步为网页的本地母表。
 3. 统一从 `market-monitor/data/` 母表生成。
 4. 页面只展示正式结果。
 5. 如果缺天、缺字段、值不合理，修生产脚本或母表，不在前端打补丁。
@@ -122,11 +122,11 @@
    - 核心股票池定义
    - 近期关注代码列表
    - 研究篮子定义
-3. `data/stock-pool/latest_stock_pool.json` 是日更审计快照，不是页面读取源。
+3. 股票池不再维护额外 bundle；页面只读取本地定义和本地行情缓存。
 
 ### 6.3 刷新规则
 
-1. `daily_stock_pool.yml` 是自选股唯一正式日更链路，独立于市场总览任务。
+1. `run_local_production.sh stock` 是自选股唯一正式日更链路，独立于市场总览任务。
 2. 在交易日 `15:25` 后运行一次。
 3. 生产脚本通过 API 拉取当日需要的数据，覆盖本地当天行情缓存，并生成审计快照。
 4. 前端和后端读取本地 `pool.json` 与当天 `stocks.csv` 展示。
@@ -221,7 +221,7 @@
 2. 市场总览与 stock-pool 在收盘后各自独立运行；任一失败不阻断另一条链路。
 3. 页面分别读取：
    - 市场总览 / 市场监控：`market-monitor/data/`
-   - 自选股：本地 `pool.json` + `stocks.csv`；`latest_stock_pool.json` 仅作审计快照
+   - 自选股：本地 `pool.json` + `stocks.csv`
 
 ### 8A.2 故障修补
 
@@ -243,7 +243,7 @@
 1. 市场监控走唯一母表 `market-monitor/data/`。
 2. 百亿成交弹窗只显示后端生成好的 `hot_stock_matrix`。
 3. 自选股不并入 market monitor 母表。
-4. 自选股展示直接读取本地定义和 `daily_stock_pool.yml` 生成的当天缓存。
+4. 自选股展示直接读取本地定义和本机 API 生成的当天缓存；`daily_stock_pool.yml` 仅用于手动故障恢复。
 5. `pool.json` 只管理标的、近期关注和研究篮子，不承担行情结果母表职责。
 6. 重点维护的是：
    - 正式母表
