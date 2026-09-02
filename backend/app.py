@@ -64,7 +64,6 @@ def _run_local_daily_pipeline(name: str, ready_after: clock_time, current_date: 
     if key in _DAILY_ATTEMPTED or not _DAILY_REFRESH_LOCK.acquire(blocking=False):
         return
     try:
-        _DAILY_ATTEMPTED.add(key)
         env = dict(os.environ)
         for env_key in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY", "all_proxy"):
             env.pop(env_key, None)
@@ -78,6 +77,8 @@ def _run_local_daily_pipeline(name: str, ready_after: clock_time, current_date: 
         )
         if result.returncode:
             _LOG.warning("%s 盘后刷新失败: %s", name, result.stderr[-800:] or result.stdout[-800:])
+            return
+        _DAILY_ATTEMPTED.add(key)
     except Exception as exc:  # noqa: BLE001
         _LOG.warning("%s 盘后刷新异常: %s", name, exc)
     finally:

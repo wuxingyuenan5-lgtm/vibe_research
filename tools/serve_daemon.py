@@ -21,7 +21,7 @@ FRONTEND_DIR = os.path.join(BASE, "frontend")
 BACKEND_DIR = os.path.join(BASE, "backend")
 
 FRONTEND_CMD = [
-    "/Users/zhangxu/.workbuddy/binaries/node/versions/22.22.2/bin/npm",
+    "/Users/zhangxu/.local/bin/npm",
     "run", "dev", "--", "--host", "127.0.0.1", "--port", "5899",
 ]
 BACKEND_CMD = [

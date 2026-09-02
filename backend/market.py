@@ -193,21 +193,35 @@ def _emotion() -> dict:
     数据源＝东财涨停板四池（push2ex）。只把池子聚合成计数与比率，
     **不输出任何个股 code/name**——守产品「零标的」红线（个股清单是甩名单，不做）。
     """
-    # 定位最近交易日：从今天往前回溯，第一日有涨停池即取（非交易日/盘前返空则继续回溯）。
-    today = datetime.now(BEIJING).date()
-    resolved, zt = "", []
-    for back in range(8):
-        d = (today - timedelta(days=back)).strftime("%Y%m%d")
-        zt = astock.em_zt_topic_pool("getTopicZTPool", d, "fbt:asc")
-        if zt:
-            resolved = d
-            break
-    if not resolved:
-        return {}
+    # 交易日的四个池子彼此独立，必须同批请求；否则冷缓存会串行等待约两轮网络时间。
+    from concurrent.futures import ThreadPoolExecutor
 
-    zb = astock.em_zt_topic_pool("getTopicZBPool", resolved, "fbt:asc")    # 炸板池
-    dt = astock.em_zt_topic_pool("getTopicDTPool", resolved, "fund:asc")   # 跌停池
-    yzt = astock.em_zt_topic_pool("getYesterdayZTPool", resolved, "zs:desc")  # 昨涨停池
+    today = datetime.now(BEIJING).date()
+    resolved = today.strftime("%Y%m%d")
+
+    def fetch_pools(date: str) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {
+                "zt": executor.submit(astock.em_zt_topic_pool, "getTopicZTPool", date, "fbt:asc"),
+                "zb": executor.submit(astock.em_zt_topic_pool, "getTopicZBPool", date, "fbt:asc"),
+                "dt": executor.submit(astock.em_zt_topic_pool, "getTopicDTPool", date, "fund:asc"),
+                "yzt": executor.submit(astock.em_zt_topic_pool, "getYesterdayZTPool", date, "zs:desc"),
+            }
+            return tuple(futures[key].result() for key in ("zt", "zb", "dt", "yzt"))
+
+    zt, zb, dt, yzt = fetch_pools(resolved)
+    if not zt:
+        # 仅在休市或盘前没有当日池子时回溯最近交易日，避免正常交易日走额外请求。
+        for back in range(1, 8):
+            candidate = (today - timedelta(days=back)).strftime("%Y%m%d")
+            zt, zb, dt, yzt = fetch_pools(candidate)
+            if zt:
+                resolved = candidate
+                break
+        else:
+            return {}
+
+    # 四池使用同一交易日，保证涨跌停、炸板和昨日涨停的统计口径一致。
 
     boards = [_num(p.get("lbc")) or 1 for p in zt]      # 每只连板数（缺省按 1 板）
     lianban = [b for b in boards if b >= 2]             # 2 板及以上（连板）
