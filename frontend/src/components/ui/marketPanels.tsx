@@ -50,16 +50,18 @@ export function SectorTrendTable({ sectors, max = 15 }: { sectors: SectorFlow[];
 /* ---------- 资金轮动（流入 Top + 流出 Top 双列，与每日复盘逐字一致） ---------- */
 export function FundRotation({ sectors }: { sectors: SectorFlow[] }) {
   if (sectors.length === 0) return <p className="text-xs text-muted-foreground/60">暂无板块资金数据</p>;
+  const inflows = sectors.filter((sector) => sector.net > 0).sort((a, b) => b.net - a.net).slice(0, 6);
+  const outflows = sectors.filter((sector) => sector.net < 0).sort((a, b) => a.net - b.net).slice(0, 6);
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {[
-        { title: "流入 Top", icon: TrendingUp, color: "text-danger", rows: sectors.slice(0, 6) },
-        { title: "流出 Top", icon: TrendingDown, color: "text-success", rows: [...sectors].slice(-6).reverse() },
+        { title: "流入 Top", icon: TrendingUp, color: "text-danger", rows: inflows },
+        { title: "流出 Top", icon: TrendingDown, color: "text-success", rows: outflows },
       ].map((col) => (
         <GlassCard key={col.title}>
           <h4 className={cn("mb-3 flex items-center gap-1.5 text-sm font-semibold", col.color)}><col.icon className="h-4 w-4" /> {col.title}</h4>
           {col.rows.length === 0 ? (
-            <p className="text-xs text-muted-foreground/60">加载中…</p>
+            <p className="text-xs text-muted-foreground/60">暂无净{col.title === "流入 Top" ? "流入" : "流出"}数据</p>
           ) : (
             <div className="space-y-1.5">
               {col.rows.map((s, i) => (

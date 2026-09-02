@@ -121,14 +121,23 @@ def _sectors_fallback() -> list[dict]:
     import json  # noqa: PLC0415
     import urllib.request  # noqa: PLC0415
     try:
-        url = ("https://push2delay.eastmoney.com/api/qt/clist/get?pn=1&pz=50&po=1&np=1&fltt=2&invt=2"
-               "&fid=f62&fs=m:90+t:2&fields=f12,f14,f3,f62,f104,f105,f106")
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://quote.eastmoney.com/"})
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-        d = json.loads(opener.open(req, timeout=8).read().decode("utf-8"))
-        diffs = (d.get("data") or {}).get("diff") or []
+        rows_by_code: dict[str, dict] = {}
+        for order in ("1", "0"):  # 分别取净流入端和净流出端，避免只得到正值前 50 行。
+            url = (
+                "https://push2delay.eastmoney.com/api/qt/clist/get"
+                f"?pn=1&pz=50&po={order}&np=1&fltt=2&invt=2"
+                "&fid=f62&fs=m:90+t:2&fields=f12,f14,f3,f62,f104,f105,f106"
+            )
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://quote.eastmoney.com/"})
+            d = json.loads(opener.open(req, timeout=8).read().decode("utf-8"))
+            for row in (d.get("data") or {}).get("diff") or []:
+                code = str(row.get("f12") or "")
+                if code:
+                    rows_by_code[code] = row
+
         out = []
-        for x in diffs:
+        for x in rows_by_code.values():
             net = float(x.get("f62") or 0)
             if net == 0:
                 continue
