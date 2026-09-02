@@ -1,9 +1,7 @@
 name: Daily A-share Market Monitor
 
 on:
-  # GitHub 是市场母表唯一生产者；本机在完成后同步该提交供网页读取。
-  schedule:
-    - cron: "20 7 * * 1-5"
+  # 正式生产由本地后端完成；此工作流只保留手动故障恢复和 PR 验证。
   workflow_dispatch:
     inputs:
       target_date:

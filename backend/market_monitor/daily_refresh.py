@@ -115,14 +115,19 @@ def fetch_snapshot(secids: list[str]) -> dict[str, dict]:
     for i in range(0, len(secids), 50):
         batch = secids[i:i + 50]
         url = f"{ULIST_URL}?secids={','.join(batch)}&fields={ULIST_FIELDS}"
-        try:
-            d = _get(url)
-            for v in d.get("data", {}).get("diff", []) or []:
-                code = str(v.get("f12") or "").strip()
-                if code:
-                    out[code] = v
-        except Exception as e:  # noqa: BLE001
-            print(f"  [WARN] ulist 批次 {i // 50 + 1} 失败: {e}")
+        for attempt in range(3):
+            try:
+                d = _get(url)
+                for v in d.get("data", {}).get("diff", []) or []:
+                    code = str(v.get("f12") or "").strip()
+                    if code:
+                        out[code] = v
+                break
+            except Exception as exc:  # noqa: BLE001
+                if attempt == 2:
+                    print(f"  [WARN] ulist 批次 {i // 50 + 1} 失败: {exc}")
+                else:
+                    time.sleep(attempt + 1)
         time.sleep(0.2)
     return out
 
