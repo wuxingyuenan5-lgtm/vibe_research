@@ -36,8 +36,8 @@ from pathlib import Path
 
 app = FastAPI(title="Vibe-Research API", version="0.2.2")
 
-_MARKET_REFRESH_AFTER = clock_time(15, 25)
-_STOCK_REFRESH_AFTER = clock_time(15, 25)
+_MARKET_REFRESH_AFTER = clock_time(15, 20)
+_STOCK_REFRESH_AFTER = clock_time(15, 20)
 _DAILY_REFRESH_LOCK = Lock()
 _DAILY_ATTEMPTED: set[tuple[str, str]] = set()
 _LOG = logging.getLogger(__name__)
