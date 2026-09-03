@@ -176,6 +176,31 @@ def test_market_degrades_without_akshare(monkeypatch):
     assert market._sectors() == []
 
 
+def test_sector_flow_skips_eastmoney_placeholder(monkeypatch):
+    import json
+    import urllib.request
+
+    payload = json.dumps({"data": {"diff": [
+        {"f12": "A", "f14": "缺失值", "f3": "-", "f62": "-", "f104": 0, "f105": 0, "f106": 0},
+        {"f12": "B", "f14": "真实流出", "f3": -1.2, "f62": -250000000, "f104": 1, "f105": 2, "f106": 3},
+    ]}}).encode()
+
+    class Response:
+        def read(self):
+            return payload
+
+    class Opener:
+        def open(self, *_args, **_kwargs):
+            return Response()
+
+    monkeypatch.setattr(urllib.request, "build_opener", lambda *_args: Opener())
+    monkeypatch.setattr(market, "record_provider", lambda *_args, **_kwargs: None)
+    assert market._sectors_fallback() == [{
+        "name": "真实流出", "pct": -1.2, "net": -2.5,
+        "inflow": 0.0, "outflow": 2.5, "firms": 6,
+    }]
+
+
 # ── 流式工具调用：非标网关不带 index 时按 id 归位、不串参数 ──────────
 
 def test_stream_tool_calls_without_index(monkeypatch):

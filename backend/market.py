@@ -123,14 +123,21 @@ def _sectors_fallback() -> list[dict]:
     try:
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         rows_by_code: dict[str, dict] = {}
-        for order in ("1", "0"):  # 分别取净流入端和净流出端，避免只得到正值前 50 行。
+        def fetch(order: str) -> dict:
             url = (
                 "https://push2delay.eastmoney.com/api/qt/clist/get"
                 f"?pn=1&pz=50&po={order}&np=1&fltt=2&invt=2"
                 "&fid=f62&fs=m:90+t:2&fields=f12,f14,f3,f62,f104,f105,f106"
             )
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Referer": "https://quote.eastmoney.com/"})
-            d = json.loads(opener.open(req, timeout=8).read().decode("utf-8"))
+            return json.loads(opener.open(req, timeout=8).read().decode("utf-8"))
+
+        # 流入、流出页相互独立，必须并行；串行会让总览超过 10 秒实时接口上限。
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = [executor.submit(fetch, order) for order in ("1", "0")]
+            pages = [future.result() for future in futures]
+        for d in pages:  # 分别取净流入端和净流出端，避免只得到正值前 50 行。
             for row in (d.get("data") or {}).get("diff") or []:
                 code = str(row.get("f12") or "")
                 if code:
@@ -138,12 +145,13 @@ def _sectors_fallback() -> list[dict]:
 
         out = []
         for x in rows_by_code.values():
-            net = float(x.get("f62") or 0)
+            # 东财盘中偶尔用 "-" 表示暂缺字段；跳过该行，不能让整个资金榜失效。
+            net = astock._numf(x.get("f62")) or 0
             if net == 0:
                 continue
             out.append({
                 "name": str(x.get("f14") or ""),
-                "pct": round(float(x.get("f3") or 0), 2),
+                "pct": round(astock._numf(x.get("f3")) or 0, 2),
                 "net": round(net / 1e8, 2),
                 "inflow": round(max(net, 0) / 1e8, 2),
                 "outflow": round(-min(net, 0) / 1e8, 2),

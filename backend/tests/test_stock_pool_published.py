@@ -12,13 +12,15 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 class StockPoolPublishedTests(unittest.TestCase):
-    def test_current_snapshot_rejects_future_or_same_day_preclose(self):
+    def test_current_snapshot_rejects_non_current_or_same_day_preclose(self):
         partial = datetime(2026, 8, 25, 15, 19, tzinfo=ZoneInfo("Asia/Shanghai"))
         with self.assertRaises(RuntimeError):
             require_current_close_window("2026-08-25", partial)
         with self.assertRaises(RuntimeError):
             require_current_close_window("2026-08-26", datetime(2026, 8, 25, 16, 0, tzinfo=ZoneInfo("Asia/Shanghai")))
-        current = require_current_close_window("2026-08-24", datetime(2026, 8, 25, 16, 0, tzinfo=ZoneInfo("Asia/Shanghai")))
+        with self.assertRaises(RuntimeError):
+            require_current_close_window("2026-08-24", datetime(2026, 8, 25, 16, 0, tzinfo=ZoneInfo("Asia/Shanghai")))
+        current = require_current_close_window("2026-08-25", datetime(2026, 8, 25, 16, 0, tzinfo=ZoneInfo("Asia/Shanghai")))
         self.assertEqual(current.strftime("%Y-%m-%d"), "2026-08-25")
 
     def test_save_focus_persists_into_pool_json(self):

@@ -9,7 +9,7 @@
 
 用法：python -m market_monitor.daily_refresh [--date 2026-08-15]
 说明：数据为东财真实公开行情；拉不到的字段写空，前端显示 "—"（不造数）。
-indices.csv（行业/指数强弱）本轮不刷新，仅刷新股票池。
+stocks.csv 与 indices.csv 均为当天盘后覆盖式缓存，不承担历史回填。
 """
 import argparse
 import csv
@@ -80,11 +80,11 @@ def require_current_close_window(target_date: str, now: datetime | None = None) 
     else:
         current = current.astimezone(ZoneInfo("Asia/Shanghai"))
     current_date = current.strftime("%Y-%m-%d")
-    if current_date < target_date:
+    if target_date != current_date:
         raise RuntimeError(
-            f"股票池当前快照不能写成未来日期 {target_date}; 当前日期为 {current_date}"
+            f"股票池日更只允许当天盘后运行: target={target_date}, current={current_date}"
         )
-    if current_date == target_date and current.time() < CLOSE_READY_TIME:
+    if current.time() < CLOSE_READY_TIME:
         raise RuntimeError(f"股票池收盘快照尚未就绪: {current.isoformat(timespec='seconds')}")
     return current
 
