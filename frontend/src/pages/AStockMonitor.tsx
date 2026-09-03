@@ -13,13 +13,11 @@ interface MarketRow {
   limit_up: number | null; limit_down: number | null; effective_stocks: number | null;
   total_amount_100m: number | null; hot_count: number | null; market_breadth: number | null;
 }
-interface IndexRow { date: string; name: string; close: number | null; return: number | null; amount_100m: number | null }
 interface SwRow { 日期: string; 行业层级: string; 一级行业: string; 指数代码: string; 指数名称: string; 收盘价: number | null; 成交额: number | null; 日收益率: number | null; "20日年化波动率": number | null }
 interface HotRow { date: string; rank: number | null; stock_code: string; stock_name: string; close: number | null; return: number | null; amount_100m: number | null; sw_level1: string; sw_level2: string }
 export interface ReportData {
   meta: { report_date: string; status: string; latest_market_date: string };
   market_history: MarketRow[];
-  indices_history: IndexRow[];
   sw_industry_latest: SwRow[];
   hot_stock_matrix: { dates: string[]; rows: { industry: string; counts: number[]; history_total: number }[] };
   hot_stocks_history: HotRow[];
@@ -486,7 +484,6 @@ export function AStockMonitor({ embed = false }: { embed?: boolean } = {}) {
                 <tbody>
                   {(qualitySummary?.mother_tables?.length ? qualitySummary.mother_tables : [
                     { key: "market", label: "市场核心母表", latest: moduleLatest.market ?? null, status: "PASS" },
-                    { key: "indices", label: "监控页三项指数", latest: moduleLatest.indices ?? null, status: "PASS" },
                     { key: "sw_industry", label: "申万行业母表", latest: moduleLatest.sw_industry ?? null, status: "PASS" },
                     { key: "sw_crowding", label: "四行业拥挤度母表", latest: moduleLatest.sw_crowding ?? null, status: "PASS" },
                     { key: "innovation", label: "创新药母表", latest: moduleLatest.innovation ?? null, status: "PASS" },

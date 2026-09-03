@@ -89,30 +89,6 @@ def _market_charts(report):
     return structure, breadth
 
 
-def _latest_index_map(report):
-    target = report.get("meta", {}).get("report_date")
-    return {r.get("name"): r for r in report.get("indices_history", []) if r.get("date") == target}
-
-
-def _recent_indices(report):
-    names = ["上证50", "中证2000", "中证全指"]
-    by_date = {}
-    for item in report.get("indices_history", []):
-        if item.get("name") in names:
-            by_date.setdefault(item.get("date"), {})[item.get("name")] = item
-    market = {r.get("date"): r for r in report.get("market_history", [])}
-    dates = sorted(set(by_date) | set(market), reverse=True)[:5]
-    rows = []
-    for d in dates:
-        row = [escape(str(d))]
-        for name in names:
-            item = by_date.get(d, {}).get(name, {})
-            row += [f'<span class="{_cls(item.get("return"))}">{_pct(item.get("return"))}</span>', _fmt(item.get("amount_100m"))]
-        row.append(_fmt(market.get(d, {}).get("total_amount_100m")))
-        rows.append(row)
-    return _table(["日期","上证50","成交额","中证2000","成交额","中证全指","成交额","全A成交额"], rows)
-
-
 def _sw_industry(report):
     rows, attrs = [], []
     for i, r in enumerate(report.get("sw_industry_latest", [])):
@@ -205,7 +181,7 @@ def _quality(report):
             escape(str(item.get("status") or "—")),
         ] for item in mother_tables]
     else:
-        labels = {"market":"市场核心母表","indices":"监控页三项指数","sw_industry":"申万行业母表","sw_crowding":"四行业拥挤度母表","innovation":"创新药母表","hot_stocks":"百亿成交母表"}
+        labels = {"market":"市场核心母表","sw_industry":"申万行业母表","sw_crowding":"四行业拥挤度母表","innovation":"创新药母表","hot_stocks":"百亿成交母表"}
         rows = [[labels.get(k,k), escape(str(v or "—")), "—"] for k,v in quality.get("module_latest_dates", {}).items()]
     out = _table(["母表","最新更新日","状态"], rows)
     frontend_checks = summary.get("frontend_checks") or []
@@ -273,13 +249,9 @@ def render_html(report: dict) -> str:
     latest = market[-1] if market else {}
     hot_latest = report.get("hot_stocks_latest", [])
     hot_date = str((hot_latest[0] if hot_latest else {}).get("date") or "—")
-    indices = _latest_index_map(report)
     status = str(meta.get("status") or "UNKNOWN")
     status_class = "pass" if status == "PASS" else "warn" if status == "WARN" else "fail"
     kpis = [
-        ("上证50",_pct(indices.get("上证50",{}).get("return")),_cls(indices.get("上证50",{}).get("return"))),
-        ("中证2000",_pct(indices.get("中证2000",{}).get("return")),_cls(indices.get("中证2000",{}).get("return"))),
-        ("中证全指",_pct(indices.get("中证全指",{}).get("return")),_cls(indices.get("中证全指",{}).get("return"))),
         ("全A成交额",_fmt(latest.get("total_amount_100m"),0)+" 亿","neutral"),
         ("百亿成交股（周度）",str(len(hot_latest))+" 只","neutral"),
         ("市场宽度",_pct(latest.get("market_breadth"),1),_cls(latest.get("market_breadth"))),
@@ -291,7 +263,6 @@ def render_html(report: dict) -> str:
     return f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>A股每日市场监控 {escape(target)}</title><style>{style}</style></head><body><div class="page"><header class="hero"><div class="hero-top"><div><h1>A股每日市场监控</h1><div class="meta">报告日期 {escape(target)} ｜ 申万行业最新有效日 {escape(str(sw_latest))} ｜ 单文件离线报告</div></div><div class="status {status_class}">数据状态 {escape(status)}</div></div></header><div class="kpis">{kpi_html}</div>
 <section class="section"><div class="section-title">00｜市场总览 · 市场涨跌结构</div><div class="card"><div class="subnote">默认全历史；双滚轴可筛选时间。上涨/下跌左轴，涨停/跌停右轴。</div>{structure}</div></section>
 <section class="section"><div class="section-title">00｜市场总览 · 市场宽度</div><div class="card">{breadth}</div></section>
-<section class="section"><div class="section-title">00｜市场总览 · 最近交易日指数与成交</div><div class="card">{_recent_indices(report)}</div></section>
 <section class="section"><div class="section-title">01｜申万行业</div><div class="card">{_sw_industry(report)}</div></section>
 <section class="section"><div class="section-title">04｜百亿成交</div><div class="card"><h3>最近10个周度归档日｜最新日期在左</h3>{_hot_matrix(report)}<h3>{escape(hot_date)} 成交额超过100亿元个股｜完整明细 {len(hot_latest)} 只</h3>{_hot_detail(report)}</div></section>
 <section class="section"><div class="section-title">05｜申万四行业资金拥挤度</div><div class="card">{_crowding(report)}</div></section>

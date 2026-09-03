@@ -15,7 +15,6 @@ ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 SW_INDUSTRY_PATH = DATA_DIR / "sw_industry_history.csv"
 SW_ANALYSIS_PATH = DATA_DIR / "history" / "sw_analysis_daily_second.csv"
-INDICES_PATH = DATA_DIR / "history" / "indices_history.csv"
 MARKET_CORE_PATH = DATA_DIR / "history" / "market_core.csv"
 SQRT_252 = math.sqrt(252.0)
 VOL_WINDOW = 20
@@ -27,17 +26,11 @@ FOUR_SECTOR_NAMES = {
     "801081": "半导体",
 }
 FOUR_SECTOR_SOURCE = "Choice申万二级指数历史修复（SWI）"
-INDICES = {
-    "上证50": ("1.000016", "000016.SH"),
-    "中证2000": ("2.932000", "932000.CSI"),
-    "中证全指": ("1.000985", "000985.CSI"),
-}
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Use Choice to backfill market-monitor mother tables")
     parser.add_argument("--sw-industry-dates", default="", help="Comma-separated dates like 2026-08-12,2026-08-13")
-    parser.add_argument("--indices-dates", default="", help="Comma-separated dates like 2026-08-10,2026-08-24")
     parser.add_argument(
         "--rewrite-sw-analysis-through",
         default="",
@@ -208,36 +201,6 @@ def backfill_sw_industry(target_dates: list[str]) -> dict[str, object]:
     return {"target_dates": target_dates, "rows_written": len(replacement_rows)}
 
 
-def backfill_indices(target_dates: list[str]) -> dict[str, object]:
-    fieldnames, existing_rows = read_csv_rows(INDICES_PATH)
-    choice_codes = [value[1] for value in INDICES.values()]
-    fetched = fetch_csd_rows(choice_codes, ["CLOSE", "AMOUNT", "PCTCHANGE"], min(target_dates), max(target_dates))
-    by_choice_code = {(str(item["date"]), str(item["code"])): item for item in fetched if str(item["date"]) in target_dates}
-
-    replacement_rows: list[dict[str, str]] = []
-    for name, (legacy_code, choice_code) in INDICES.items():
-        for target_date in target_dates:
-            item = by_choice_code.get((target_date, choice_code))
-            if item is None:
-                raise RuntimeError(f"Choice index backfill missing {choice_code} on {target_date}")
-            replacement_rows.append({
-                "date": target_date,
-                "name": name,
-                "code": legacy_code,
-                "close": fmt_plain(number(item.get("CLOSE")), digits=4),
-                "return": fmt_decimal((number(item.get("PCTCHANGE")) or 0.0) / 100.0),
-                "amount_100m": fmt_decimal((number(item.get("AMOUNT")) or 0.0) / 1e8),
-                "source": "Choice指数日行情历史修复",
-                "status": "ok_choice_history_backfill",
-            })
-
-    target_keys = {(row["date"], row["name"]) for row in replacement_rows}
-    kept_rows = [row for row in existing_rows if (str(row.get("date") or ""), str(row.get("name") or "")) not in target_keys]
-    merged_rows = sorted(kept_rows + replacement_rows, key=lambda row: (row["date"], row["name"]))
-    write_csv_rows(INDICES_PATH, fieldnames, merged_rows)
-    return {"target_dates": target_dates, "rows_written": len(replacement_rows)}
-
-
 def rewrite_sw_analysis_through(end_date: str) -> dict[str, object]:
     fieldnames, existing_rows = read_csv_rows(SW_ANALYSIS_PATH)
     market_amount_by_date = load_market_amount_by_date()
@@ -304,7 +267,6 @@ def rewrite_sw_analysis_through(end_date: str) -> dict[str, object]:
 def main() -> None:
     args = parse_args()
     sw_industry_dates = parse_date_list(args.sw_industry_dates)
-    indices_dates = parse_date_list(args.indices_dates)
     results: dict[str, object] = {}
     login = c.start()
     if login.ErrorCode != 0:
@@ -312,8 +274,6 @@ def main() -> None:
     try:
         if sw_industry_dates:
             results["sw_industry"] = backfill_sw_industry(sw_industry_dates)
-        if indices_dates:
-            results["indices"] = backfill_indices(indices_dates)
         if args.rewrite_sw_analysis_through:
             results["sw_analysis"] = rewrite_sw_analysis_through(args.rewrite_sw_analysis_through)
     finally:

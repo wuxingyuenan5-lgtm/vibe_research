@@ -1,11 +1,8 @@
 from __future__ import annotations
 
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
 from pathlib import Path
 from typing import Any
-from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
@@ -21,50 +18,8 @@ UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Sa
 EM_KLINE_URL = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
 EM_UT = "fa5fd1943c7b386f172d6893dbfba10b"
 INNOVATION_EM_SECID = "90.BK1106"
-TENCENT_QUOTE_URL = "https://qt.gtimg.cn/q={code}"
 EM_LIMIT_POOL_URL = "https://push2ex.eastmoney.com/{endpoint}"
 EM_LIMIT_POOL_UT = "7eea3edcaed734bea9cbfc24409ed989"
-
-
-def _fetch_tencent_index(secid: str) -> dict[str, float | None] | None:
-    """腾讯 qt.gtimg.cn 实时指数回退源（东财 push2his 历史K线被网络阻断时使用）。
-
-    东财 secid（1.000016 / 0.399001）→ 腾讯代码（sh000016 / sz399001）。
-    返回 close/return/amount_100m；任何异常返回 None。
-    """
-    if secid.startswith("1."):
-        tx_code = "sh" + secid[2:]
-    elif secid.startswith("0."):
-        tx_code = "sz" + secid[2:]
-    else:
-        return None
-    try:
-        resp = requests.get(
-            TENCENT_QUOTE_URL.format(code=tx_code),
-            headers={"User-Agent": UA},
-            timeout=(4, 6),
-        )
-        resp.encoding = "gbk"
-        parts = resp.text.split("~")
-        if len(parts) < 36 or not parts[3]:
-            return None
-        close = float(parts[3])
-        ret = float(parts[32]) / 100.0 if parts[32] else None
-        amount_yuan = None
-        if len(parts) > 35 and "/" in parts[35]:
-            seg = parts[35].split("/")
-            if len(seg) > 2:
-                try:
-                    amount_yuan = float(seg[2])
-                except ValueError:
-                    amount_yuan = None
-        return {
-            "close": close,
-            "return": ret,
-            "amount_100m": amount_yuan / 1e8 if amount_yuan is not None else None,
-        }
-    except Exception:
-        return None
 
 
 def _pick(frame: pd.DataFrame, *names: str) -> str:
@@ -176,23 +131,6 @@ def fetch_limit_pools(target_date: str) -> tuple[int, int, list[dict[str, object
     return counts["limit_up"], counts["limit_down"], details
 
 
-def update_limit_pool_history(path: Path, target_date: str, rows: list[dict[str, object]]) -> pd.DataFrame:
-    ensure_dir(path.parent)
-    fresh = pd.DataFrame(rows)
-    existing = pd.read_csv(path, encoding="utf-8-sig") if path.exists() else pd.DataFrame()
-    if not existing.empty:
-        existing = existing[existing["date"].astype(str) != target_date]
-    combined = pd.concat([existing, fresh], ignore_index=True, sort=False)
-    if not combined.empty:
-        combined["stock_code"] = combined["stock_code"].astype(str).str.zfill(6)
-        combined = combined.drop_duplicates(["date", "direction", "stock_code"], keep="last")
-        combined = combined.sort_values(
-            ["date", "direction", "amount_100m"], ascending=[True, True, False]
-        )
-    combined.to_csv(path, index=False, encoding="utf-8-sig", float_format="%.10f")
-    return combined
-
-
 def _em_curl_json(url: str, params: dict[str, str]) -> dict:
     """东财接口用 curl 子进程直连（--noproxy）。
 
@@ -238,72 +176,6 @@ def _fetch_em_klines(secid: str, beg: str, end: str, lmt: int = 1000) -> list[li
         return [row for row in parsed if len(row) >= 11]
 
     return retry(request, attempts=2, delay=0.8)
-
-
-def fetch_eastmoney_index(target_date: str, secid: str, name: str) -> dict[str, object]:
-    compact = target_date.replace("-", "")
-    try:
-        # 用 beg=0 全历史模式取最近 10 个交易日最后一行（兼容中证指数 2. 前缀，如中证2000 932000）
-        values = _fetch_em_klines(secid, "0", "20500101", lmt=10)[-1]
-        if values[0].replace("-", "") != compact:
-            raise RuntimeError(f"target date {target_date} not in Eastmoney kline: {values[0]}")
-        return {
-            "date": values[0],
-            "name": name,
-            "code": secid,
-            "close": float(values[2]),
-            "return": float(values[8]) / 100,
-            "amount_100m": float(values[6]) / 1e8,
-            "source": "东方财富历史K线直连",
-            "status": "ok",
-        }
-    except Exception:
-        pass
-    # 东财 push2his 被网络阻断时，仅允许在“当天生产”回退腾讯实时行情。
-    # 历史补数绝不允许拿当前实时值冒充历史值。
-    today = datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d")
-    if target_date != today:
-        raise RuntimeError(f"历史日期 {target_date} 的东财指数K线不可达，禁止使用实时回退: {secid}")
-    tx = _fetch_tencent_index(secid)
-    if tx is not None and tx.get("close") is not None:
-        return {
-            "date": target_date,
-            "name": name,
-            "code": secid,
-            "close": tx["close"],
-            "return": tx.get("return"),
-            "amount_100m": tx.get("amount_100m"),
-            "source": "腾讯 qt.gtimg.cn 实时回退",
-            "status": "ok",
-        }
-    raise RuntimeError(f"东财历史K线与腾讯实时均不可达: {secid}")
-
-
-def fetch_indices(target_date: str, definitions: list[dict[str, str]]) -> list[dict[str, object]]:
-    """Fetch the three daily indices concurrently; each request has a hard timeout."""
-    results: dict[str, dict[str, object]] = {}
-
-    def task(item: dict[str, str]) -> dict[str, object]:
-        try:
-            return fetch_eastmoney_index(target_date, item["secid"], item["name"])
-        except Exception as exc:
-            return {
-                "date": target_date,
-                "name": item["name"],
-                "code": item["secid"],
-                "close": None,
-                "return": None,
-                "amount_100m": None,
-                "source": "东方财富历史K线直连",
-                "status": f"error: {exc}",
-            }
-
-    with ThreadPoolExecutor(max_workers=max(1, len(definitions))) as executor:
-        futures = {executor.submit(task, item): item["name"] for item in definitions}
-        for future in as_completed(futures):
-            record = future.result()
-            results[str(record["name"])] = record
-    return [results[item["name"]] for item in definitions]
 
 
 def _innovation_em_frame(beg: str, end: str) -> pd.DataFrame:
@@ -360,7 +232,6 @@ def update_innovation_history(target_date: str, history_path: Path, history_star
     combined = pd.concat([existing, fresh], ignore_index=True, sort=False) if not existing.empty else fresh
     combined["日期"] = pd.to_datetime(combined["日期"], errors="coerce")
     combined = combined.dropna(subset=["日期"]).drop_duplicates("日期", keep="last").sort_values("日期")
-    combined["20日成交量活跃度代理"] = combined["成交量"] / combined["成交量"].rolling(20, min_periods=1).mean()
     exported = combined.copy()
     exported["日期"] = exported["日期"].dt.strftime("%Y-%m-%d")
     exported.to_csv(history_path, index=False, encoding="utf-8-sig", float_format="%.10f")
@@ -387,13 +258,10 @@ def upsert_innovation_direct_quote(history_path: Path, quote: dict[str, object])
         "日收益率": quote["return"],
         "换手率": quote["turnover"],
         "数据源": quote["source"],
-        "20日成交量活跃度代理": None,
     }])
     combined = pd.concat([existing, fresh], ignore_index=True, sort=False)
     combined["日期"] = pd.to_datetime(combined["日期"], errors="coerce")
     combined = combined.dropna(subset=["日期"]).drop_duplicates("日期", keep="last").sort_values("日期")
-    volume = pd.to_numeric(combined.get("成交量"), errors="coerce")
-    combined["20日成交量活跃度代理"] = volume / volume.rolling(20, min_periods=1).mean()
     exported = combined.copy()
     exported["日期"] = exported["日期"].dt.strftime("%Y-%m-%d")
     ensure_dir(history_path.parent)

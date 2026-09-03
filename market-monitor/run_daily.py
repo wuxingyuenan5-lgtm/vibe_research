@@ -11,10 +11,8 @@ from typing import Callable
 from zoneinfo import ZoneInfo
 
 from market_monitor.production import run
-from market_monitor.history_preflight import append_index_history
 from market_monitor.canonical_store import CANONICAL_TABLES, normalize_candidate, read_csv_rows
 from market_monitor.canonical_validation import validate_candidate
-from market_monitor.collectors import update_limit_pool_history
 from build_report_data import append_hot_stock_history
 from update_sw_industry_fast import update as update_sw_industry_fast
 from update_sw_industry import update as update_sw_industry_full
@@ -94,7 +92,6 @@ def _mother_table_paths(root: Path) -> list[Path]:
     paths = {root / spec.path for spec in CANONICAL_TABLES.values()}
     paths.update({
         root / "data/sw_industry_latest.csv",
-        root / "data/history/innovation_drug_enriched.csv",
     })
     return sorted(paths)
 
@@ -147,20 +144,11 @@ def main() -> None:
         refresh_mapping=args.refresh_mapping,
     )
     payload = result["payload"]
-    append_index_history(
-        repo_root / "data/history/indices_history.csv",
-        list((payload.get("indices") or {}).values()),
-    )
     # 百亿成交股是每日母表，不是周五快照。每天按 date+stock_code upsert。
     append_hot_stock_history(
         repo_root / "data/history/hot_stocks.csv",
         args.target_date,
         payload.get("hot_stocks") or [],
-    )
-    update_limit_pool_history(
-        repo_root / "data/history/limit_pool.csv",
-        args.target_date,
-        payload.get("limit_pool") or [],
     )
 
     output_dir = repo_root / "output" / args.target_date

@@ -15,8 +15,7 @@
 
 ### 唯一正式母表
 - 历史 Canonical 数据只维护在 `market-monitor/data/`：
-  - `history/market_core.csv`（含 verified backfill）
-  - `history/indices_history.csv`
+  - `history/market_core.csv`
   - `history/hot_stocks.csv`
   - `history/sw_analysis_daily_second.csv`（四行业拥挤度）
   - `history/innovation_drug_eastmoney.csv`（创新药）
@@ -30,7 +29,7 @@
 ### 未迁（有意排除）
 - Excel 母表体系：`run_excel_renderer_v12/13/14/15.py`、excel_renderer_artifact.py、旧 Excel mother workbook 逻辑
 - 网络采集/backfill：`market_monitor/collectors.py`、`pipeline.py`、`production.py`、`run_daily.py` 的实时采集与母表按日期 upsert
-- 上游 run 脚本（`run_daily.py` / `run_history_preflight.py`）的 CLI 形态
+- 上游 `run_daily.py` 的 CLI 形态
 
 ## 后续若上游有修复
 对照 `integrated commit` 做增量 diff；采集、母表和发布逻辑只在 `market-monitor/` 维护一份。

@@ -8,14 +8,13 @@ import json
 from pathlib import Path
 from typing import Iterable
 
-from market_monitor.history_preflight import INDEX_NAMES, read_index_history, read_market_core_rows, scan_history_gaps
+from market_monitor.history_preflight import read_market_core_rows, scan_history_gaps
 
 
 TARGET_SW = {"通信设备": "801102", "计算机设备": "801101", "元件": "801083", "半导体": "801081"}
 HOT_FIELDS = ("date", "rank", "stock_code", "stock_name", "close", "return", "amount_100m", "sw_level1", "sw_level2")
 QUALITY_MODULE_LABELS = {
     "market": "市场核心母表",
-    "indices": "监控页三项指数",
     "sw_industry": "申万行业母表",
     "sw_crowding": "四行业拥挤度母表",
     "innovation": "创新药母表",
@@ -67,7 +66,7 @@ def _check_status(ok: bool, warn: bool = False) -> str:
 
 def _module_health_rows(module_latest_dates: dict[str, str | None], benchmark_date: str | None) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
-    order = ("market", "indices", "sw_industry", "sw_crowding", "innovation", "hot_stocks")
+    order = ("market", "sw_industry", "sw_crowding", "innovation", "hot_stocks")
     for key in order:
         latest = module_latest_dates.get(key)
         if not latest:
@@ -95,7 +94,6 @@ def _build_quality_summary(
     latest_hot: list[dict[str, object]],
     expected_hot: int,
     hot_latest_date: str | None,
-    indices_history: list[dict[str, object]],
     sw_industry: list[dict[str, object]],
     sw_crowding: list[dict[str, object]],
     innovation: list[dict[str, object]],
@@ -103,8 +101,6 @@ def _build_quality_summary(
     canonical_validation: dict[str, object],
 ) -> dict[str, object]:
     mother_tables = _module_health_rows(module_latest_dates, report_date)
-    latest_indices = [row for row in indices_history if str(row.get("date") or "") == report_date]
-    indices_ok = len([row for row in latest_indices if row.get("name") in INDEX_NAMES and row.get("return") is not None and row.get("amount_100m") is not None]) == len(INDEX_NAMES)
     crowding_row = next((row for row in sw_crowding if str(row.get("date") or "") == report_date), None)
     crowding_targets = (crowding_row or {}).get("targets") or {}
     crowding_ok = len(crowding_targets) == len(TARGET_SW) and all(
@@ -122,19 +118,14 @@ def _build_quality_summary(
     )
     frontend_checks = [
         {"key": "market", "label": "市场总览正常显示", "status": _check_status(bool(report_date and module_latest_dates.get("market") == report_date)), "detail": "依赖 market_core 最新交易日"},
-        {"key": "indices", "label": "监控页三项指数正常显示", "status": _check_status(indices_ok, warn=bool(latest_indices)), "detail": "要求上证50/中证2000/中证全指在页面基准日同时具备涨跌幅和成交额"},
         {"key": "sw_industry", "label": "申万行业表正常显示", "status": _check_status(bool(sw_industry and module_latest_dates.get("sw_industry") == report_date), warn=bool(sw_industry)), "detail": "要求页面基准日存在行业快照"},
         {"key": "sw_crowding", "label": "四行业拥挤度图正常显示", "status": _check_status(crowding_ok, warn=bool(crowding_row)), "detail": "要求四条行业线在页面基准日同时具备成交额、占全A和换手率"},
         {"key": "innovation", "label": "创新药模块正常显示", "status": _check_status(innovation_ok, warn=bool(innovation_row)), "detail": "要求页面基准日存在成交额、占全A和换手率"},
         {"key": "hot_stocks", "label": "百亿成交榜正常显示", "status": _check_status(hot_latest_date == report_date and len(latest_hot) == expected_hot, warn=bool(latest_hot)), "detail": f"要求页面基准日百亿成交股数量与 market_core 记录一致（当前应为 {expected_hot} 只）"},
     ]
-    index_gap_items = list(gaps.get("indices") or [])
-    index_gap_dates = sorted({str(item.get("date") or "")[:10] for item in index_gap_items if isinstance(item, dict) and str(item.get("date") or "")[:10]})
     denominator_gap_dates = [str(item)[:10] for item in (gaps.get("market_denominator_dates") or []) if str(item)[:10]]
     canonical_status = str(canonical_validation.get("status") or "UNKNOWN")
     history_notes: list[str] = []
-    if index_gap_items:
-        history_notes.append(f"监控页三项指数最近窗口仍有 {len(index_gap_items)} 个字段缺口，涉及 {', '.join(index_gap_dates)}")
     if denominator_gap_dates:
         history_notes.append(f"创新药 / 四行业占全A分母仍缺 {', '.join(denominator_gap_dates)}")
     if canonical_status == "FAIL":
@@ -152,8 +143,6 @@ def _build_quality_summary(
         "frontend_checks": frontend_checks,
         "history_integrity": {
             "status": history_status,
-            "index_gap_count": len(index_gap_items),
-            "index_gap_dates": index_gap_dates,
             "market_denominator_gap_count": len(denominator_gap_dates),
             "market_denominator_gap_dates": denominator_gap_dates,
             "notes": history_notes,
@@ -220,10 +209,6 @@ def _market_history(root: Path, target_date: str) -> list[dict[str, object]]:
             row[field] = _num(raw.get(field))
         rows.append(row)
     return sorted(rows, key=lambda row: row["date"])
-
-
-def _indices_history(path: Path, target_date: str) -> list[dict[str, object]]:
-    return [row for row in read_index_history(path) if str(row["date"]) <= target_date]
 
 
 def _sw_industry(path: Path, target_date: str) -> list[dict[str, object]]:
@@ -329,18 +314,17 @@ def _sw_crowding(
         if not row_date or row_date > target_date or code not in TARGET_SW.values():
             continue
         label = next(name for name, target_code in TARGET_SW.items() if target_code == code)
-        share_raw = _num(raw.get("成交额占比"))
         turnover_raw = _num(raw.get("换手率"))
-        share = share_raw / 100 if share_raw is not None else None
         turnover = turnover_raw / 100 if turnover_raw is not None else None
         row = rows_by_date.setdefault(row_date, {"date": row_date, "targets": {}})
         # 新母表把东方财富板块成交额直接保存在同一行；旧申万行业表只作历史兼容。
         amount = _num(raw.get("成交额"))
         if amount is None:
             amount = direct_amounts.get((row_date, code))
-        if amount is None and denominator.get(row_date) is not None and share is not None:
-            amount = denominator[row_date] * share
-        if share is None and amount is not None and denominator.get(row_date) not in (None, 0):
+        # All displayed shares use the local all-A mother table as the denominator.
+        # Historical vendor shares can have a different market universe.
+        share = None
+        if amount is not None and denominator.get(row_date) not in (None, 0):
             share = amount / denominator[row_date]
         row["targets"][label] = {
             "code": code,
@@ -399,7 +383,6 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
 
     # 所有展示数据都来自同一套滚动母表；target_date 只是读取截止日，不会选择另一套母表。
     market_history = _market_history(root, target_date)
-    indices_history = _indices_history(root / "data/history/indices_history.csv", target_date)
     sw_industry = _sw_industry(root / "data/sw_industry_history.csv", target_date)
     hot_all = _hot_rows(root / "data/history/hot_stocks.csv", target_date)
     hot_latest_date = max((row["date"] for row in hot_all), default=None)
@@ -425,7 +408,6 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
     innovation_latest = _latest_date(innovation)
     module_latest_dates = {
         "market": latest_market,
-        "indices": _latest_date(indices_history),
         "sw_industry": sw_latest,
         "sw_crowding": crowd_latest,
         "sw_crowding_turnover": crowd_turnover_latest,
@@ -440,8 +422,6 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
             "module": "market",
             "detail": {"expected": target_date, "actual": latest_market},
         })
-    if gaps["indices"]:
-        unresolved.append({"module": "indices_history", "level": "WARN", "detail": gaps["indices"]})
     if gaps["market_denominator_dates"]:
         unresolved.append({"module": "market_denominator", "level": "WARN", "detail": gaps["market_denominator_dates"]})
     target_market_row = next((row for row in market_history if row["date"] == target_date), {})
@@ -525,7 +505,6 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
         latest_hot,
         expected_hot,
         hot_latest_date,
-        indices_history,
         sw_industry,
         sw_crowding,
         innovation,
@@ -543,7 +522,6 @@ def build_report_data(target_date: str, root: Path = Path(".")) -> dict[str, obj
             "canonical_validation_status": canonical_validation.get("status"),
         },
         "market_history": market_history,
-        "indices_history": indices_history,
         "sw_industry_latest": sw_industry,
         "hot_stock_matrix": matrix,
         "hot_stocks_history": hot_all,

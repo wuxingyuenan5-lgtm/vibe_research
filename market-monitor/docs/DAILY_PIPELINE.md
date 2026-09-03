@@ -24,7 +24,6 @@ Raw/Stage 保存当天接口直接结果、来源、抓取状态和失败信息�
 Canonical 是正式历史母表。当前继续使用 GitHub CSV，不引入数据库，但所有正式历史必须经过 Canonical gate。核心表至少包括：
 
 - `market_core.csv`
-- `indices_history.csv`
 - `hot_stocks.csv`
 - `innovation_drug_eastmoney.csv`
 - `sw_analysis_daily_second.csv`
@@ -52,7 +51,7 @@ Canonical Validator 为 FAIL 时，不允许生成正式 `report_data.json` 和 
 `.github/workflows/daily_market_monitor.yml` 正常日依次执行：
 
 1. 安装依赖与快速语法检查；
-2. `run_daily.py` 在同一套母表中完成市场、指数、百亿成交、申万与创新药的按日期 upsert；
+2. `run_daily.py` 在同一套母表中完成市场、百亿成交、申万与创新药的按日期 upsert；
 3. `audit_mother_tables.py` 输出母表缺口与一致性诊断；
 4. 只提交 `market-monitor/data/` 母表；
 5. 自选股由独立 `daily_stock_pool.yml` 在15:25覆盖轻量缓存，互不阻断。
@@ -63,7 +62,6 @@ Canonical Validator 为 FAIL 时，不允许生成正式 `report_data.json` 和 
 
 关键检查包括：
 
-- 上证50、中证2000、中证全指：历史涨跌幅与成交额；
 - 全A：东方财富完整分页快照计算成交额、涨跌家数和市场宽度；涨跌停读取东财官方池并保存明细；
 - 百亿成交：每天按 `date + stock_code` 写入同一张 `hot_stocks.csv` 母表；
 - 创新药：成交额、成交额占全A、供应商直接换手率；
@@ -71,7 +69,6 @@ Canonical Validator 为 FAIL 时，不允许生成正式 `report_data.json` 和 
 
 规则：
 
-- 指数历史只能使用历史 K 线补，不用当前报价倒填；
 - 大面积初始化使用每指数一次日期区间请求，零散缺口再定点补抓；
 - 创新药成交额占比只允许 `同日创新药成交额 / 同日全部A股成交额`；
 - 创新药换手率只接受供应商直接板块换手率；
@@ -81,7 +78,6 @@ Canonical Validator 为 FAIL 时，不允许生成正式 `report_data.json` 和 
 - `rebuild_eastmoney_sectors.py` 只在补历史时调用 `push2his` 整段重建，不阻塞每日生产；不使用持久化 `current` 临时截面；
 - `sw_industry_history.csv` 仍是独立的申万行业模块，不再兼任四行业图的成交额旁表；
 - GitHub Actions 在工作日上海时间 15:20 启动；收盘源未完整时每 5 分钟复查；母表校验通过才提交，失败不提交；
-- 正式环境只有 GitHub Actions 可以发布数据；本地 `daily_data_sync.py` 必须显式使用 `--diagnostic-only`，且不会 commit/push；
 - 后端直接读取根目录唯一母表，不读取发布文件、后端副本或内存回退包；
 - 新空值不得覆盖核心历史字段；改源后东方财富不提供的申万 PE/PB 等非展示字段允许显式留空；
 - 无同定义可靠来源的数据继续留空并 WARN，禁止为了 PASS 伪填。
@@ -92,7 +88,6 @@ Canonical Validator 为 FAIL 时，不允许生成正式 `report_data.json` 和 
 
 - `meta`
 - `market_history`
-- `indices_history`
 - `sw_industry_latest`
 - `hot_stocks_history`：截至报告日的全部 Canonical 百亿成交明细历史
 - `hot_stock_matrix`：最近 10 个有记录交易日的展示矩阵

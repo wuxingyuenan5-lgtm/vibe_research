@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-from market_monitor.collectors import update_limit_pool_history, upsert_innovation_direct_quote
+from market_monitor.collectors import upsert_innovation_direct_quote
 from market_monitor.pipeline import _normalize_sw_targets
 from market_monitor.production import _require_close_ready
 from market_monitor.sector_eastmoney import (
@@ -200,9 +200,10 @@ class DataPipelineContractTests(unittest.TestCase):
             pd.DataFrame(columns=["日期", "指数代码", "成交额"]).to_csv(
                 industry, index=False, encoding="utf-8-sig"
             )
-            result = _sw_crowding(analysis, industry, [], "2026-08-25")
+            market_history = [{"date": "2026-08-07", "total_amount_100m": 26642.5148127957}]
+            result = _sw_crowding(analysis, industry, market_history, "2026-08-25")
             self.assertAlmostEqual(result[0]["combined"]["amount_100m"], 8185.2872442)
-            self.assertAlmostEqual(result[0]["combined"]["amount_share_of_a"], 0.3668)
+            self.assertAlmostEqual(result[0]["combined"]["amount_share_of_a"], 0.3072265251)
 
     def test_close_quote_gate_rejects_partial_1520_value(self):
         partial = datetime(2026, 8, 25, 15, 19, tzinfo=ZoneInfo("Asia/Shanghai")).timestamp()
@@ -226,27 +227,12 @@ class DataPipelineContractTests(unittest.TestCase):
         self.assertAlmostEqual(result["amount_share_of_a"], 0.104)
         self.assertAlmostEqual(result["amount_100m"], 1_947.398302616)
 
-    def test_limit_pool_history_replaces_same_day(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "limit_pool.csv"
-            first = [{
-                "date": "2026-08-21", "direction": "limit_up", "stock_code": "000001",
-                "stock_name": "旧值", "close": 10, "return": 0.1, "amount_100m": 1,
-                "turnover": 0.02, "industry": "银行", "source": "东方财富涨跌停池直接接口",
-            }]
-            second = [{**first[0], "stock_name": "新值", "amount_100m": 2}]
-            update_limit_pool_history(path, "2026-08-21", first)
-            result = update_limit_pool_history(path, "2026-08-21", second)
-            self.assertEqual(len(result), 1)
-            self.assertEqual(result.iloc[0]["stock_name"], "新值")
-            self.assertEqual(float(result.iloc[0]["amount_100m"]), 2)
-
     def test_direct_innovation_quote_overwrites_estimate(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "innovation.csv"
             pd.DataFrame([{
                 "日期": "2026-08-21", "收盘价": 1, "成交量": None, "成交额": 1,
-                "日收益率": 0, "换手率": 0.99, "数据源": "旧估算", "20日成交量活跃度代理": None,
+                "日收益率": 0, "换手率": 0.99, "数据源": "旧估算",
             }]).to_csv(path, index=False, encoding="utf-8-sig")
             result = upsert_innovation_direct_quote(path, {
                 "date": "2026-08-21", "close": 1490.28, "volume": 67_278_094,

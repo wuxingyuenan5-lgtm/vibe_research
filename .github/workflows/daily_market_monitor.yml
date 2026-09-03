@@ -133,7 +133,6 @@ jobs:
             market-monitor/output/2026-08-14/canonical_validation.json
             market-monitor/output/2026-08-14/html_validation.json
             market-monitor/output/2026-08-14/history_preflight.json
-            market-monitor/data/history/indices_history.csv
           if-no-files-found: error
           retention-days: 14
 

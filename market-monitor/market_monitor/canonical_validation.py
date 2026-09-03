@@ -119,22 +119,6 @@ def validate_candidate(
             }:
                 failures.append(f"limit_counts_not_fixed_api:{row_date}")
 
-    target_market = next(
-        (row for row in reversed(market_rows) if str(row.get("date") or "")[:10] == target_date),
-        None,
-    )
-    limit_rows = [
-        row for row in read_csv_rows(candidate_root / CANONICAL_TABLES["limit_pool"].path)
-        if str(row.get("date") or "")[:10] == target_date
-    ]
-    if target_market is not None and str(target_market.get("limit_source") or "") == "东方财富涨跌停池直接接口":
-        direct_up = sum(1 for row in limit_rows if row.get("direction") == "limit_up")
-        direct_down = sum(1 for row in limit_rows if row.get("direction") == "limit_down")
-        if direct_up != int(_num(target_market.get("limit_up")) or 0):
-            failures.append(f"limit_up_detail_mismatch:{target_date}:{direct_up}")
-        if direct_down != int(_num(target_market.get("limit_down")) or 0):
-            failures.append(f"limit_down_detail_mismatch:{target_date}:{direct_down}")
-
     sw_rows = [
         row for row in read_csv_rows(candidate_root / CANONICAL_TABLES["sw_crowding"].path)
         if str(row.get("发布日期") or "")[:10] == target_date

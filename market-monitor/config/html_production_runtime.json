@@ -11,7 +11,6 @@
   "renderer": "render_market_monitor_html.py",
   "validator": "validate_market_monitor_html.py",
   "canonical_validator": "validate_canonical_data.py",
-  "history_preflight": "run_history_preflight.py",
   "time_slider_default": "full_history",
   "hot_matrix_default_dates": 10,
   "hot_matrix_order": "newest_left",

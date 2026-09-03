@@ -9,7 +9,6 @@ import pandas as pd
 import requests
 
 from . import pipeline
-from .collectors import fetch_indices as fetch_indices_legacy
 from .common import retry
 from .fast_market import fetch_a_share_spot_fast
 from .sector_eastmoney import BOARD_DEFINITIONS
@@ -20,8 +19,7 @@ UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Sa
 #   push2 / 91.push2 / 82.push2 / push2his（即时行情节点）→ HTTP 000 被风控拒绝；
 #   push2delay（延迟行情节点，daily_refresh 股票池快照同款）→ HTTP 200 稳定可用。
 # 延迟节点是 15 分钟延迟行情，生产在收盘后 15:20 跑 → 当日数据已定型，无延迟问题。
-# 指数与板块实时一律走 push2delay；历史 K 线（push2his）被拒时由同花顺历史 backfill 兜底。
-EM_INDEX_QUOTE_URL = "https://push2delay.eastmoney.com/api/qt/stock/get"
+# 板块实时一律走 push2delay；生产在收盘后执行，当日数据已定型。
 EM_CONCEPT_QUOTE_URL = "https://push2delay.eastmoney.com/api/qt/stock/get"
 EM_MARKET_ACTIVITY_URL = "https://push2delay.eastmoney.com/api/qt/ulist.np/get"
 EM_UT = "bd1d9ddb04089700cf9c27f6f7426281"
@@ -90,75 +88,6 @@ def _request_json(url: str, params: dict) -> dict:
         return payload
 
     return retry(call, attempts=3, delay=0.8)
-
-
-def _index_current_quote(target_date: str, definition: dict[str, str]) -> dict[str, object]:
-    payload = _request_json(
-        EM_INDEX_QUOTE_URL,
-        {
-            "secid": definition["secid"],
-            "fields": "f43,f48,f57,f58,f86,f170",
-            "fltt": "2",
-            "invt": "2",
-            "ut": EM_UT,
-        },
-    )
-    data = payload["data"]
-    close = _number(data.get("f43"))
-    amount = _number(data.get("f48"))
-    pct = _number(data.get("f170"))
-    _require_close_ready(target_date, data.get("f86"), definition["name"])
-    if close is None or amount is None or pct is None:
-        raise RuntimeError(f"current quote missing fields: {definition['name']}")
-    return {
-        "date": target_date,
-        "name": definition["name"],
-        "code": definition["secid"],
-        "close": close,
-        "return": pct / 100,
-        "amount_100m": amount / 1e8,
-        "source": "东方财富轻量指数报价 / api/qt/stock/get",
-        "status": "ok_current_quote_hard_timeout",
-    }
-
-
-def fetch_indices_resilient(target_date: str, definitions: list[dict[str, str]]):
-    primary: dict[str, dict[str, object]] = {}
-    failed: list[dict[str, str]] = []
-    with ThreadPoolExecutor(max_workers=max(1, len(definitions))) as executor:
-        future_map = {
-            executor.submit(_index_current_quote, target_date, definition): definition
-            for definition in definitions
-        }
-        for future in as_completed(future_map):
-            definition = future_map[future]
-            try:
-                primary[definition["name"]] = future.result()
-            except Exception:
-                failed.append(definition)
-
-    fallback_map: dict[str, dict[str, object]] = {}
-    if failed:
-        fallback = fetch_indices_legacy(target_date, failed)
-        fallback_map = {str(item.get("name")): item for item in fallback}
-
-    out = []
-    for definition in definitions:
-        name = definition["name"]
-        record = primary.get(name) or fallback_map.get(name)
-        if record is None:
-            record = {
-                "date": target_date,
-                "name": name,
-                "code": definition["secid"],
-                "close": None,
-                "return": None,
-                "amount_100m": None,
-                "source": "bounded index quote chain",
-                "status": "error: current quote and bounded K-line fallback unavailable",
-            }
-        out.append(record)
-    return out
 
 
 def fetch_innovation_current_reliable(target_date: str):
@@ -247,7 +176,6 @@ def run(
     root = Path(root).resolve()
     pipeline.fetch_a_share_spot = fetch_a_share_spot_fast
     pipeline.fetch_market_activity_summary = fetch_market_activity_summary
-    pipeline.fetch_indices = fetch_indices_resilient
     pipeline.fetch_four_sector_current = fetch_four_sector_current_reliable
     # 当日创新药是正式母表的一部分；抓取失败必须让生产失败，不能静默沿用旧日。
     pipeline.fetch_innovation_current_em = fetch_innovation_current_reliable

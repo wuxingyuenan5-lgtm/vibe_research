@@ -9,7 +9,6 @@ import pandas as pd
 
 from .collectors import (
     fetch_a_share_spot,
-    fetch_indices,
     fetch_innovation_current_em,
     fetch_limit_pools,
     update_innovation_history,
@@ -131,7 +130,6 @@ def _combine_sw_targets(sw_targets: dict[str, dict[str, object]]) -> dict[str, o
 def _validation(
     target_date: str,
     market: dict[str, object],
-    indices: list[dict[str, object]],
     hot: list[dict[str, object]],
     sw_targets: dict[str, dict[str, object]],
     innovation_latest: dict[str, object] | None,
@@ -148,8 +146,6 @@ def _validation(
     hot_amount = sum(float(row["amount_100m"]) for row in hot)
     add("hot_count", int(market["hot_count"]) == len(hot), "FAIL", f"{len(hot)} vs {market['hot_count']}")
     add("hot_amount", abs(hot_amount - float(market["hot_amount_100m"])) < 0.05, "FAIL", f"{hot_amount:.4f} vs {market['hot_amount_100m']}")
-    index_ok = all(item.get("close") is not None and item.get("date") == target_date for item in indices)
-    add("indices", index_ok, "WARN", "; ".join(f"{x['name']}={x.get('status')}" for x in indices))
     sw_ok = len(sw_targets) == 4 and all(
         row.get("date") == target_date
         and row.get("amount_share_of_a") is not None
@@ -175,7 +171,6 @@ def _prepare_innovation_history(
     frame: pd.DataFrame,
     market_history: pd.DataFrame,
     target_date: str,
-    output_path: Path,
 ) -> tuple[dict[str, object] | None, str | None]:
     if frame.empty:
         return None, None
@@ -185,7 +180,6 @@ def _prepare_innovation_history(
     denominator = market_history.rename(columns={"total_amount_100m": "market_amount_100m"})[["date", "market_amount_100m"]]
     export = export.merge(denominator, on="date", how="left")
     export["amount_share_of_a"] = export["amount_100m"] / export["market_amount_100m"]
-    export.to_csv(output_path, index=False, encoding="utf-8-sig", float_format="%.10f")
     latest = export[export["date"] <= target_date].sort_values("date").tail(1)
     if latest.empty:
         return None, None
@@ -196,7 +190,6 @@ def _prepare_innovation_history(
         "amount_100m": _number(row["amount_100m"]),
         "amount_share_of_a": _number(row["amount_share_of_a"]),
         "turnover": _number(row.get("换手率")),
-        "volume_activity_20d": _number(row["20日成交量活跃度代理"]),
         "return": _number(row["日收益率"]),
         "volume": _number(row["成交量"]),
         "source": source,
@@ -222,7 +215,7 @@ def run(
     snapshot_dates = sorted(set(spot.get("snapshot_date", pd.Series(dtype=str)).dropna().astype(str)))
     if snapshot_dates != [target_date]:
         raise RuntimeError(f"all-A snapshot date mismatch: expected={target_date}, actual={snapshot_dates}")
-    limit_up, limit_down, limit_pool = fetch_limit_pools(target_date)
+    limit_up, limit_down, _ = fetch_limit_pools(target_date)
     activity = fetch_market_activity_summary(target_date)
     advance = int(activity["advance"]) if activity else int((spot["return"] > 0).sum())
     decline = int(activity["decline"]) if activity else int((spot["return"] < 0).sum())
@@ -267,10 +260,6 @@ def run(
     }
     market_history = update_market_history(paths.history_dir / "market_core.csv", market)
 
-    t0 = time.perf_counter()
-    indices = fetch_indices(target_date, config["indices"])
-    timings["indices_s"] = round(time.perf_counter() - t0, 3)
-
     # 日更只读取 15:20 已定型的东方财富轻量报价并按日期追加四行。
     # 整段历史接口只由显式 backfill 命令调用，不能阻塞每天的生产。
     t0 = time.perf_counter()
@@ -308,7 +297,6 @@ def run(
         innovation_history,
         market_history,
         target_date,
-        paths.history_dir / "innovation_drug_enriched.csv",
     )
     if innovation_current is not None:
         innovation_latest = {
@@ -316,7 +304,6 @@ def run(
             "amount_100m": innovation_current.get("amount_100m"),
             "amount_share_of_a": (float(innovation_current["amount_100m"]) / total_amount) if innovation_current.get("amount_100m") is not None and total_amount else None,
             "turnover": innovation_current.get("turnover"),
-            "volume_activity_20d": innovation_latest.get("volume_activity_20d") if innovation_latest and innovation_history_latest_date == target_date else None,
             "return": innovation_current.get("return"),
             "volume": innovation_latest.get("volume") if innovation_latest and innovation_history_latest_date == target_date else None,
             "topic_code": config["innovation_drug"]["code"],
@@ -341,22 +328,18 @@ def run(
         "schema_version": "1.0",
         "date": target_date,
         "market": market,
-        "indices": {item["name"]: item for item in indices},
         "hot_stocks": hot_records,
-        "limit_pool": limit_pool,
         "sw_crowding": {"date": sw_date, "targets": sw_targets, "combined": combined},
         "innovation_drug": innovation_latest,
         "rendering": {"table_order": "descending", "chart_time_order": "ascending"},
     }
-    validation = _validation(target_date, market, indices, hot_records, sw_targets, innovation_latest, mapping_available)
+    validation = _validation(target_date, market, hot_records, sw_targets, innovation_latest, mapping_available)
     timings["total_s"] = round(time.perf_counter() - started, 3)
     manifest = {
         "date": target_date,
         "pipeline_version": "0.1.0",
         "sources": {
             "a_share_snapshot": spot_source,
-            "limit_pool": "东方财富 getTopicZTPool/getTopicDTPool 直接接口",
-            "indices": {item["name"]: item.get("source") for item in indices},
             "sw_analysis": "东方财富 BK0448/BK0735/BK0459/BK1036 轻量收盘报价",
             "innovation_drug": {"history_mode": history_mode, "current_mode": current_mode},
             "sw_mapping": "AKShare sw_index_second_info + index_component_sw",
@@ -374,9 +357,6 @@ def run(
     write_json(paths.output_dir / "validation.json", validation)
     write_json(paths.output_dir / "source_manifest.json", manifest)
     hot_frame.to_csv(paths.output_dir / "hot_stocks.csv", index=False, encoding="utf-8-sig", float_format="%.10f")
-    pd.DataFrame(limit_pool).to_csv(
-        paths.output_dir / "limit_pool.csv", index=False, encoding="utf-8-sig", float_format="%.10f"
-    )
     spot.to_csv(paths.output_dir / "all_a_snapshot.csv", index=False, encoding="utf-8-sig", float_format="%.10f")
     if validation["status"] == "FAIL":
         raise RuntimeError(f"validation failed: {validation}")

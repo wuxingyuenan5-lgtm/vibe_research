@@ -42,7 +42,6 @@ pip install -r requirements.txt
 python run_daily.py --target-date YYYY-MM-DD
 
 # 历史缺口预检
-python run_history_preflight.py --target-date YYYY-MM-DD
 
 # 只整段重建四行业母表（适合修复历史日期，不读取/写入 cache）
 python rebuild_eastmoney_sectors.py --target-date YYYY-MM-DD
