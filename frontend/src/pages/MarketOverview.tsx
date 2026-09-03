@@ -332,7 +332,19 @@ export function MarketOverview() {
     const ok = <T,>(set: (v: T) => void) => (v: T) => { if (rid === runIdRef.current) set(v); };
     const safe = (p: Promise<unknown>, fallback: unknown = null) => p.catch((e) => { console.warn("[overview] 数据源失败:", e); return fallback; });
 
-    // 首屏优先只等实时聚合，盘后监控与宏观/要闻异步补入，避免拖慢市场情绪卡。
+    // 盘后母表与实时聚合互不依赖，必须同时开始请求；百亿成交等盘后指标不能被慢实时源挡住。
+    const monitorRequest = safe(
+      fetch(`/api/market-monitor?_ts=${Date.now()}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : {})),
+      {},
+    );
+    monitorRequest.then((mon) => {
+      if (rid !== runIdRef.current) return;
+      const monitor = mon as { data?: ReportData; publication?: MarketPublication } | undefined;
+      ok(setReportData)(monitor?.data || null);
+      ok(setPublication)(monitor?.publication || null);
+    });
+
+    // 首屏优先只等实时聚合，宏观/要闻异步补入。
     const agg = await safe(fetch("/api/market/overview-v2").then((r) => (r.ok ? r.json() : null)), null);
     if (rid !== runIdRef.current) return;
 
@@ -344,14 +356,6 @@ export function MarketOverview() {
     ok(setTurnover)(d?.turnover_top ?? null);
     ok(setLoading)(false);
     loadLiveQuotes();  // 实时资产（黄金/商品/汇率/国债）随「刷新」一起更新
-
-    safe(fetch(`/api/market-monitor?_ts=${Date.now()}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : {})), {})
-      .then((mon) => {
-        if (rid !== runIdRef.current) return;
-        const monitor = mon as { data?: ReportData; publication?: MarketPublication } | undefined;
-        ok(setReportData)(monitor?.data || null);
-        ok(setPublication)(monitor?.publication || null);
-      });
 
     safe(fetch("/api/macro-brief").then((r) => (r.ok ? r.json() : null)), null)
       .then((mb) => {
