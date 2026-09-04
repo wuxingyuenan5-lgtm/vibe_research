@@ -30,7 +30,7 @@ OUT_DIR = SNAPSHOT_DIR
 STOCKS_CSV = SNAPSHOT_DIR / "stocks.csv"
 INDICES_CSV = SNAPSHOT_DIR / "indices.csv"
 LEGACY_SNAPSHOT_DIR = BASE / "data" / "market-monitor" / "stock-pool"
-CLOSE_READY_TIME = dt_time(15, 20)
+CLOSE_READY_TIME = dt_time(15, 5)
 
 INDICES_FIELDS = [
     "code", "name", "price", "change", "change_5d", "change_20d", "change_60d", "ytd",
@@ -350,6 +350,7 @@ def refresh_indices() -> tuple[int, int]:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", default=datetime.now().strftime("%Y-%m-%d"), help="报告日（默认今天）")
+    ap.add_argument("--skip-indices", action="store_true", help="只刷新个股明细缓存；行业/主题指数由独立任务维护。")
     args = ap.parse_args()
     close_time = require_current_close_window(args.date)
     seed_single_source_files()
@@ -432,9 +433,11 @@ def main() -> None:
 
     # 3.1) 自选股不维护逐日全量历史。stocks.csv 是覆盖式轻量缓存。
 
-    # 3.5) indices.csv 刷新（标准指数/ETF 刷新，申万/自定义保留旧值标 stale）
-    n_ok, n_stale = refresh_indices()
-    print(f"indices.csv 已更新：刷新 {n_ok} 个 / 保留旧值 {n_stale} 个（申万/自定义等公开接口无数据）")
+    if args.skip_indices:
+        print("行业/主题指数由独立任务维护，本次个股日更不刷新 indices.csv")
+    else:
+        n_ok, n_stale = refresh_indices()
+        print(f"indices.csv 已更新：刷新 {n_ok} 个 / 保留旧值 {n_stale} 个（申万/自定义等公开接口无数据）")
 
     # pool.json 是本地定义，stocks.csv / indices.csv 是页面当天直接读取的行情缓存。
     print("完成 ✅")

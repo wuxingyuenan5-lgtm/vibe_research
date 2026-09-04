@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 
 class StockPoolPublishedTests(unittest.TestCase):
     def test_current_snapshot_rejects_non_current_or_same_day_preclose(self):
-        partial = datetime(2026, 8, 25, 15, 19, tzinfo=ZoneInfo("Asia/Shanghai"))
+        partial = datetime(2026, 8, 25, 15, 4, tzinfo=ZoneInfo("Asia/Shanghai"))
         with self.assertRaises(RuntimeError):
             require_current_close_window("2026-08-25", partial)
         with self.assertRaises(RuntimeError):

@@ -12,7 +12,7 @@ from .common import ensure_dir
 
 
 SOURCE = "东方财富行业板块历史K线直连（整段统一口径）"
-CURRENT_SOURCE = "东方财富行业板块轻量报价（每日15:20母表直写）"
+CURRENT_SOURCE = "东方财富行业板块轻量报价（每日15:05后母表直写）"
 BOARD_DEFINITIONS = {
     "801102": ("通信设备", "BK0448"),
     "801101": ("计算机设备", "BK0735"),

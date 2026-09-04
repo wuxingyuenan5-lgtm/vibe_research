@@ -29,10 +29,9 @@ case "$pipeline" in
     ;;
   stock)
     cd "$project_dir/backend"
-    "$python_bin" -m market_monitor.daily_refresh --date "$target_date"
+    "$python_bin" -m market_monitor.daily_refresh --date "$target_date" --skip-indices
     backup_files \
-      data/stock-pool/stocks.csv \
-      data/stock-pool/indices.csv
+      data/stock-pool/stocks.csv
     ;;
   *)
     echo "unknown pipeline: $pipeline" >&2

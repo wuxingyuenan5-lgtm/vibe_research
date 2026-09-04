@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime
+from datetime import datetime, date
 from zoneinfo import ZoneInfo
 
 import requests
@@ -40,11 +40,20 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="检查目标日是否为 A 股交易日")
     parser.add_argument("--date", required=True, help="YYYY-MM-DD")
     args = parser.parse_args()
-    if is_trading_day(args.date):
-        print(f"TRADE_DAY {args.date}")
-        return 0
-    print(f"NON_TRADING_DAY {args.date}")
-    return 10
+    try:
+        if is_trading_day(args.date):
+            print(f"TRADE_DAY {args.date}")
+            return 0
+        print(f"NON_TRADING_DAY {args.date}")
+        return 10
+    except RuntimeError as exc:
+        # 日历源临时超时不应成为工作日生产的单点故障；后续每条链会校验实际数据日期。
+        weekday = date.fromisoformat(args.date).weekday()
+        if weekday < 5:
+            print(f"CALENDAR_UNAVAILABLE_CONTINUE {args.date}: {exc}")
+            return 0
+        print(f"NON_TRADING_DAY {args.date} (calendar unavailable, weekend)")
+        return 10
 
 
 if __name__ == "__main__":

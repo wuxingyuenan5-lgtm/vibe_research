@@ -30,6 +30,8 @@ Vibe-Research 是我自己在用的跨市场投研面板。**主推 A 股，兼�
 > 项目的实际定位、目标受众、技术取舍等大方向判断，详见 [VISION.md](VISION.md)；具体迭代节奏见 [ROADMAP.md](ROADMAP.md)。
 >
 > 涉及市场总览 / 市场监控 / 自选股的生产与显示规则，先看 [docs/production-rules.md](docs/production-rules.md)。
+>
+> 全栈数据平台的目标边界与非破坏迁移路径，见 [docs/target-platform-architecture.md](docs/target-platform-architecture.md)。
 
 ## 核心特性
 

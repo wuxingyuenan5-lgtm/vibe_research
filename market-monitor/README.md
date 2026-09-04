@@ -12,7 +12,7 @@ A股每日市场监控 HTML v1.1 生产链 —— Vibe-Research 项目的数据�
 ## 生产链
 
 ```text
-run_daily.py（15:20 抓取并按日期 upsert）
+run_daily.py（15:05 后校验抓取并按日期 upsert）
 → data/history/*.csv + data/sw_industry_*.csv（唯一母表）
 → GET /api/market-monitor（直接读取母表）
 → 前端展示
@@ -63,7 +63,7 @@ python validate_market_monitor_html.py --target-date <最新历史日>
 - 创新药换手率只接受供应商直接板块字段；「20日成交量活跃度代理」永久禁止进入 Canonical/report_data/HTML；
 - 通信设备、计算机设备、元件、半导体四条序列固定使用东方财富板块
   `BK0448/BK0735/BK0459/BK1036`；成交额、换手率取历史 K 线直接字段，成交额占全 A 用同日 `market_core` 计算；
-- 四行业日更在 15:20 后读取东方财富轻量板块报价，按日期向同一母表追加四行；
+- 四行业日更在 15:05 后读取东方财富轻量板块报价，校验通过才按日期向同一母表追加四行；
 - `rebuild_eastmoney_sectors.py` 只用于显式历史补数或整段口径迁移，不参与普通日更；
 - 指数历史只能用历史 K 线补，不用当前报价倒填；
 - Canonical Validator FAIL 时不允许生成 report_data.json 与 HTML。

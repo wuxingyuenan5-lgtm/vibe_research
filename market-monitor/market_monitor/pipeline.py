@@ -260,7 +260,7 @@ def run(
     }
     market_history = update_market_history(paths.history_dir / "market_core.csv", market)
 
-    # 日更只读取 15:20 已定型的东方财富轻量报价并按日期追加四行。
+    # 日更从 15:05 开始；报价门槛通过后才按日期追加四行。
     # 整段历史接口只由显式 backfill 命令调用，不能阻塞每天的生产。
     t0 = time.perf_counter()
     sector_quotes = fetch_four_sector_current(target_date)

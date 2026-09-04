@@ -57,8 +57,8 @@ jobs:
             exit 1
           fi
 
-          if [ "$target" = "$today" ] && [ "$now_hm" -lt 1520 ]; then
-            echo "Post-close snapshot is not ready: $(date --iso-8601=seconds). Retry at or after 15:20 Asia/Shanghai." >&2
+          if [ "$target" = "$today" ] && [ "$now_hm" -lt 1505 ]; then
+            echo "Post-close snapshot is not ready: $(date --iso-8601=seconds). Retry at or after 15:05 Asia/Shanghai." >&2
             exit 1
           fi
 

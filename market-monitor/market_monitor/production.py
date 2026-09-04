@@ -18,13 +18,13 @@ UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Sa
 # 东财行情节点选型（2026-08-22 实测，本机网络下）：
 #   push2 / 91.push2 / 82.push2 / push2his（即时行情节点）→ HTTP 000 被风控拒绝；
 #   push2delay（延迟行情节点，daily_refresh 股票池快照同款）→ HTTP 200 稳定可用。
-# 延迟节点是 15 分钟延迟行情，生产在收盘后 15:20 跑 → 当日数据已定型，无延迟问题。
+# 生产从收盘后 15:05 开始；报价时间戳和字段校验通过后才会写入母表。
 # 板块实时一律走 push2delay；生产在收盘后执行，当日数据已定型。
 EM_CONCEPT_QUOTE_URL = "https://push2delay.eastmoney.com/api/qt/stock/get"
 EM_MARKET_ACTIVITY_URL = "https://push2delay.eastmoney.com/api/qt/ulist.np/get"
 EM_UT = "bd1d9ddb04089700cf9c27f6f7426281"
 INNOVATION_SECID = "90.BK1106"
-CLOSE_READY_TIME = time(15, 20)
+CLOSE_READY_TIME = time(15, 5)
 
 
 def _require_close_ready(target_date: str, timestamp: object, label: str) -> datetime:

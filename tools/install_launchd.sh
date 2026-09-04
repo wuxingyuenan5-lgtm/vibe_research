@@ -7,9 +7,16 @@ set -u
 LA="$HOME/Library/LaunchAgents"
 PL1="$LA/com.viberesearch.frontend.plist"
 PL2="$LA/com.viberesearch.backend.plist"
+PL3="$LA/com.viberesearch.daily-production.plist"
+DAILY_TEMPLATE="$(cd "$(dirname "$0")/.." && pwd)/deploy/com.viberesearch.daily-production.plist"
 
 if [ ! -f "$PL1" ] || [ ! -f "$PL2" ]; then
   echo "错误：找不到 LaunchAgent 配置（$PL1 / $PL2），请先确认项目已完整部署。"
+  exit 1
+fi
+
+if [ ! -f "$DAILY_TEMPLATE" ]; then
+  echo "错误：找不到每日生产配置（$DAILY_TEMPLATE）。"
   exit 1
 fi
 
@@ -21,6 +28,12 @@ echo ">>> 注册后端服务 ..."
 launchctl unload "$PL2" 2>/dev/null
 launchctl load -w "$PL2" && echo "    backend 已注册（登录自启 + 崩溃自动重启）"
 
+echo ">>> 注册每日生产任务 ..."
+cp "$DAILY_TEMPLATE" "$PL3"
+chmod 644 "$PL3"
+launchctl unload "$PL3" 2>/dev/null
+launchctl load -w "$PL3" && echo "    每个交易日 15:05 自动生产（日志: /tmp/vibe-daily-production.log）"
+
 sleep 5
 echo ">>> 验证 ..."
 curl -s -o /dev/null -w "    frontend :5899 → %{http_code}\n" --max-time 6 http://localhost:5899/ || echo "    frontend 未就绪"
@@ -28,4 +41,4 @@ curl -s -o /dev/null -w "    backend :8900 → %{http_code}\n" --max-time 6 http
 
 echo ""
 echo "完成。以后开机/登录自动运行；日志: /tmp/vibe-frontend.log /tmp/vibe-backend.log"
-echo "如需卸载自启：launchctl unload -w $PL1 $PL2"
+echo "如需卸载自启：launchctl unload -w $PL1 $PL2 $PL3"

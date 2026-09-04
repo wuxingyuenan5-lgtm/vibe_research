@@ -11,6 +11,8 @@ from .common import retry
 
 EM_ALL_A_URL = "https://push2delay.eastmoney.com/api/qt/clist/get"
 EM_PAGE_SIZE = 100
+EM_MAX_WORKERS = 3
+EM_REQUEST_TIMEOUT = (10, 20)
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
 
 
@@ -66,7 +68,7 @@ def _fetch_eastmoney_all_a() -> pd.DataFrame:
             EM_ALL_A_URL,
             params={**base_params, "pn": str(page)},
             headers={"User-Agent": UA, "Referer": "https://quote.eastmoney.com/center/gridlist.html#hs_a_board"},
-            timeout=(4, 8),
+            timeout=EM_REQUEST_TIMEOUT,
         )
         response.raise_for_status()
         payload = response.json()
@@ -81,7 +83,9 @@ def _fetch_eastmoney_all_a() -> pd.DataFrame:
     page_count = max(1, ceil(total / EM_PAGE_SIZE))
     rows = list(first_page)
     if page_count > 1:
-        with ThreadPoolExecutor(max_workers=8) as executor:
+        # Eastmoney throttles bursty page requests; bounded concurrency keeps the
+        # same complete snapshot source reliable without changing its data scope.
+        with ThreadPoolExecutor(max_workers=EM_MAX_WORKERS) as executor:
             def request_page_with_retry(page: int) -> tuple[int, list[dict]]:
                 return retry(lambda: request_page(page), attempts=3, delay=0.8)
 

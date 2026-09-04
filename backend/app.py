@@ -1,16 +1,9 @@
 from __future__ import annotations
 
 import json
-import logging
 import os
 import re
-import subprocess
-import sys
-import threading
-import time
-from datetime import datetime, time as clock_time
-from threading import Lock
-from zoneinfo import ZoneInfo
+from datetime import datetime
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,68 +29,8 @@ from pathlib import Path
 
 app = FastAPI(title="Vibe-Research API", version="0.2.2")
 
-_MARKET_REFRESH_AFTER = clock_time(15, 20)
-_STOCK_REFRESH_AFTER = clock_time(15, 20)
-_DAILY_REFRESH_LOCK = Lock()
-_DAILY_ATTEMPTED: set[tuple[str, str]] = set()
-_LOG = logging.getLogger(__name__)
-
 # 每半小时后台刷新持仓数据
 pf.start_scheduler(1800)
-
-
-def _stock_cache_date(project_root: Path) -> str:
-    path = project_root / "data" / "stock-pool" / "stocks.csv"
-    if not path.exists():
-        return ""
-    return datetime.fromtimestamp(path.stat().st_mtime, ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d")
-
-
-def _run_local_daily_pipeline(name: str, ready_after: clock_time, current_date: str) -> None:
-    """单一盘后执行器：本地生产成功后才由脚本备份 GitHub。"""
-    project_root = Path(__file__).resolve().parent.parent
-    now = datetime.now(ZoneInfo("Asia/Shanghai"))
-    today = now.strftime("%Y-%m-%d")
-    if now.weekday() >= 5 or now.time() < ready_after or current_date >= today:
-        return
-    key = (today, name)
-    if key in _DAILY_ATTEMPTED or not _DAILY_REFRESH_LOCK.acquire(blocking=False):
-        return
-    try:
-        env = dict(os.environ)
-        for env_key in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY", "all_proxy"):
-            env.pop(env_key, None)
-        result = subprocess.run(
-            ["/bin/bash", str(project_root / "tools" / "run_local_production.sh"), name],
-            cwd=project_root,
-            env=env,
-            capture_output=True,
-            text=True,
-            timeout=900,
-        )
-        if result.returncode:
-            _LOG.warning("%s 盘后刷新失败: %s", name, result.stderr[-800:] or result.stdout[-800:])
-            return
-        _DAILY_ATTEMPTED.add(key)
-    except Exception as exc:  # noqa: BLE001
-        _LOG.warning("%s 盘后刷新异常: %s", name, exc)
-    finally:
-        _DAILY_REFRESH_LOCK.release()
-
-
-def _start_local_daily_scheduler() -> None:
-    def loop() -> None:
-        while True:
-            project_root = Path(__file__).resolve().parent.parent
-            market_date = market_monitor_builder.latest_market_date(project_root / "market-monitor") or ""
-            _run_local_daily_pipeline("market", _MARKET_REFRESH_AFTER, market_date)
-            _run_local_daily_pipeline("stock", _STOCK_REFRESH_AFTER, _stock_cache_date(project_root))
-            time.sleep(60)
-
-    threading.Thread(target=loop, name="local-daily-refresh", daemon=True).start()
-
-
-_start_local_daily_scheduler()
 
 # CORS：默认放开（本地自托管友好）；公网部署时用 VR_ALLOW_ORIGINS 收紧成白名单。
 #   例：VR_ALLOW_ORIGINS="https://myhost"  （逗号分隔多个）

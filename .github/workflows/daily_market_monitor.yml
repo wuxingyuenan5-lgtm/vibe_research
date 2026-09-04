@@ -136,7 +136,7 @@ jobs:
           if [ "${{ inputs.force_hot_snapshot }}" = "true" ]; then
             args="$args --force-hot-snapshot"
           fi
-          # 15:20 启动；接口尚未形成完整快照时，每 5 分钟重试。
+          # 手动恢复从 15:05 后开始；接口尚未形成完整快照时，每 5 分钟重试。
           # run_daily 只按日期 upsert 唯一母表。
           for attempt in 1 2 3 4 5; do
             if python run_daily.py --target-date "${{ steps.date.outputs.value }}" $args; then

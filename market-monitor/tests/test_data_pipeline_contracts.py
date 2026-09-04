@@ -176,12 +176,12 @@ class DataPipelineContractTests(unittest.TestCase):
         ].iloc[0]
         self.assertAlmostEqual(actual, 9366.85 / 9404.81 - 1)
 
-    def test_shenwan_current_snapshot_cannot_run_before_1520(self):
-        partial = datetime(2026, 8, 25, 15, 19, tzinfo=ZoneInfo("Asia/Shanghai"))
-        ready = datetime(2026, 8, 25, 15, 20, tzinfo=ZoneInfo("Asia/Shanghai"))
+    def test_shenwan_current_snapshot_cannot_run_before_1505(self):
+        partial = datetime(2026, 8, 25, 15, 4, tzinfo=ZoneInfo("Asia/Shanghai"))
+        ready = datetime(2026, 8, 25, 15, 5, tzinfo=ZoneInfo("Asia/Shanghai"))
         with self.assertRaises(RuntimeError):
             require_current_close_window("2026-08-25", partial)
-        self.assertEqual(require_current_close_window("2026-08-25", ready).minute, 20)
+        self.assertEqual(require_current_close_window("2026-08-25", ready).minute, 5)
 
     def test_four_sector_report_uses_amount_from_same_mother_table(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -205,12 +205,12 @@ class DataPipelineContractTests(unittest.TestCase):
             self.assertAlmostEqual(result[0]["combined"]["amount_100m"], 8185.2872442)
             self.assertAlmostEqual(result[0]["combined"]["amount_share_of_a"], 0.3072265251)
 
-    def test_close_quote_gate_rejects_partial_1520_value(self):
-        partial = datetime(2026, 8, 25, 15, 19, tzinfo=ZoneInfo("Asia/Shanghai")).timestamp()
-        ready = datetime(2026, 8, 25, 15, 20, tzinfo=ZoneInfo("Asia/Shanghai")).timestamp()
+    def test_close_quote_gate_rejects_partial_1505_value(self):
+        partial = datetime(2026, 8, 25, 15, 4, tzinfo=ZoneInfo("Asia/Shanghai")).timestamp()
+        ready = datetime(2026, 8, 25, 15, 5, tzinfo=ZoneInfo("Asia/Shanghai")).timestamp()
         with self.assertRaises(RuntimeError):
             _require_close_ready("2026-08-25", partial, "innovation")
-        self.assertEqual(_require_close_ready("2026-08-25", ready, "innovation").minute, 20)
+        self.assertEqual(_require_close_ready("2026-08-25", ready, "innovation").minute, 5)
 
     def test_sw_targets_use_official_percent_fields(self):
         frame = pd.DataFrame([{
