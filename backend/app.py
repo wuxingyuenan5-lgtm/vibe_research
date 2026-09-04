@@ -74,6 +74,27 @@ def health():
     return {"ok": True, "service": "vibe-research-api", "version": "0.2.2"}
 
 
+@app.get("/api/health/data-platform")
+def health_data_platform():
+    """影子数据库的连接与镜像状态；不泄露连接串。"""
+    from data_platform.config import load_database_settings
+
+    settings = load_database_settings()
+    if not settings.enabled:
+        return {"status": "disabled", "detail": "未配置 VR_DATABASE_URL"}
+    try:
+        import psycopg
+        with psycopg.connect(settings.url, connect_timeout=3) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT max(ingested_at), count(*) FROM market_daily_snapshots")
+                market_latest, market_rows = cur.fetchone()
+                cur.execute("SELECT max(ingested_at), count(*) FROM stock_pool_daily_cache")
+                stock_latest, stock_rows = cur.fetchone()
+        return {"status": "ready", "market_rows": market_rows, "stock_rows": stock_rows, "market_latest_ingested_at": market_latest.isoformat() if market_latest else None, "stock_latest_ingested_at": stock_latest.isoformat() if stock_latest else None}
+    except Exception as exc:
+        return {"status": "unavailable", "detail": str(exc)}
+
+
 @app.get("/api/health/providers")
 def health_providers():
     """数据源健康状态（tencent / eastmoney / akshare 等，含 ok / 耗时 / 是否降级）。"""
