@@ -44,3 +44,6 @@ frontend/tsconfig.tsbuildinfo
 backend/data/*
 !backend/data/market-monitor/
 **/.workbuddy/
+
+# 本机 PostgreSQL 数据目录（不提交）
+.local/
