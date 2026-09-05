@@ -53,11 +53,16 @@ if [ "$market_status" != "0" ] || [ "$stock_status" != "0" ]; then
   exit 1
 fi
 
-# 数据库仍是影子库：只有两条正式 CSV 链均成功才镜像；失败不会影响已完成的正式更新。
+# 数据库仍是影子库：只有两条正式 CSV 链均成功才镜像和对账；失败不会影响正式更新。
 if [ -n "${VR_DATABASE_URL:-}" ]; then
   echo "[$(TZ=Asia/Shanghai /bin/date '+%F %T')] shadow database import"
   if (cd "$project_dir/backend" && "$python_bin" -m data_platform.shadow_import --target-date "$target_date"); then
     echo "[$(TZ=Asia/Shanghai /bin/date '+%F %T')] shadow database import complete"
+    if (cd "$project_dir/backend" && "$python_bin" -m data_platform.shadow_reconciliation --target-date "$target_date"); then
+      echo "[$(TZ=Asia/Shanghai /bin/date '+%F %T')] shadow database reconciliation passed"
+    else
+      echo "[WARN] shadow database reconciliation failed; formal CSV production remains complete" >&2
+    fi
   else
     echo "[WARN] shadow database import failed; formal CSV production remains complete" >&2
   fi
