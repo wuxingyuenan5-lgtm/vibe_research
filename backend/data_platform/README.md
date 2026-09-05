@@ -15,7 +15,7 @@ cd backend
 python -c 'from data_platform.migrations import apply_migrations; print(apply_migrations())'
 ```
 
-迁移原则：CSV 先写成功，再镜像导入数据库；页面继续读现有正式路径，直到逐日对账连续通过后再按模块切换。
+迁移原则：CSV 先写成功，再镜像导入数据库；页面继续读现有正式路径，除非另行明确批准读库切换，否则继续按现有正式路径读取。
 
 ## 本机开发实例
 

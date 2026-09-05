@@ -1,6 +1,6 @@
 # Vibe-Research Target Platform Architecture
 
-**Status:** Design baseline. This document does not change the current CSV production contract.
+**Status:** Phase 1 delivered. CSV remains the formal production and reading contract; PostgreSQL runs as an observable shadow mirror.
 
 ## 1. Goal
 
@@ -22,8 +22,7 @@ current research platform.
 
 ## 2. Current Production Contract
 
-The current file-backed system remains the only formal producer and reader until
-it passes three consecutive trading-day acceptance checks.
+The current file-backed system remains the only formal producer and reader. The PostgreSQL mirror is operational but does not become a public reader unless a separate reader cutover is explicitly approved.
 
 | Domain | Current authority | Current producer | Current reader |
 | --- | --- | --- | --- |
@@ -115,9 +114,10 @@ silently converted from `stale` to `ready` during import.
 
 ### Phase 0: Stabilize And Observe
 
-1. Verify three consecutive trading days of current automatic production.
+1. Keep the current formal CSV producer and reader stable.
 2. Record each run's start, finish, provider result, written dates and page checks.
-3. Do not modify formal CSV readers or page contracts.
+3. Fix any production failure in the current version; do not restore retired paths.
+4. Do not modify formal CSV readers or page contracts without an explicit cutover decision.
 
 ### Phase 1: Database Foundation
 
@@ -153,9 +153,9 @@ silently converted from `stale` to `ready` during import.
 7. No execution or accounting concepts enter the research data model without a
    separate approved contract.
 
-## 8. Immediate Next Work
+## 8. Current Transition Decision
 
-1. Confirm today's 15:05 scheduled run and start the three-day acceptance window.
-2. Inventory CSV/JSON fields and map them to the Phase 1 schema.
-3. Choose PostgreSQL deployment details and create migrations only after the
-   acceptance window starts successfully.
+1. The transition build is complete: PostgreSQL, migrations, shadow import, reconciliation and health visibility are in place.
+2. CSV remains the only formal producer and page reader. PostgreSQL is a one-way mirror and never repairs or overrides CSV.
+3. Each trading-day run is normal production, not a blocking acceptance gate. A failure is repaired in this version at its owning layer.
+4. A later page-reader cutover requires a separate explicit decision; it is not automatic.
