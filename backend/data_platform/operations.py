@@ -1,4 +1,4 @@
-"""数据库影子层的运行审计与只读运维查询。"""
+"""数据库运行审计与只读运维查询。"""
 from __future__ import annotations
 
 from datetime import date
@@ -22,6 +22,8 @@ def platform_operations_summary(limit: int = 20) -> dict[str, Any]:
             market_date, market_rows = cur.fetchone()
             cur.execute("SELECT max(trade_date), count(*) FROM stock_pool_daily_cache")
             stock_date, stock_rows = cur.fetchone()
+            cur.execute("SELECT max(trade_date), count(*) FROM watchlist_index_daily_cache")
+            index_date, index_rows = cur.fetchone()
             domain_mirrors: dict[str, dict[str, Any]] = {}
             for spec in DOMAIN_SPECS:
                 cur.execute(f"SELECT max(trade_date), count(*) FROM {spec.table}")
@@ -50,6 +52,8 @@ def platform_operations_summary(limit: int = 20) -> dict[str, Any]:
             "market_rows": market_rows,
             "stock_latest_date": stock_date.isoformat() if stock_date else None,
             "stock_rows": stock_rows,
+            "index_latest_date": index_date.isoformat() if index_date else None,
+            "index_rows": index_rows,
             "domains": domain_mirrors,
         },
         "recent_events": events,

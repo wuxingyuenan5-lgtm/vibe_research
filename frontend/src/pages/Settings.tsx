@@ -232,7 +232,7 @@ export function Settings() {
           「降级」表示主源失败、已切换备用源，数据仍可用。
         </p>
         <div className="mt-3 rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs">
-          <span className="font-medium">数据平台影子库：</span>{dataPlatform.status}
+          <span className="font-medium">数据平台数据库：</span>{dataPlatform.status}
           {dataPlatform.status === "ready" && <>（市场 {dataPlatform.market_rows} 行，自选股 {dataPlatform.stock_rows} 行）</>}
           <button onClick={refreshDataPlatform} className="ml-2 text-primary hover:underline">刷新</button>
         </div>

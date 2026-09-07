@@ -30,6 +30,15 @@ launchctl load -w "$PL2" && echo "    backend 已注册（登录自启 + 崩溃�
 
 echo ">>> 注册每日生产任务 ..."
 cp "$DAILY_TEMPLATE" "$PL3"
+# 每日任务与后端使用同一数据库。连接串只从本机后端配置继承，不写入仓库模板。
+DB_URL="$(plutil -extract EnvironmentVariables.VR_DATABASE_URL raw "$PL2" 2>/dev/null || true)"
+if [ -n "$DB_URL" ]; then
+  /usr/libexec/PlistBuddy -c "Add :EnvironmentVariables dict" "$PL3" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Add :EnvironmentVariables:VR_DATABASE_URL string $DB_URL" "$PL3" 2>/dev/null \
+    || /usr/libexec/PlistBuddy -c "Set :EnvironmentVariables:VR_DATABASE_URL $DB_URL" "$PL3"
+else
+  echo "    提醒：后端未配置 VR_DATABASE_URL，每日 CSV 仍会更新，但数据库镜像关闭。"
+fi
 chmod 644 "$PL3"
 launchctl unload "$PL3" 2>/dev/null
 launchctl load -w "$PL3" && echo "    每个交易日 15:05 自动生产（日志: /tmp/vibe-daily-production.log）"

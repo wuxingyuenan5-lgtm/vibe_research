@@ -1,4 +1,4 @@
-"""CSV 正式数据与 PostgreSQL 影子库的逐日对账。"""
+"""CSV 正式数据与 PostgreSQL 页面读模型的逐日对账。"""
 from __future__ import annotations
 
 import argparse
@@ -9,7 +9,8 @@ from datetime import date
 
 from data_platform.config import load_database_settings
 from data_platform.domain_shadow import compare_domain_rows, load_domain_rows
-from data_platform.shadow_import import load_formal_rows
+from data_platform.market_read_model import build_formal_report, comparable_payload
+from data_platform.shadow_import import load_formal_rows, load_index_rows
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,10 @@ class ReconciliationResult:
     stock_actual: int
     stock_mismatches: int
     domain_mismatches: int = 0
+    market_report_match: bool = True
+    index_expected: int = 0
+    index_actual: int = 0
+    index_mismatches: int = 0
 
 
 def compare_payloads(
@@ -48,10 +53,11 @@ def compare_payloads(
 
 def reconcile(target_date: str, record: bool = True) -> ReconciliationResult:
     formal_market, formal_stocks = load_formal_rows(target_date)
+    formal_indices = load_index_rows()
     formal_domains = load_domain_rows(target_date)
     settings = load_database_settings()
     if not settings.url:
-        raise RuntimeError("未配置 VR_DATABASE_URL，不能执行影子库对账")
+        raise RuntimeError("未配置 VR_DATABASE_URL，不能执行数据库对账")
 
     import psycopg  # noqa: PLC0415
 
@@ -69,9 +75,35 @@ def reconcile(target_date: str, record: bool = True) -> ReconciliationResult:
             )
             stocks = dict(cur.fetchall())
             result = compare_payloads(formal_market, formal_stocks, market_row[0] if market_row else None, stocks, target_date)
+            cur.execute(
+                "SELECT index_code, source_name, payload FROM watchlist_index_daily_cache WHERE trade_date = %s",
+                (target_date,),
+            )
+            shadow_indices = {(row[0], row[1]): row[2] for row in cur.fetchall()}
+            expected_indices = {
+                (row.get("code") or "", row.get("source") or "eastmoney"): row
+                for row in formal_indices
+            }
+            index_mismatches = sum(shadow_indices.get(key) != row for key, row in expected_indices.items())
+            index_mismatches += len(set(shadow_indices) - set(expected_indices))
             domain_detail = compare_domain_rows(cur, target_date, formal_domains)
             domain_mismatches = sum(item["mismatches"] for item in domain_detail.values())
-            result = ReconciliationResult(**{**result.__dict__, "status": "passed" if result.status == "passed" and domain_mismatches == 0 else "warning", "domain_mismatches": domain_mismatches})
+            cur.execute(
+                "SELECT payload FROM market_report_snapshots WHERE trade_date = %s "
+                "ORDER BY generated_at DESC LIMIT 1",
+                (target_date,),
+            )
+            report_row = cur.fetchone()
+            report_match = bool(report_row) and comparable_payload(report_row[0]) == comparable_payload(build_formal_report(target_date))
+            result = ReconciliationResult(**{
+                **result.__dict__,
+                "status": "passed" if result.status == "passed" and domain_mismatches == 0 and report_match and index_mismatches == 0 else "warning",
+                "domain_mismatches": domain_mismatches,
+                "market_report_match": report_match,
+                "index_expected": len(expected_indices),
+                "index_actual": len(shadow_indices),
+                "index_mismatches": index_mismatches,
+            })
             if record:
                 cur.execute(
                     "SELECT run_id FROM ingestion_runs WHERE target_date = %s AND status = 'passed' "
@@ -94,7 +126,7 @@ def reconcile(target_date: str, record: bool = True) -> ReconciliationResult:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="CSV 正式数据与 PostgreSQL 影子库对账")
+    parser = argparse.ArgumentParser(description="CSV 正式数据与 PostgreSQL 页面读模型对账")
     parser.add_argument("--target-date", default=date.today().isoformat())
     parser.add_argument("--no-record", action="store_true", help="不写入 data_quality_checks")
     args = parser.parse_args()

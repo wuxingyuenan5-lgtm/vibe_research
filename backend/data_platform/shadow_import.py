@@ -1,4 +1,4 @@
-"""将正式 CSV 单向镜像到 PostgreSQL 影子库，不参与页面读取。"""
+"""将正式 CSV 单向导入 PostgreSQL 页面读模型。"""
 from __future__ import annotations
 
 import argparse
@@ -11,11 +11,13 @@ from pathlib import Path
 
 from data_platform.config import load_database_settings
 from data_platform.domain_shadow import load_domain_rows, upsert_domain_rows
+from data_platform.market_read_model import build_formal_report, upsert_market_report
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BACKEND_DIR.parent
 MARKET_CORE = PROJECT_ROOT / "market-monitor" / "data" / "history" / "market_core.csv"
 STOCK_CACHE = PROJECT_ROOT / "data" / "stock-pool" / "stocks.csv"
+INDEX_CACHE = PROJECT_ROOT / "data" / "stock-pool" / "indices.csv"
 
 
 @dataclass(frozen=True)
@@ -29,6 +31,13 @@ class ShadowImportSummary:
 def _read_csv(path: Path) -> list[dict[str, str]]:
     with path.open(encoding="utf-8-sig", newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def load_index_rows() -> list[dict[str, str]]:
+    rows = _read_csv(INDEX_CACHE)
+    if not rows:
+        raise ValueError("indices.csv 为空")
+    return rows
 
 
 def load_formal_rows(target_date: str) -> tuple[dict[str, str], list[dict[str, str]]]:
@@ -58,11 +67,13 @@ def build_summary(target_date: str) -> ShadowImportSummary:
 def import_to_shadow_database(target_date: str) -> ShadowImportSummary:
     """以自然键 upsert 正式 CSV 的当前日镜像，并留下完整运行审计。"""
     market, stocks = load_formal_rows(target_date)
+    indices = load_index_rows()
     domain_rows = load_domain_rows(target_date)
+    market_report = build_formal_report(target_date)
     summary = build_summary(target_date)
     settings = load_database_settings()
     if not settings.url:
-        raise RuntimeError("未配置 VR_DATABASE_URL，不能写入影子库")
+        raise RuntimeError("未配置 VR_DATABASE_URL，不能写入数据库读模型")
 
     import psycopg  # noqa: PLC0415
 
@@ -93,18 +104,34 @@ def import_to_shadow_database(target_date: str) -> ShadowImportSummary:
                     "SET ingested_at = now(), quality_status = EXCLUDED.quality_status, payload = EXCLUDED.payload",
                     (target_date, instrument_id, row.get("data_status") or "unknown", json.dumps(row, ensure_ascii=False)),
                 )
+            for row in indices:
+                cur.execute(
+                    "INSERT INTO watchlist_index_daily_cache "
+                    "(trade_date, index_code, source_name, quality_status, payload) "
+                    "VALUES (%s, %s, %s, %s, %s) "
+                    "ON CONFLICT (trade_date, index_code, source_name) DO UPDATE "
+                    "SET ingested_at = now(), quality_status = EXCLUDED.quality_status, payload = EXCLUDED.payload",
+                    (
+                        target_date,
+                        row.get("code") or "",
+                        row.get("source") or "eastmoney",
+                        row.get("data_status") or "unknown",
+                        json.dumps(row, ensure_ascii=False),
+                    ),
+                )
             domain_counts = upsert_domain_rows(cur, target_date, domain_rows)
+            upsert_market_report(cur, target_date, market_report)
             cur.execute(
                 "UPDATE ingestion_runs SET completed_at = now(), status = 'passed', source_summary = source_summary || %s "
                 "WHERE run_id = %s",
-                (json.dumps({"market_rows": summary.market_rows, "stock_rows": summary.stock_rows, "stock_ok_rows": summary.stock_ok_rows, "domain_rows": domain_counts}), run_id),
+                (json.dumps({"market_rows": summary.market_rows, "stock_rows": summary.stock_rows, "stock_ok_rows": summary.stock_ok_rows, "index_rows": len(indices), "domain_rows": domain_counts}), run_id),
             )
         conn.commit()
     return summary
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="CSV 正式数据到 PostgreSQL 影子库的单向导入")
+    parser = argparse.ArgumentParser(description="CSV 正式数据到 PostgreSQL 读模型的单向导入")
     parser.add_argument("--target-date", default=date.today().isoformat())
     parser.add_argument("--dry-run", action="store_true", help="仅做输入完整性检查，不连接数据库")
     args = parser.parse_args()

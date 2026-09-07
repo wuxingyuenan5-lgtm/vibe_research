@@ -21,7 +21,7 @@ def apply_migrations() -> list[str]:
     """应用未执行迁移；已执行迁移的校验和变化会直接拒绝启动。"""
     settings = load_database_settings()
     if not settings.url:
-        raise RuntimeError("未配置 VR_DATABASE_URL，数据库影子层尚未启用")
+        raise RuntimeError("未配置 VR_DATABASE_URL，数据库尚未启用")
 
     import psycopg  # noqa: PLC0415
 

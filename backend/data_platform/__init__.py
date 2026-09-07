@@ -1,1 +1,1 @@
-"""Vibe-Research 数据平台影子库。"""
+"""Vibe-Research PostgreSQL 数据平台与页面只读模型。"""

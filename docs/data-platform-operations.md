@@ -3,19 +3,19 @@
 ## Purpose
 
 `GET /api/operations/data-platform` is an internal, read-only operations
-contract. It makes the PostgreSQL shadow mirror observable without changing the
-formal CSV production or the page-reading path.
+contract. It makes the PostgreSQL import and read model observable while the
+formal CSV production remains independently auditable.
 
 ## Response
 
 - `mirror`: newest mirrored market and stock-pool dates plus row counts.
 - `recent_events`: recent `ingestion_runs`; each is a completed one-way CSV
-  shadow import, not a second production job.
+  database import, not a second source-data production job.
 - `quality_checks`: recent CSV-to-database reconciliation results.
 
 `status=ready` means the database is reachable. It does not replace the market
-monitor's own data-quality verdict. A non-ready shadow database never changes
-whether the CSV producer or a page is considered successful.
+monitor's own data-quality verdict. A non-ready database leaves the previous
+verified page snapshot in place and makes the daily production run fail clearly.
 
 ## Operating Rules
 
@@ -24,8 +24,12 @@ whether the CSV producer or a page is considered successful.
 3. Reconciliation compares the database mirror with CSV exactly.
 4. The operations endpoint is evidence only. It cannot refresh, repair, or
    override formal data.
-5. A public API/database reader cutover remains a separately approved decision.
+5. Market-monitor and stock-pool daily reads use PostgreSQL; other domain cutovers remain separate decisions.
 
-The shadow import covers all current market-monitor mother tables: market core,
+The database import covers all current market-monitor mother tables: market core,
 hot stocks, Shenwan industry history, industry crowding, and innovation drug,
 plus the independent stock-pool daily cache.
+
+The market-monitor API now reads the materialized `market_report_snapshots`
+payload. Set `VR_MARKET_READER=csv` only for an explicit manual rollback; the API
+does not silently fall back when the database reader is unavailable.

@@ -1,6 +1,6 @@
 # Vibe-Research Target Platform Architecture
 
-**Status:** Phase 2 delivered. CSV remains the formal production and reading contract; PostgreSQL runs as an observable shadow mirror.
+**Status:** Phase 3 in progress. CSV remains the formal production input; the market-monitor API reads its reconciled PostgreSQL read model.
 
 ## 1. Goal
 
@@ -22,13 +22,13 @@ current research platform.
 
 ## 2. Current Production Contract
 
-The current file-backed system remains the only formal producer and reader. The PostgreSQL mirror is operational but does not become a public reader unless a separate reader cutover is explicitly approved.
+The current file-backed system remains the only formal producer. PostgreSQL is the approved market-monitor read model; other domains remain on their existing readers.
 
 | Domain | Current authority | Current producer | Current reader |
 | --- | --- | --- | --- |
-| Market monitor | `market-monitor/data/` CSV mother tables | `market-monitor/run_daily.py` | `GET /api/market-monitor` |
+| Market monitor | `market-monitor/data/` CSV mother tables | `market-monitor/run_daily.py` | PostgreSQL `market_report_snapshots` via `GET /api/market-monitor` |
 | Stock-pool definition | `data/stock-pool/pool.json` | local user edits | `GET /api/stock-pool` |
-| Stock-pool daily cache | `data/stock-pool/stocks.csv`, `indices.csv` | `backend/market_monitor/daily_refresh.py` | `GET /api/stock-pool` |
+| Stock-pool daily cache | `data/stock-pool/stocks.csv`, `indices.csv` | `backend/market_monitor/daily_refresh.py` | PostgreSQL daily cache via `GET /api/stock-pool` |
 | Realtime market modules | external provider adapters | request-time fetch plus bounded cache | market API routes |
 | Personal portfolio, reports and notes | local application files | page/API mutations | dedicated API routes |
 
@@ -59,8 +59,8 @@ provider adapter contains display logic or business classification policy.
 
 ## 4. Data Authority And Initial Tables
 
-The database will first be a **shadow mirror** of current formal files. It must
-not become a second producer or change displayed data during this phase.
+The database began as a shadow mirror and now serves approved page read models.
+It remains downstream of CSV and must never become a second source-data producer.
 
 | Domain | Initial tables | Authority | Notes |
 | --- | --- | --- | --- |
@@ -155,7 +155,7 @@ silently converted from `stale` to `ready` during import.
 
 ## 8. Current Transition Decision
 
-1. The transition build is complete: PostgreSQL, migrations, shadow import, reconciliation and health visibility are in place.
-2. CSV remains the only formal producer and page reader. PostgreSQL is a one-way mirror and never repairs or overrides CSV.
+1. PostgreSQL migrations, one-way import, reconciliation, operations visibility and approved page read models are in place.
+2. CSV remains the only formal producer. PostgreSQL is the approved page read model and never repairs or overrides CSV.
 3. Each trading-day run is normal production, not a blocking acceptance gate. A failure is repaired in this version at its owning layer.
-4. A later page-reader cutover requires a separate explicit decision; it is not automatic.
+4. Market-monitor and stock-pool daily reads have completed cutover; personal workspace migration remains separate.

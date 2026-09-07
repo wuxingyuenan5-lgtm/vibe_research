@@ -76,7 +76,7 @@ def health():
 
 @app.get("/api/health/data-platform")
 def health_data_platform():
-    """影子数据库的连接与镜像状态；不泄露连接串。"""
+    """数据平台读模型的连接与最新状态；不泄露连接串。"""
     from data_platform.config import load_database_settings
 
     settings = load_database_settings()
@@ -350,9 +350,21 @@ def radar_refresh():
 
 @app.get("/api/market-monitor")
 def market_monitor():
-    """直接读取根目录唯一母表；不经过发布包、后端副本或内存回退。"""
+    """读取市场总览；数据库模式不做隐式 CSV 回退。"""
     project_root = Path(__file__).resolve().parent.parent
     try:
+        reader = os.environ.get("VR_MARKET_READER", "database").strip().lower()
+        if reader == "database":
+            from data_platform.market_read_model import read_latest_market_report
+
+            target_date, report = read_latest_market_report()
+            return {"data": report, "publication": {
+                "data_date": target_date,
+                "source": "postgresql-market-report-snapshot",
+                "using_fallback": False,
+            }}
+        if reader != "csv":
+            raise RuntimeError("VR_MARKET_READER 仅支持 database 或 csv")
         mother_root = project_root / "market-monitor"
         target_date = market_monitor_builder.latest_market_date(mother_root)
         if not target_date:
@@ -360,7 +372,7 @@ def market_monitor():
         report = market_monitor_builder.build_report_data(target_date, mother_root)
         return {"data": report, "publication": {
             "data_date": target_date,
-            "source": "canonical-mother-tables",
+            "source": "canonical-mother-tables-explicit-reader",
             "using_fallback": False,
         }}
     except Exception as exc:
@@ -369,15 +381,26 @@ def market_monitor():
 
 @app.get("/api/stock-pool")
 def stock_pool():
-    """核心股票池页面直接读取本地定义 + 本地日更快照，避免旧 bundle 把本地维护结果卡住。"""
+    """本地池定义与数据库日度行情组合；数据库模式不做隐式文件回退。"""
     try:
-        payload = stock_pool_builder.build_stock_pool_payload()
+        reader = os.environ.get("VR_STOCK_READER", "database").strip().lower()
+        if reader == "database":
+            from data_platform.stock_read_model import read_latest_stock_cache
+
+            report_date, stocks, indices = read_latest_stock_cache()
+            payload = stock_pool_builder.build_stock_pool_payload(stocks, indices, report_date)
+            source = "local-pool-definition+postgresql-daily-cache"
+        elif reader == "csv":
+            payload = stock_pool_builder.build_stock_pool_payload()
+            source = "local-files-explicit-reader"
+        else:
+            raise RuntimeError("VR_STOCK_READER 仅支持 database 或 csv")
         report_date = str((payload.get("meta") or {}).get("report_date") or "")
         generated_at = str((payload.get("meta") or {}).get("generated_at") or "")
         return {"data": payload, "publication": {
             "data_date": report_date,
             "published_at": generated_at,
-            "source": "local-files",
+            "source": source,
             "using_fallback": False,
         }}
     except Exception as e:  # noqa: BLE001

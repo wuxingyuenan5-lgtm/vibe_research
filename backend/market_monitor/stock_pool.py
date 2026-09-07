@@ -405,10 +405,14 @@ def save_focus(codes: list[str], push: bool = True) -> dict:
 
 # ---------------- payload builder ----------------
 
-def build_stock_pool_payload() -> dict[str, Any]:
+def build_stock_pool_payload(
+    stocks_raw: list[dict[str, Any]] | None = None,
+    indices_raw: list[dict[str, Any]] | None = None,
+    report_date: str | None = None,
+) -> dict[str, Any]:
     pool = load_pool()
-    stocks_raw = _read_csv(SNAPSHOT_DIR / "stocks.csv")
-    indices_raw = _read_csv(SNAPSHOT_DIR / "indices.csv")
+    stocks_raw = stocks_raw if stocks_raw is not None else _read_csv(SNAPSHOT_DIR / "stocks.csv")
+    indices_raw = indices_raw if indices_raw is not None else _read_csv(SNAPSHOT_DIR / "indices.csv")
     focus = pool.get("focus") if isinstance(pool.get("focus"), dict) else {}
     focus_codes = _clean_codes(focus.get("codes"))
     research_baskets = pool.get("research_baskets") if isinstance(pool.get("research_baskets"), list) else []
@@ -500,7 +504,7 @@ def build_stock_pool_payload() -> dict[str, Any]:
 
     return {
         "meta": {
-            "report_date": _snapshot_date(SNAPSHOT_DIR / "stocks.csv"),
+            "report_date": report_date or _snapshot_date(SNAPSHOT_DIR / "stocks.csv"),
             "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
             "version": "0.1.0",
             "percent_contract": "decimal_ratio",
