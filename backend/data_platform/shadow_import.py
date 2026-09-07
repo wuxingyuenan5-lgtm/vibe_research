@@ -10,6 +10,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 from data_platform.config import load_database_settings
+from data_platform.domain_shadow import load_domain_rows, upsert_domain_rows
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BACKEND_DIR.parent
@@ -57,6 +58,7 @@ def build_summary(target_date: str) -> ShadowImportSummary:
 def import_to_shadow_database(target_date: str) -> ShadowImportSummary:
     """以自然键 upsert 正式 CSV 的当前日镜像，并留下完整运行审计。"""
     market, stocks = load_formal_rows(target_date)
+    domain_rows = load_domain_rows(target_date)
     summary = build_summary(target_date)
     settings = load_database_settings()
     if not settings.url:
@@ -91,10 +93,11 @@ def import_to_shadow_database(target_date: str) -> ShadowImportSummary:
                     "SET ingested_at = now(), quality_status = EXCLUDED.quality_status, payload = EXCLUDED.payload",
                     (target_date, instrument_id, row.get("data_status") or "unknown", json.dumps(row, ensure_ascii=False)),
                 )
+            domain_counts = upsert_domain_rows(cur, target_date, domain_rows)
             cur.execute(
                 "UPDATE ingestion_runs SET completed_at = now(), status = 'passed', source_summary = source_summary || %s "
                 "WHERE run_id = %s",
-                (json.dumps({"market_rows": summary.market_rows, "stock_rows": summary.stock_rows, "stock_ok_rows": summary.stock_ok_rows}), run_id),
+                (json.dumps({"market_rows": summary.market_rows, "stock_rows": summary.stock_rows, "stock_ok_rows": summary.stock_ok_rows, "domain_rows": domain_counts}), run_id),
             )
         conn.commit()
     return summary

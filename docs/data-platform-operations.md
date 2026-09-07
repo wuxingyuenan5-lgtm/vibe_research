@@ -25,3 +25,7 @@ whether the CSV producer or a page is considered successful.
 4. The operations endpoint is evidence only. It cannot refresh, repair, or
    override formal data.
 5. A public API/database reader cutover remains a separately approved decision.
+
+The shadow import covers all current market-monitor mother tables: market core,
+hot stocks, Shenwan industry history, industry crowding, and innovation drug,
+plus the independent stock-pool daily cache.

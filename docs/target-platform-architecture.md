@@ -1,6 +1,6 @@
 # Vibe-Research Target Platform Architecture
 
-**Status:** Phase 1 delivered. CSV remains the formal production and reading contract; PostgreSQL runs as an observable shadow mirror.
+**Status:** Phase 2 delivered. CSV remains the formal production and reading contract; PostgreSQL runs as an observable shadow mirror.
 
 ## 1. Goal
 

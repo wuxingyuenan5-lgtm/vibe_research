@@ -5,6 +5,7 @@ from datetime import date
 from typing import Any
 
 from data_platform.config import load_database_settings
+from data_platform.domain_shadow import DOMAIN_SPECS
 
 
 def platform_operations_summary(limit: int = 20) -> dict[str, Any]:
@@ -21,6 +22,14 @@ def platform_operations_summary(limit: int = 20) -> dict[str, Any]:
             market_date, market_rows = cur.fetchone()
             cur.execute("SELECT max(trade_date), count(*) FROM stock_pool_daily_cache")
             stock_date, stock_rows = cur.fetchone()
+            domain_mirrors: dict[str, dict[str, Any]] = {}
+            for spec in DOMAIN_SPECS:
+                cur.execute(f"SELECT max(trade_date), count(*) FROM {spec.table}")
+                latest_date, row_count = cur.fetchone()
+                domain_mirrors[spec.name] = {
+                    "latest_date": latest_date.isoformat() if latest_date else None,
+                    "rows": row_count,
+                }
             cur.execute(
                 "SELECT pipeline, target_date, 'shadow_import', status, "
                 "COALESCE(completed_at, started_at), source_summary "
@@ -41,6 +50,7 @@ def platform_operations_summary(limit: int = 20) -> dict[str, Any]:
             "market_rows": market_rows,
             "stock_latest_date": stock_date.isoformat() if stock_date else None,
             "stock_rows": stock_rows,
+            "domains": domain_mirrors,
         },
         "recent_events": events,
         "quality_checks": checks,

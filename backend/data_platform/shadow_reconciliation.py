@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from data_platform.config import load_database_settings
+from data_platform.domain_shadow import compare_domain_rows, load_domain_rows
 from data_platform.shadow_import import load_formal_rows
 
 
@@ -19,6 +20,7 @@ class ReconciliationResult:
     stock_expected: int
     stock_actual: int
     stock_mismatches: int
+    domain_mismatches: int = 0
 
 
 def compare_payloads(
@@ -46,6 +48,7 @@ def compare_payloads(
 
 def reconcile(target_date: str, record: bool = True) -> ReconciliationResult:
     formal_market, formal_stocks = load_formal_rows(target_date)
+    formal_domains = load_domain_rows(target_date)
     settings = load_database_settings()
     if not settings.url:
         raise RuntimeError("未配置 VR_DATABASE_URL，不能执行影子库对账")
@@ -66,6 +69,9 @@ def reconcile(target_date: str, record: bool = True) -> ReconciliationResult:
             )
             stocks = dict(cur.fetchall())
             result = compare_payloads(formal_market, formal_stocks, market_row[0] if market_row else None, stocks, target_date)
+            domain_detail = compare_domain_rows(cur, target_date, formal_domains)
+            domain_mismatches = sum(item["mismatches"] for item in domain_detail.values())
+            result = ReconciliationResult(**{**result.__dict__, "status": "passed" if result.status == "passed" and domain_mismatches == 0 else "warning", "domain_mismatches": domain_mismatches})
             if record:
                 cur.execute(
                     "SELECT run_id FROM ingestion_runs WHERE target_date = %s AND status = 'passed' "
@@ -80,7 +86,7 @@ def reconcile(target_date: str, record: bool = True) -> ReconciliationResult:
                         uuid.uuid4(),
                         run[0] if run else None,
                         result.status,
-                        json.dumps(result.__dict__, ensure_ascii=False),
+                        json.dumps({**result.__dict__, "domains": domain_detail}, ensure_ascii=False),
                     ),
                 )
         conn.commit()
