@@ -6,6 +6,7 @@ import astock
 import chat
 import cli_runtime
 import market
+from dataservice import invalidate
 import portfolio as pf
 
 client = TestClient(app_module.app)
@@ -168,10 +169,12 @@ def test_emotion_dirty_amount(monkeypatch):
 def test_market_degrades_without_akshare(monkeypatch):
     def boom():
         raise astock.DependencyMissing("akshare 未安装")
+    invalidate("market:sectors")
 
     monkeypatch.setattr(astock, "_akshare", boom)
     # 隔离东财兜底，验证两层数据源都不可用时仍能安全降级。
     monkeypatch.setattr(market, "_sentiment_fallback", lambda: {})
+    monkeypatch.setattr(market, "_sectors_fallback", lambda: [])
     assert market._sentiment() == {}
     assert market._sectors() == []
 

@@ -95,6 +95,16 @@ def health_data_platform():
         return {"status": "unavailable", "detail": str(exc)}
 
 
+@app.get("/api/operations/data-platform")
+def data_platform_operations(limit: int = Query(default=20, ge=1, le=100)):
+    """只读运行审计：展示镜像日期、生产事件和对账结果，不参与页面数据读取。"""
+    from data_platform.operations import platform_operations_summary
+
+    try:
+        return platform_operations_summary(limit=limit)
+    except Exception as exc:
+        return {"status": "unavailable", "detail": str(exc), "recent_events": [], "quality_checks": []}
+
 @app.get("/api/health/providers")
 def health_providers():
     """数据源健康状态（tencent / eastmoney / akshare 等，含 ok / 耗时 / 是否降级）。"""
