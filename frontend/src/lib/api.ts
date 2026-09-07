@@ -48,7 +48,7 @@ export async function downloadReport(id: string, name: string): Promise<void> {
   URL.revokeObjectURL(url);
 }
 
-async function request<T>(path: string, method: "GET" | "POST" | "DELETE" = "GET", body?: unknown): Promise<T> {
+export async function apiRequest<T>(path: string, method: "GET" | "POST" | "DELETE" = "GET", body?: unknown): Promise<T> {
   let resp: Response;
   const headers: Record<string, string> = { ...authHeaders() };
   const opts: RequestInit = { method };
@@ -77,7 +77,8 @@ async function request<T>(path: string, method: "GET" | "POST" | "DELETE" = "GET
   return (payload?.data ?? payload) as T;
 }
 
-const get = <T>(path: string) => request<T>(path, "GET");
+const request = apiRequest;
+const get = <T>(path: string) => apiRequest<T>(path, "GET");
 
 export interface Quote {
   name: string; price: number; last_close: number; change_pct: number;

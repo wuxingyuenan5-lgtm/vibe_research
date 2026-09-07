@@ -81,10 +81,14 @@ export function Debate({ code: initCode = "", embed = false }: { code?: string; 
     setRunning(false);
   }
 
-  function save() {
+  async function save() {
     const body = stages.map((s) => `## ${s.label}\n\n${s.content}`).join("\n\n---\n\n");
-    addNote("多空辩论", `多空辩论 · ${code.trim()}`, body);
-    setSaved(true);
+    try {
+      await addNote("多空辩论", `多空辩论 · ${code.trim()}`, body);
+      setSaved(true);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : String(e));
+    }
   }
 
   const finished = stages.length > 0 && stages.every((s) => s.done);

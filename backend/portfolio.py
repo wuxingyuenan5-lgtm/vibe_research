@@ -40,6 +40,10 @@ def _now() -> str:
 
 
 def _load() -> dict:
+    if os.environ.get("VR_WORKSPACE_STORE", "database") == "database":
+        from data_platform.workspace_repository import load_portfolio
+
+        return load_portfolio()
     try:
         with open(PF_FILE, encoding="utf-8") as f:
             return json.load(f)
@@ -48,6 +52,11 @@ def _load() -> dict:
 
 
 def _save(d: dict) -> None:
+    if os.environ.get("VR_WORKSPACE_STORE", "database") == "database":
+        from data_platform.workspace_repository import save_portfolio
+
+        save_portfolio(d)
+        return
     # 先写临时文件再原子改名：并发读若撞上写中途的半截 JSON，会被 _load 静默当成空持仓
     os.makedirs(CACHE_DIR, exist_ok=True)
     tmp = PF_FILE + ".tmp"

@@ -68,6 +68,10 @@ def _ensure_dir() -> None:
 
 
 def _load_index() -> list[dict]:
+    if os.environ.get("VR_WORKSPACE_STORE", "database") == "database":
+        from data_platform.workspace_repository import load_reports
+
+        return load_reports()
     if not _INDEX.exists():
         return []
     try:
@@ -78,6 +82,11 @@ def _load_index() -> list[dict]:
 
 
 def _save_index(items: list[dict]) -> None:
+    if os.environ.get("VR_WORKSPACE_STORE", "database") == "database":
+        from data_platform.workspace_repository import save_reports
+
+        save_reports(items, REPORTS_DIR)
+        return
     _ensure_dir()
     tmp = _INDEX.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(items, ensure_ascii=False, indent=2), "utf-8")

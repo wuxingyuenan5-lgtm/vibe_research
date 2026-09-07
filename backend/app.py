@@ -259,6 +259,14 @@ class ReportIn(BaseModel):
     content_b64: str
 
 
+class NoteIn(BaseModel):
+    id: str | None = None
+    kind: str
+    title: str
+    content: str
+    ts: int | None = None
+
+
 @app.get("/api/myreports")
 def myreports_list():
     return {"data": mr.list_reports()}
@@ -286,6 +294,36 @@ def myreports_file(rid: str):
 @app.delete("/api/myreports/{rid}")
 def myreports_delete(rid: str):
     return {"data": {"ok": mr.delete_report(rid)}}
+
+
+@app.get("/api/notes")
+def notes_list():
+    from data_platform.workspace_repository import list_notes
+
+    return {"data": list_notes()}
+
+
+@app.post("/api/notes")
+def notes_add(note: NoteIn):
+    from data_platform.workspace_repository import add_note
+
+    if not note.title.strip() or not note.content.strip():
+        raise HTTPException(400, "标题和内容不能为空")
+    return {"data": add_note(note.kind.strip() or "研究记录", note.title.strip(), note.content, note.ts, note.id)}
+
+
+@app.delete("/api/notes/{note_id}")
+def notes_delete(note_id: str):
+    from data_platform.workspace_repository import delete_note
+
+    return {"data": {"ok": delete_note(note_id)}}
+
+
+@app.delete("/api/notes")
+def notes_clear():
+    from data_platform.workspace_repository import clear_notes
+
+    return {"data": {"deleted": clear_notes()}}
 
 
 class CloseIn(BaseModel):

@@ -1,49 +1,40 @@
-import { storageSet, storageRemove } from "@/lib/storage";
+import { apiRequest } from "@/lib/api";
 
 export interface Note {
   id: string;
-  kind: string;   // 复盘 / 今日要点 / 问AI
-  title: string;  // 如「每日复盘 2026-07-04」「AI 算力 今日要点」「问 AI · 600519」
-  content: string; // markdown 正文
-  ts: number;      // 保存时间戳(ms)
+  kind: string;
+  title: string;
+  content: string;
+  ts: number;
 }
 
-const KEY = "vr-notes";
-const MAX = 200;
+const LEGACY_KEY = "vr-notes";
 
-export function loadNotes(): Note[] {
+export async function loadNotes(): Promise<Note[]> {
+  const remote = await apiRequest<Note[]>("/notes");
+  let legacy: Note[] = [];
   try {
-    const v = JSON.parse(localStorage.getItem(KEY) || "[]");
-    return Array.isArray(v) ? v : [];
+    const parsed = JSON.parse(localStorage.getItem(LEGACY_KEY) || "[]");
+    legacy = Array.isArray(parsed) ? parsed : [];
   } catch {
-    return [];
+    legacy = [];
   }
+  if (!legacy.length) return remote;
+  for (const note of legacy) {
+    await apiRequest<Note>("/notes", "POST", note);
+  }
+  localStorage.removeItem(LEGACY_KEY);
+  return apiRequest<Note[]>("/notes");
 }
 
-function persist(notes: Note[]) {
-  storageSet(KEY, JSON.stringify(notes.slice(0, MAX)));
+export function addNote(kind: string, title: string, content: string): Promise<Note> {
+  return apiRequest<Note>("/notes", "POST", { kind, title, content });
 }
 
-// 新记录置顶。返回更新后的完整列表。
-export function addNote(kind: string, title: string, content: string): Note[] {
-  const note: Note = {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    kind,
-    title,
-    content,
-    ts: Date.now(),
-  };
-  const next = [note, ...loadNotes()];
-  persist(next);
-  return next;
+export async function deleteNote(id: string): Promise<void> {
+  await apiRequest(`/notes/${encodeURIComponent(id)}`, "DELETE");
 }
 
-export function deleteNote(id: string): Note[] {
-  const next = loadNotes().filter((n) => n.id !== id);
-  persist(next);
-  return next;
-}
-
-export function clearNotes() {
-  storageRemove(KEY);
+export async function clearNotes(): Promise<void> {
+  await apiRequest("/notes", "DELETE");
 }

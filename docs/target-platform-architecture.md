@@ -159,4 +159,4 @@ silently converted from `stale` to `ready` during import.
 2. CSV remains the only formal producer. PostgreSQL is the approved page read model and never repairs or overrides CSV.
 3. Each trading-day run is normal production, not a blocking acceptance gate. A failure is repaired in this version at its owning layer.
 4. Market-monitor and stock-pool daily reads have completed cutover; personal workspace migration remains separate.
-5. Personal workspace tables and a non-destructive importer are available; existing files remain authoritative until CRUD cutover is explicitly approved.
+5. Personal workspace CRUD cutover is complete: PostgreSQL owns portfolio, closed-position, report metadata and research-note records; report binaries remain in the local user-data directory.

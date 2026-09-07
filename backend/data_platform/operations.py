@@ -24,6 +24,13 @@ def platform_operations_summary(limit: int = 20) -> dict[str, Any]:
             stock_date, stock_rows = cur.fetchone()
             cur.execute("SELECT max(trade_date), count(*) FROM watchlist_index_daily_cache")
             index_date, index_rows = cur.fetchone()
+            cur.execute(
+                "SELECT (SELECT count(*) FROM portfolio_positions), "
+                "(SELECT count(*) FROM portfolio_closed_positions), "
+                "(SELECT count(*) FROM research_reports), "
+                "(SELECT count(*) FROM research_notes)"
+            )
+            positions, closed_positions, reports, notes = cur.fetchone()
             domain_mirrors: dict[str, dict[str, Any]] = {}
             for spec in DOMAIN_SPECS:
                 cur.execute(f"SELECT max(trade_date), count(*) FROM {spec.table}")
@@ -58,6 +65,12 @@ def platform_operations_summary(limit: int = 20) -> dict[str, Any]:
         },
         "recent_events": events,
         "quality_checks": checks,
+        "workspace": {
+            "positions": positions,
+            "closed_positions": closed_positions,
+            "reports": reports,
+            "notes": notes,
+        },
     }
 
 
