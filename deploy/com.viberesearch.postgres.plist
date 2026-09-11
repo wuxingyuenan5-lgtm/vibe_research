@@ -8,14 +8,14 @@
   <array>
     <string>/Applications/Postgres.app/Contents/Versions/latest/bin/postgres</string>
     <string>-D</string>
-    <string>/Users/zhangxu/Developer/Vibe-Research/.local/postgres</string>
+    <string>__PROJECT_DIR__/.local/postgres</string>
     <string>-h</string>
     <string>127.0.0.1</string>
     <string>-p</string>
     <string>54329</string>
   </array>
   <key>WorkingDirectory</key>
-  <string>/Users/zhangxu/Developer/Vibe-Research</string>
+  <string>__PROJECT_DIR__</string>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>

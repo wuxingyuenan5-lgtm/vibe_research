@@ -7,10 +7,10 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/zhangxu/Developer/Vibe-Research/tools/run_daily_production.sh</string>
+    <string>__PROJECT_DIR__/tools/run_daily_production.sh</string>
   </array>
   <key>WorkingDirectory</key>
-  <string>/Users/zhangxu/Developer/Vibe-Research</string>
+  <string>__PROJECT_DIR__</string>
   <key>StartCalendarInterval</key>
   <array>
     <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>15</integer><key>Minute</key><integer>5</integer></dict>

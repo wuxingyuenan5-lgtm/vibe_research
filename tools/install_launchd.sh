@@ -8,7 +8,8 @@ LA="$HOME/Library/LaunchAgents"
 PL1="$LA/com.viberesearch.frontend.plist"
 PL2="$LA/com.viberesearch.backend.plist"
 PL3="$LA/com.viberesearch.daily-production.plist"
-DAILY_TEMPLATE="$(cd "$(dirname "$0")/.." && pwd)/deploy/com.viberesearch.daily-production.plist"
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+DAILY_TEMPLATE="$PROJECT_ROOT/deploy/com.viberesearch.daily-production.plist"
 
 if [ ! -f "$PL1" ] || [ ! -f "$PL2" ]; then
   echo "错误：找不到 LaunchAgent 配置（$PL1 / $PL2），请先确认项目已完整部署。"
@@ -29,7 +30,8 @@ launchctl unload "$PL2" 2>/dev/null
 launchctl load -w "$PL2" && echo "    backend 已注册（登录自启 + 崩溃自动重启）"
 
 echo ">>> 注册每日生产任务 ..."
-cp "$DAILY_TEMPLATE" "$PL3"
+# 仓库模板使用 __PROJECT_DIR__ 占位符，安装时渲染成本机实际绝对路径（项目搬目录后不会失效）
+sed "s|__PROJECT_DIR__|$PROJECT_ROOT|g" "$DAILY_TEMPLATE" > "$PL3"
 # 每日任务与后端使用同一数据库。连接串只从本机后端配置继承，不写入仓库模板。
 DB_URL="$(plutil -extract EnvironmentVariables.VR_DATABASE_URL raw "$PL2" 2>/dev/null || true)"
 if [ -n "$DB_URL" ]; then
