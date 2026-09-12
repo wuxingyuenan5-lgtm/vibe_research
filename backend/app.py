@@ -26,8 +26,9 @@ import myreports as mr
 import reflection as reflect_layer
 import market_monitor.morning_brief as morning_brief
 from pathlib import Path
+from _version import __version__
 
-app = FastAPI(title="Vibe-Research API", version="0.2.2")
+app = FastAPI(title="Vibe-Research API", version=__version__)
 
 # 每半小时后台刷新持仓数据
 pf.start_scheduler(1800)
@@ -71,7 +72,7 @@ def _validate(code: str) -> str:
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "service": "vibe-research-api", "version": "0.2.2"}
+    return {"ok": True, "service": "vibe-research-api", "version": __version__}
 
 
 @app.get("/api/health/data-platform")
@@ -1218,3 +1219,89 @@ def industry(top: int = Query(20, ge=5, le=50)):
         return {"data": data}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"行业排名异常：{e}") from e
+
+
+class _BacktestReq(BaseModel):
+    codes: list[str]
+    start: str
+    end: str
+    style: str = "swing"          # long（长线，月/季持仓）/ swing（短线波段，默认）/ intraday（未支持，仅日线）
+    strategy: str = "ma_cross"    # buy_and_hold / ma_cross / rsi_reversion
+    params: dict | None = None    # 策略参数，如 {"fast": 20, "slow": 60}
+    initial_cash: float = 1_000_000.0
+
+
+@app.post("/api/backtest")
+def backtest(req: _BacktestReq):
+    """回测入口：闸口校验 → 取数（新浪前复权日线）→ 引擎撮合 → 指标。
+
+    闸口拒绝时返回 ok=false + reason/remedy；混市场、A股做空、样本不够、
+    认不出代码等都会在闸口被拦下，不会静默跑出一份看着正常的数字。
+    """
+    from backtest.gate import plan_backtest
+    from backtest.run import run as _bt_run
+    from backtest.strategies import BUILTIN
+
+    plan = plan_backtest(
+        codes=req.codes, start=req.start, end=req.end,
+        style=req.style, initial_cash=req.initial_cash,
+    )
+    if not plan:
+        return {"ok": False, "reason": plan.reason, "remedy": plan.remedy}
+
+    cls = BUILTIN.get(req.strategy)
+    if cls is None:
+        raise HTTPException(400, f"不认识策略 {req.strategy!r}，可选：{sorted(BUILTIN)}")
+    try:
+        strat = cls(**(req.params or {}))
+    except (TypeError, ValueError) as e:
+        raise HTTPException(400, f"策略参数错误：{e}") from e
+
+    try:
+        res = _bt_run(plan, strat)
+    except Exception as e:  # noqa: BLE001 —— 取数/撮合层异常统一转 502，别炸穿
+        raise HTTPException(502, f"回测失败：{e}") from e
+
+    return {
+        "ok": True,
+        "metrics": res.metrics,
+        "summary": res.summary(),
+        "provenance": {
+            code: {
+                "market": p.market, "endpoint": p.endpoint, "rows": p.rows,
+                "first_bar": p.first_bar, "last_bar": p.last_bar,
+                "halted_bars": p.halted_bars, "note": p.note,
+            }
+            for code, p in res.provenance.items()
+        },
+    }
+
+
+@app.get("/api/cftc-cot")
+def cftc_cot(market: str = Query("GOLD"), limit: int = Query(20, ge=1, le=100)):
+    """CFTC 持仓报告（黄金/白银等）。market 对合约市场名做子串匹配。"""
+    from macro_sources import cftc_cot as _cot
+    try:
+        return {"market": market, "rows": _cot(limit=limit, market_contains=market)}
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"CFTC 取数失败：{e}") from e
+
+
+@app.get("/api/macro-probability")
+def macro_probability(per_module: int = Query(3, ge=1, le=10)):
+    """宏观概率（Kalshi + Polymarket，6 核心模块）。"""
+    from macro_sources import macro_probability as _mp
+    try:
+        return _mp(per_module=per_module)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"宏观概率取数失败：{e}") from e
+
+
+@app.get("/api/commodity")
+def commodity():
+    """大宗期货（沪铜/锡/铝/镍/工业硅）+ DRAM/NAND 现货。"""
+    from macro_sources import commodity_futures as _cf, dram_spot as _ds
+    try:
+        return {"futures": _cf(), "dram": _ds()}
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"大宗/DRAM 取数失败：{e}") from e
