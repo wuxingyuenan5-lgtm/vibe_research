@@ -2,6 +2,7 @@
   "name": "vibe-research-frontend",
   "private": true,
   "version": "0.2.3",
+  "packageManager": "pnpm@8.15.9",
   "type": "module",
   "scripts": {
     "dev": "vite",
