@@ -148,15 +148,20 @@ def test_history_csv_path_safety(tmp_path):
     outside.write_text("date,peTTM,tradestatus\n2025-01-01,1,1\n")
     (run_dir / "fetch").mkdir()
     (run_dir / "fetch" / "x.csv").write_text("date,peTTM,tradestatus\n2025-01-01,1,1\n")
-    os.symlink(outside, run_dir / "raw" / "link.csv")
     cases = [
         {"raw_ref": "../outside.csv", "column": "peTTM"},                 # 相对越界
         {"raw_ref": str(outside), "column": "peTTM"},                      # 绝对路径越界
         {"raw_ref": "fetch/x.csv", "column": "peTTM"},                     # 运行目录内但不在 raw/
-        {"raw_ref": "raw/link.csv", "column": "peTTM"},                    # symlink 指向目录外
         {"raw_ref": "raw/pe.csv", "column": "nope"},                       # 列不存在
         {"raw_ref": "raw/missing.csv", "column": "peTTM"},                 # 文件不存在
     ]
+    try:
+        os.symlink(outside, run_dir / "raw" / "link.csv")
+        (run_dir / "raw" / "link.csv").resolve(strict=True)  # 验证 symlink 真能解析
+    except (OSError, RuntimeError):
+        pass  # Windows 无 symlink 解析能力（未开开发者模式或语义不同），跳过逃逸用例
+    else:
+        cases.insert(3, {"raw_ref": "raw/link.csv", "column": "peTTM"})   # symlink 指向目录外
     for c in cases:
         rc, out = run("percentile_rank", "--args", json.dumps({"history": {"history_csv": c}, "current": 1}), "--run-dir", str(run_dir))
         assert rc == 3 and out["output"]["details"]["kind"] == "bad_input", c

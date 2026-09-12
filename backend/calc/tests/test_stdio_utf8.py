@@ -65,23 +65,21 @@ def _body(path: pathlib.Path) -> str:
     return "\n".join(lines)
 
 
-def test_三份实现的函数体必须逐字相同():
-    """三个包互相 import 不到（skill 刻意自包含），只能各放一份 —— 那就钉死它们不许漂移。"""
+def test_两份实现的函数体必须逐字相同():
+    """两个包互相 import 不到（skill 刻意自包含），只能各放一份 —— 那就钉死它们不许漂移。"""
     paths = [
-        REPO / ".agents/skills/data-access/scripts/core/stdio_utf8.py",
         REPO / "calc/stdio_utf8.py",
         REPO / "backtest/stdio_utf8.py",
     ]
     for p in paths:
         assert p.exists(), f"{p} 不在了，这条断言会变成空查"
     bodies = {str(p.relative_to(REPO)): _body(p) for p in paths}
-    assert len(set(bodies.values())) == 1, "三份实现漂移了：\n" + "\n---\n".join(f"{k}:\n{v}" for k, v in bodies.items())
+    assert len(set(bodies.values())) == 1, "两份实现漂移了：\n" + "\n---\n".join(f"{k}:\n{v}" for k, v in bodies.items())
 
 
 def test_每个打JSON的入口都在main首行调过():
     """漏掉任何一个入口，那条路在中文 Windows 上就是坏的 —— 而且不报错。"""
     entries = [
-        REPO / ".agents/skills/data-access/scripts/fetch_endpoint.py",
         REPO / "calc/cli.py",
         REPO / "backtest/cli.py",
     ]
@@ -99,7 +97,6 @@ def test_每个打JSON的入口都在main首行调过():
         (["calc/cli.py", "peg", "--args", '{"pe":30,"cagr":0.3}'], None),
         (["-m", "backtest.cli"], '{"catalog":true}'),
         (["backtest/cli.py"], '{"catalog":true}'),
-        ([".agents/skills/data-access/scripts/fetch_endpoint.py", "--help"], None),
     ],
 )
 def test_两种跑法都要能起来_相对import会只坏一半(argv: list[str], stdin: str | None):

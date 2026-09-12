@@ -197,9 +197,16 @@ def test_cli_history_json_parse_errors_and_path_safety(tmp_path):
     (run_dir / "raw" / "sub" / "b.json").write_text(json.dumps(good))
     outside = tmp_path / "outside.json"
     outside.write_text(json.dumps(good))
-    os.symlink(outside, run_dir / "raw" / "link_out.json")
-    os.symlink(run_dir / "raw" / "a.json", run_dir / "raw" / "link_in.json")
-    os.symlink(run_dir / "raw" / "link_out.json", run_dir / "raw" / "link_nested.json")
+    symlinks_ok = True
+    try:
+        os.symlink(outside, run_dir / "raw" / "link_out.json")
+        os.symlink(run_dir / "raw" / "a.json", run_dir / "raw" / "link_in.json")
+        os.symlink(run_dir / "raw" / "link_out.json", run_dir / "raw" / "link_nested.json")
+        # Windows 上即便创建成功，Path.resolve(strict=True) 解析符号链接也可能失败；
+        # 验证真能解析，否则相关「越出/合法链接」用例在 Windows 上测不了，跳过。
+        (run_dir / "raw" / "link_out.json").resolve(strict=True)
+    except (OSError, RuntimeError):
+        symlinks_ok = False  # Windows 无 symlink 解析能力（未开开发者模式或语义不同），跳过相关用例
     (run_dir / "raw" / "dir.json").mkdir()
     (run_dir / "raw" / "jsonp_bad.js").write_text("cb({\"rows\": []}) trailing garbage")
     (run_dir / "raw" / "jsonp_ok.js").write_text("/**/jQuery123_cb(" + json.dumps(good) + ");")
@@ -211,8 +218,6 @@ def test_cli_history_json_parse_errors_and_path_safety(tmp_path):
     cases = [
         ({"raw_ref": "raw/a.json", "rows_path": "nope", "columns": cols_obj}, "rows_path"),
         ({"raw_ref": "raw/a.json", "rows_path": "rows", "columns": {"close": "close"}}, "columns"),
-        ({"raw_ref": "raw/link_out.json", "rows_path": "rows", "columns": cols_obj}, "越出"),
-        ({"raw_ref": "raw/link_nested.json", "rows_path": "rows", "columns": cols_obj}, "越出"),
         ({"raw_ref": "../outside.json", "rows_path": "rows", "columns": cols_obj}, "不得含 .."),
         ({"raw_ref": "raw/sub/../a.json", "rows_path": "rows", "columns": cols_obj}, "不得含 .."),
         ({"raw_ref": "a.json", "rows_path": "rows", "columns": cols_obj}, "raw/"),
@@ -225,11 +230,22 @@ def test_cli_history_json_parse_errors_and_path_safety(tmp_path):
         ({"raw_ref": "raw/arr.json", "rows_path": "rows", "columns": cols_arr, "where": {"x": "1"}}, "where"),
         ({"raw_ref": "raw/arr.json", "rows_path": "rows", "columns": {"date": 0, "open": 9}}, "下标"),
     ]
+    if symlinks_ok:
+        cases[2:2] = [
+            ({"raw_ref": "raw/link_out.json", "rows_path": "rows", "columns": cols_obj}, "越出"),
+            ({"raw_ref": "raw/link_nested.json", "rows_path": "rows", "columns": cols_obj}, "越出"),
+        ]
     for spec, needle in cases:
         rc, out = _cli("technical_indicators", "--args", json.dumps({"klines": {"history_json": spec}}), run_dir=run_dir)
         assert rc == 3 and out["output"]["details"]["kind"] == "bad_input" and needle in out["output"]["reason"], (spec, out["output"])
     # 合法:raw 内符号链接指向 raw 内文件、子目录文件、带 /**/ 前缀的 JSONP
-    for spec in ({"raw_ref": "raw/link_in.json", "rows_path": "rows", "columns": cols_obj}, {"raw_ref": "raw/sub/b.json", "rows_path": "rows", "columns": cols_obj}, {"raw_ref": "raw/jsonp_ok.js", "rows_path": "rows", "columns": cols_obj}):
+    valid = [
+        {"raw_ref": "raw/sub/b.json", "rows_path": "rows", "columns": cols_obj},
+        {"raw_ref": "raw/jsonp_ok.js", "rows_path": "rows", "columns": cols_obj},
+    ]
+    if symlinks_ok:
+        valid.insert(0, {"raw_ref": "raw/link_in.json", "rows_path": "rows", "columns": cols_obj})
+    for spec in valid:
         rc, out = _cli("technical_indicators", "--args", json.dumps({"klines": {"history_json": spec}}), run_dir=run_dir)
         assert rc == 0 and out["output"]["status"] == "ok", (spec, out["output"])
     rc, out = _cli("technical_indicators", "--args", json.dumps({"klines": {"history_json": {"raw_ref": "raw/a.json", "rows_path": "rows", "columns": cols_obj}}}))
