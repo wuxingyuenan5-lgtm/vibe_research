@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 import re
 import urllib.parse
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 import requests
@@ -127,49 +128,69 @@ def _kalshi_macro() -> list[dict]:
 
     ⚠️ category 参数在 /series 有效、在 /events 被服务端忽略（实测）。成交量字段是
     volume_24h_fp / open_interest_fp（带 _fp 后缀，且可能返回字符串）。
+    并发：2 个 category 的 series 并行，各 series 的 events 并行（最多 24 个请求）。
     """
-    out = []
-    for cat in ("Economics", "Financials"):
+    cats = ("Economics", "Financials")
+
+    def _fetch_series(cat: str):
         try:
             s = _get_overseas("https://api.elections.kalshi.com/trade-api/v2/series",
                               params={"category": cat, "limit": 100})
-            series = s.json().get("series") or []
+            return cat, s.json().get("series") or []
         except Exception:
-            continue
-        for ser in series[:12]:
+            return cat, []
+
+    series_by_cat: dict[str, list] = {}
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        for cat, series in ex.map(_fetch_series, cats):
+            series_by_cat[cat] = series
+
+    jobs = []
+    for cat in cats:
+        for ser in series_by_cat.get(cat, [])[:12]:
             ticker = ser.get("ticker")
-            if not ticker:
-                continue
-            try:
-                e = _get_overseas("https://api.elections.kalshi.com/trade-api/v2/events",
-                                  params={"series_ticker": ticker, "status": "open", "with_nested_markets": "true"})
-                events = e.json().get("events") or []
-            except Exception:
-                continue
-            for ev in events:
-                title = ev.get("title") or ""
-                close = ev.get("close_time") or ""
-                if close:
-                    close = close[:10]
-                # 多腿事件取最接近 50% 的那条腿
-                markets = ev.get("markets") or []
-                best, bestd = None, 9.9
-                for m in markets:
-                    p = _f(m.get("yes_ask")) or (_f(m.get("last_price")) / 100 if _f(m.get("last_price")) is not None else None)
-                    if p is None or not 0 < p < 1:
-                        continue
-                    d = abs(p - 0.5)
-                    if d < bestd:
-                        best, bestd = p, d
-                if best is None:
+            if ticker:
+                jobs.append((cat, ticker))
+
+    def _fetch_events(cat_ticker):
+        cat, ticker = cat_ticker
+        res = []
+        try:
+            e = _get_overseas("https://api.elections.kalshi.com/trade-api/v2/events",
+                              params={"series_ticker": ticker, "status": "open", "with_nested_markets": "true"})
+            events = e.json().get("events") or []
+        except Exception:
+            return res
+        for ev in events:
+            title = ev.get("title") or ""
+            close = ev.get("close_time") or ""
+            if close:
+                close = close[:10]
+            # 多腿事件取最接近 50% 的那条腿
+            markets = ev.get("markets") or []
+            best, bestd = None, 9.9
+            for m in markets:
+                p = _f(m.get("yes_ask")) or (_f(m.get("last_price")) / 100 if _f(m.get("last_price")) is not None else None)
+                if p is None or not 0 < p < 1:
                     continue
-                out.append({
-                    "source": "kalshi", "title": title, "prob": round(best, 4),
-                    "close_date": close or None,
-                    "volume_24h": _f(ev.get("volume_24h")) or _f(ev.get("volume_24h_fp")) or 0.0,
-                    "open_interest": _f(ev.get("open_interest")) or _f(ev.get("open_interest_fp")) or 0.0,
-                    "category": cat,
-                })
+                d = abs(p - 0.5)
+                if d < bestd:
+                    best, bestd = p, d
+            if best is None:
+                continue
+            res.append({
+                "source": "kalshi", "title": title, "prob": round(best, 4),
+                "close_date": close or None,
+                "volume_24h": _f(ev.get("volume_24h")) or _f(ev.get("volume_24h_fp")) or 0.0,
+                "open_interest": _f(ev.get("open_interest")) or _f(ev.get("open_interest_fp")) or 0.0,
+                "category": cat,
+            })
+        return res
+
+    out = []
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        for chunk in ex.map(_fetch_events, jobs):
+            out.extend(chunk)
     return out
 
 
@@ -177,19 +198,19 @@ def _polymarket_macro() -> list[dict]:
     """Polymarket 定向取宏观合约：翻页拿 markets，本地按标题分类。
 
     ⚠️ 排序参数是 volume24hr（无下划线），官方文档写 volume_24hr 是错的（实测 422）。
+    并发：4 页并行取，各页独立解析。
     """
-    out = []
-    seen = 0
-    for page in range(4):
+    def _fetch_page(page: int):
+        res = []
         try:
             r = _get_overseas("https://gamma-api.polymarket.com/markets",
                               params={"limit": 100, "offset": page * 100, "active": "true",
                                       "closed": "false", "order": "volume24hr", "ascending": "false"})
             rows = r.json()
         except Exception:
-            break
+            return res
         if not isinstance(rows, list) or not rows:
-            break
+            return res
         for row in rows:
             title = row.get("question") or row.get("slug") or ""
             close = row.get("endDate") or ""
@@ -203,16 +224,19 @@ def _polymarket_macro() -> list[dict]:
             p = _f(row.get("lastTradePrice")) or _f(row.get("outcomePrices"))
             if p is None or not 0 < p < 1:
                 continue
-            out.append({
+            res.append({
                 "source": "polymarket", "title": title, "prob": round(p, 4),
                 "close_date": close,
                 "volume_24h": _f(row.get("volume24hr")) or 0.0,
                 "open_interest": _f(row.get("liquidity")) or 0.0,
                 "category": None,
             })
-        seen += len(rows)
-        if seen >= 400:
-            break
+        return res
+
+    out = []
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        for chunk in ex.map(_fetch_page, range(4)):
+            out.extend(chunk)
     return out
 
 
@@ -220,9 +244,13 @@ def macro_probability(per_module: int = 3) -> dict:
     """宏观概率：Kalshi + Polymarket，6 核心模块，每模块按 max(24h量, 持仓) 取 top N。
 
     返回 {as_of, guard, modules: {模块: [合约...]}}。参考类（加密/体育/娱乐/其他）丢弃。
+    两个源并行取数，总耗时 = max(两源) 而非两源之和。
     """
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    contracts = _kalshi_macro() + _polymarket_macro()
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        f_k = ex.submit(_kalshi_macro)
+        f_p = ex.submit(_polymarket_macro)
+        contracts = f_k.result() + f_p.result()
 
     buckets: dict[str, list] = {m: [] for m in CORE_MODULES}
     for c in contracts:
@@ -277,15 +305,19 @@ _DRAM_SOURCES = [
 
 
 def commodity_futures() -> dict:
-    """大宗期货：新浪连续合约（akshare futures_zh_daily_sina），最新收盘 + 1日/1周/1月涨跌。"""
+    """大宗期货：新浪连续合约（akshare futures_zh_daily_sina），最新收盘 + 1日/1周/1月涨跌。
+
+    并发：5 个品种并行取数。
+    """
     import astock
     ak = astock._akshare()
-    result = []
-    for code, (name, unit, use) in _FUTURES.items():
+
+    def _one(item):
+        code, (name, unit, use) = item
         try:
             df = astock._ak_call(ak.futures_zh_daily_sina, symbol=code)
             if df is None or df.empty:
-                continue
+                return None
             df = df.tail(30).reset_index(drop=True)
             last = df.iloc[-1]
             close = float(last["close"])
@@ -296,14 +328,21 @@ def commodity_futures() -> dict:
                     return None
                 base = float(df.iloc[idx]["close"])
                 return round((close - base) / base * 100, 2) if base else None
-            result.append({
+            return {
                 "code": code, "name": name, "unit": unit, "use": use,
                 "close": close,
                 "date": str(last["date"]),
                 "chg_1d": pct(1), "chg_1w": pct(5), "chg_1m": pct(21),
-            })
+            }
         except Exception:
-            continue
+            return None
+
+    result = []
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        for r in ex.map(_one, _FUTURES.items()):
+            if r:
+                result.append(r)
+
     return {
         "guard": "期货价是全市场定价不是公司采购价；传导到毛利有季度级滞后并被长约与套保平滑；"
                  "单日波动是噪音，看 30 日方向；工业硅需求由光伏主导，对半导体是弱信号。",
@@ -312,24 +351,32 @@ def commodity_futures() -> dict:
 
 
 def dram_spot() -> dict:
-    """DRAM / NAND 现货均价（GitHub 社区仓转录的 DRAMeXchange，非官方一手）。"""
-    result = []
-    for src in _DRAM_SOURCES:
+    """DRAM / NAND 现货均价（GitHub 社区仓转录的 DRAMeXchange，非官方一手）。
+
+    并发：3 个源并行取数。
+    """
+    def _one(src):
         try:
             r = requests.get(src["url"], timeout=20, proxies=_PROXIES, headers={"User-Agent": UA})
             payload = r.json()
         except Exception:
-            continue
+            return None
         seq = payload.get(src["path"]) if isinstance(payload, dict) else None
         if not isinstance(seq, list) or not seq:
-            continue
+            return None
         latest = seq[-1]
-        avg = latest.get(src["avg"])
-        result.append({
+        return {
             "key": src["key"],
-            "latest_avg": _f(avg),
+            "latest_avg": _f(latest.get(src["avg"])),
             "date": latest.get("date") or latest.get("timestamp") or latest.get("day"),
-        })
+        }
+
+    result = []
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        for r in ex.map(_one, _DRAM_SOURCES):
+            if r:
+                result.append(r)
+
     return {
         "guard": "序列来自社区转录的 DRAMeXchange 存档，不是官方一手（可能有转录误差与停更）；"
                  "DRAM 现货是 HBM 的影子指标，不是 HBM 价格。",

@@ -1279,29 +1279,58 @@ def backtest(req: _BacktestReq):
 
 @app.get("/api/cftc-cot")
 def cftc_cot(market: str = Query("GOLD"), limit: int = Query(20, ge=1, le=100)):
-    """CFTC 持仓报告（黄金/白银等）。market 对合约市场名做子串匹配。"""
+    """CFTC 持仓报告（黄金/白银等）。market 对合约市场名做子串匹配。
+
+    缓存 10 分钟（COT 周更，无需实时）；空结果不缓存，下次请求重试。
+    """
     from macro_sources import cftc_cot as _cot
     try:
-        return {"market": market, "rows": _cot(limit=limit, market_contains=market)}
+        rows = _ds_get(
+            f"macro:cftc:{market}:{limit}",
+            600,
+            lambda: _cot(limit=limit, market_contains=market),
+            valid=bool,
+            provider="cftc",
+        )
+        return {"market": market, "rows": rows}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"CFTC 取数失败：{e}") from e
 
 
 @app.get("/api/macro-probability")
 def macro_probability(per_module: int = Query(3, ge=1, le=10)):
-    """宏观概率（Kalshi + Polymarket，6 核心模块）。"""
+    """宏观概率（Kalshi + Polymarket，6 核心模块）。
+
+    缓存 15 分钟（预测市场定价，非实时）；无任何模块有数据时不缓存。
+    """
     from macro_sources import macro_probability as _mp
     try:
-        return _mp(per_module=per_module)
+        return _ds_get(
+            f"macro:probability:{per_module}",
+            900,
+            lambda: _mp(per_module=per_module),
+            valid=lambda v: isinstance(v, dict) and any(v.get("modules", {}).values()),
+            provider="macro-probability",
+        )
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"宏观概率取数失败：{e}") from e
 
 
 @app.get("/api/commodity")
 def commodity():
-    """大宗期货（沪铜/锡/铝/镍/工业硅）+ DRAM/NAND 现货。"""
+    """大宗期货（沪铜/锡/铝/镍/工业硅）+ DRAM/NAND 现货。
+
+    缓存 10 分钟（期货日线收盘后不变）；期货与 DRAM 均无数据时不缓存。
+    """
     from macro_sources import commodity_futures as _cf, dram_spot as _ds
     try:
-        return {"futures": _cf(), "dram": _ds()}
+        return _ds_get(
+            "macro:commodity",
+            600,
+            lambda: {"futures": _cf(), "dram": _ds()},
+            valid=lambda v: isinstance(v, dict)
+            and bool(v.get("futures", {}).get("futures") or v.get("dram", {}).get("dram")),
+            provider="commodity",
+        )
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"大宗/DRAM 取数失败：{e}") from e
