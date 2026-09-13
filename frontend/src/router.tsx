@@ -13,6 +13,8 @@ import { StockData } from "@/pages/StockData";
 import { MyReports } from "@/pages/MyReports";
 import { Notes } from "@/pages/Notes";
 import { Settings } from "@/pages/Settings";
+import { Backtest } from "@/pages/Backtest";
+import { MacroData } from "@/pages/MacroData";
 
 export const router = createBrowserRouter([
   {
@@ -27,6 +29,8 @@ export const router = createBrowserRouter([
       { path: "/intel", element: <Intel /> },
       { path: "/sectors", element: <Sectors /> },
       { path: "/sectors/:key", element: <SectorDetail /> },
+      { path: "/backtest", element: <Backtest /> },
+      { path: "/macro-data", element: <MacroData /> },
       { path: "/portfolio", element: <Portfolio /> },
       { path: "/stock-data", element: <StockData /> },
       { path: "/debate", element: <Debate /> },

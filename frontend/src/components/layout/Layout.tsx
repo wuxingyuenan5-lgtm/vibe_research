@@ -5,6 +5,7 @@ import {
   Moon, Sun, LineChart, Cog, Cpu, Database, Cable, Rocket,
   FlaskConical, FileText, Gauge, ListChecks, LayoutDashboard,
   ChevronsLeft, ChevronsRight, ChevronDown, ChevronRight,
+  BarChart3, Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDarkMode } from "@/hooks/useDarkMode";
@@ -18,6 +19,8 @@ const NAV_GROUPS: { label: string; items: { to: string; icon: typeof Gauge; labe
       { to: "/market-overview", icon: LayoutDashboard, label: "市场总览" },
       { to: "/intel", icon: Radar, label: "资讯雷达" },
       { to: "/sectors", icon: LayoutGrid, label: "板块中心" },
+      { to: "/backtest", icon: BarChart3, label: "策略回测" },
+      { to: "/macro-data", icon: Globe, label: "宏观商品" },
     ],
   },
   {

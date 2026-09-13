@@ -269,6 +269,64 @@ export interface GlobalStock {
   quote: GlobalQuote; metrics: GlobalMetrics | null;
 }
 
+// 策略回测（POST /api/backtest）
+export interface BacktestMetrics {
+  total_return?: number;
+  annual_return?: number;
+  max_drawdown?: number;
+  sharpe?: number;
+  calmar?: number;
+  sortino?: number;
+  trade_count?: number;
+  win_rate?: number;
+  profit_loss_ratio?: number;
+  benchmark_return?: number;
+  benchmark_ticker?: string;
+}
+export interface BacktestProvenance {
+  market: string; endpoint: string; rows: number;
+  first_bar: string; last_bar: string; halted_bars: number; note?: string;
+}
+export interface BacktestResult {
+  ok: boolean;
+  reason?: string; remedy?: string;
+  metrics?: BacktestMetrics; summary?: string;
+  provenance?: Record<string, BacktestProvenance>;
+}
+
+// 宏观/商品数据源（CFTC COT / 宏观概率 / 大宗期货 + DRAM）
+export interface CftcRow {
+  contract_market_name?: string;
+  report_date?: string;
+  report_date_as_yyyy_mm_dd?: string;
+  open_interest_all?: number;
+  noncomm_positions_long_all?: number;
+  noncomm_positions_short_all?: number;
+  comm_positions_long_all?: number;
+  comm_positions_short_all?: number;
+  [key: string]: unknown;
+}
+export interface MacroContract {
+  source: string; title: string; prob: number;
+  close_date: string | null; volume_24h: number; open_interest: number; category: string | null;
+}
+export interface MacroProbability {
+  as_of: string; guard: string;
+  modules: Record<string, MacroContract[]>;
+}
+export interface FutureRow {
+  code: string; name: string; unit: string; use: string;
+  close: number; date: string;
+  chg_1d: number | null; chg_1w: number | null; chg_1m: number | null;
+}
+export interface DramRow {
+  key: string; latest_avg: number | null; date: string | null;
+}
+export interface CommodityData {
+  futures: { guard: string; futures: FutureRow[] };
+  dram: { guard: string; dram: DramRow[] };
+}
+
 export const api = {
   health: () => get<{ ok: boolean }>("/health"),
   indices: () => get<IndexQuote[]>("/indices"),
@@ -310,4 +368,11 @@ export const api = {
   uploadReport: (name: string, contentB64: string) =>
     request<MyReport>("/myreports", "POST", { name, content_b64: contentB64 }),
   deleteReport: (id: string) => request<{ ok: boolean }>(`/myreports/${id}`, "DELETE"),
+  backtest: (req: { codes: string[]; start: string; end: string; style?: string; strategy?: string; params?: Record<string, number>; initial_cash?: number }) =>
+    request<BacktestResult>("/backtest", "POST", req),
+  cftcCot: (market = "GOLD", limit = 20) =>
+    get<{ market: string; rows: CftcRow[] }>(`/cftc-cot?market=${encodeURIComponent(market)}&limit=${limit}`),
+  macroProbability: (perModule = 3) =>
+    get<MacroProbability>(`/macro-probability?per_module=${perModule}`),
+  commodity: () => get<CommodityData>("/commodity"),
 };
